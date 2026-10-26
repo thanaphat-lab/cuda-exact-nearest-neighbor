@@ -1,0 +1,81 @@
+# Development and Merge Policy
+
+Status: Approved repository governance policy\
+Milestone: S5.5-B\
+Effective date: 2026-10-27 (Asia/Bangkok)
+
+## 1. Purpose and control boundaries
+
+This policy governs normal development and integration for `thanaphat-lab/cuda-exact-nearest-neighbor`. It does not change the numerical, algorithmic, dataset, optimization, or acceptance contracts in the [final project specification](../specifications/FinalProjectSpecification-v1.0.md), and it does not resolve UD-001 through UD-005.
+
+The repository uses three distinct control layers:
+
+- **Documented policy:** the human and agent obligations in this file. These rules apply even when GitHub cannot enforce them.
+- **Automated CI checks:** the checks implemented by the [Governance workflow](../../.github/workflows/governance.yml). A passing run is required where this policy says applicable, but CI does not replace review.
+- **Server-enforced controls:** GitHub repository settings, branch protection, and rulesets. The private repository's current plan does not make branch protection or rulesets available, so `main` remains unprotected and the documented controls require human compliance.
+
+## 2. Branches and normal change flow
+
+1. Create work from the current approved `main` revision.
+2. Use `feature/<topic>` for product or implementation work, `fix/<topic>` for corrections, and `docs/<topic>` for documentation or governance work. Keep names lowercase and descriptive.
+3. Normal direct pushes to `main` are prohibited.
+4. Push the focused branch and open a pull request with `main` as the base.
+5. Keep the pull request limited to its stated scope and identify the governing requirements and decisions.
+6. Obtain explicit review from a human who accepts responsibility for the merge decision. Author checklists, automation, bot comments, or agent reviews are evidence only and are not substitutes for human approval.
+7. Require all applicable CI checks to pass on the pull request revision that will be merged.
+8. Merge only with GitHub's squash option. Merge commits and rebase merges are disabled. Automatic deletion of merged branches is disabled; branch cleanup is a separate, deliberate action.
+
+## 3. Review responsibilities
+
+The author must provide a clear purpose, exact changed-file list, risk assessment, linked requirements or decisions, and reproducible validation evidence. The author must distinguish executed checks from planned, skipped, failed, or blocked checks.
+
+The human reviewer must:
+
+- confirm that the change stays within its approved scope and does not silently alter canonical contracts;
+- review the actual diff and material generated or configuration effects;
+- verify that concerns are resolved or explicitly dispositioned;
+- check that required correctness evidence precedes any performance claim;
+- confirm that applicable CI passed for the intended head revision; and
+- make the final approve/request-changes decision personally.
+
+The merger must verify that the approved head revision and successful CI evidence still match, use squash merge, and avoid modifying or deleting unrelated refs.
+
+## 4. Correctness and performance evidence
+
+Correctness is required before performance optimization is accepted. When implementation exists, pull requests must report relevant CPU Float32, GPU Float32, and Float64-reference evidence separately and must keep argmin, distance-error, and numerical-ambiguity results distinct. Unresolved numerical decisions remain blocked rather than receiving a local default.
+
+Performance evidence is required only when a performance claim or optimization is in scope. It must follow the canonical benchmark protocol, identify the tested revision and working-tree state, record the environment and seeded workload, and preserve raw or traceable results. Single-query versus batch-query and kernel-only versus end-to-end results must remain separately identifiable. A missing benchmark is never described as a pass.
+
+## 5. Secrets, generated artifacts, and repository hygiene
+
+- Never commit credentials, tokens, private keys, local authentication files, or real secret values.
+- Do not commit generated binaries, compiler intermediates, generated datasets, or raw profiler output that belongs in ignored paths.
+- Keep full-SHA action pinning and least-privilege workflow permissions.
+- Review staged paths explicitly before every commit and run the repository hygiene and whitespace checks.
+- If sensitive material is exposed, stop normal processing, notify the repository owner, revoke or rotate the credential outside the repository, and follow an owner-approved remediation plan. Deleting a later commit does not remove a secret from history.
+
+The Governance workflow applies this whitespace comparison policy: a pull request checks every change from the merge base of its target-base commit through its head commit; a push to `main` checks the event's before-to-after range; and a manual dispatch checks the complete tracked tree at the dispatched revision against Git's empty tree. The job fails rather than skipping validation when required commits are unavailable or checkout history is shallow.
+
+## 6. Failed CI and overrides
+
+Failed, cancelled, absent, or pending required CI blocks merge. Diagnose and repair the branch through a new, reviewed change; do not bypass a check, rewrite evidence, force push, or push directly to `main` to obtain a green state.
+
+An override is exceptional and requires explicit repository-owner authorization recorded in the pull request before merge. The record must identify the failed or unavailable check, risk, compensating evidence, approver, and follow-up action. An override cannot waive the canonical project specification or resolve UD-001 through UD-005.
+
+## 7. Emergency hotfix exception
+
+The repository owner is the decision owner for an emergency hotfix exception. Direct modification of `main` is allowed only when the owner explicitly declares an emergency and authorizes the exact change because the normal pull-request path cannot address an urgent repository-impacting failure.
+
+The change record must state the emergency, scope, approver, commands or actions performed, validation evidence, and any controls bypassed. As soon as practical, the owner must require a retrospective human review and a follow-up pull request or governance record that reconciles documentation, tests, and branch state. The exception does not authorize force pushes, secret exposure, contract changes, or unrelated work.
+
+## 8. Codex authorization boundaries
+
+Codex and other agents may perform read-only inspection within the requested scope. Repository-local edits and Git mutations require explicit task-specific authorization. Pushes, pull requests, repository-setting changes, approvals, merges, branch deletion, releases, and other external mutations require explicit authorization for the exact action.
+
+Agents must stop when a required gate, authority, tool, or external dependency is unavailable; preserve unrelated work; stage only reviewed paths; and report executed evidence accurately. Authorization for creating or reviewing a pull request is not authorization to approve, merge, delete its branch, modify `main`, or expand into CPU/CUDA implementation.
+
+## 9. Manual-control limitation
+
+GitHub currently reports branch protection and repository rulesets as unavailable for this private repository under the current plan. Consequently, the prohibition on normal direct pushes to `main`, mandatory human review, and required passing CI are policy controls rather than server-enforced gates. Squash-only merge availability is server configured, but an administrator or sufficiently privileged account may still alter repository settings or write directly to an unprotected branch.
+
+Until server enforcement becomes available and is separately approved, every contributor and automation operator must follow this policy, and the human merger must re-check the pull request revision, CI conclusion, merge method, repository visibility, and merge settings immediately before merge.
