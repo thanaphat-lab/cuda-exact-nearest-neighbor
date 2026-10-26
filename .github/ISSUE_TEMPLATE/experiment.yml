@@ -1,0 +1,54 @@
+name: Experiment
+description: Predeclare and track a correctness, benchmark, or profiling experiment.
+title: "[Experiment]: "
+labels: []
+body:
+  - type: textarea
+    id: hypothesis
+    attributes:
+      label: Hypothesis and interpretation
+      description: State the hypothesis and the predeclared criteria for supported, rejected, or inconclusive without inventing a performance target.
+    validations:
+      required: true
+  - type: textarea
+    id: variant
+    attributes:
+      label: Variant and workload
+      description: Identify CPU Float32, V0-V3, optional V4, and single-query primary or batch-query secondary scope.
+    validations:
+      required: true
+  - type: textarea
+    id: baseline
+    attributes:
+      label: Baseline and comparison
+      description: Identify the compatible baseline, controlled variables, and correctness prerequisite.
+    validations:
+      required: true
+  - type: textarea
+    id: dataset
+    attributes:
+      label: Dataset
+      description: Record or plan N, D, batch size if applicable, seed, generator/configuration, and Float32-finiteness evidence.
+    validations:
+      required: true
+  - type: textarea
+    id: hardware
+    attributes:
+      label: Hardware and software environment
+      description: Record actual GPU, driver, CUDA Toolkit, compiler, OS/environment, revision, tree state, and build configuration before execution.
+    validations:
+      required: true
+  - type: textarea
+    id: timing
+    attributes:
+      label: Timing methodology
+      description: Separate kernel-only and end-to-end boundaries and specify warm-ups, repetitions, statistics, transfers, preprocessing, allocation, and reuse treatment.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Commands and evidence locations
+      description: Preserve exact executed commands, raw or traceable output, correctness evidence, environment manifest, and result locations.
+    validations:
+      required: true

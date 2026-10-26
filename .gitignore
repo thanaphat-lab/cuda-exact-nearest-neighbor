@@ -1,0 +1,116 @@
+# CMake and compiler build outputs
+/build/
+/build-*/
+/cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+CTestTestfile.cmake
+*.ninja
+.ninja_*
+compile_commands.json
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.so.*
+*.dylib
+*.dll
+*.exe
+*.pdb
+*.ilk
+
+# CUDA-generated binaries and intermediate files
+*.cubin
+*.fatbin
+*.ptx
+*.sass
+
+# IDE-specific local workspace state
+/.vs/
+/.vscode/
+/.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Local workflow state
+/.workflow/
+/.codex/
+
+# Generated datasets and bulky raw profiler output
+/data/generated/
+/datasets/generated/
+/artifacts/datasets/
+/artifacts/profiles/
+/profiles/raw/
+*.nsys-rep
+*.ncu-rep
+*.nvvp
+
+# Caches and temporary files
+node_modules/
+__pycache__/
+*.py[cod]
+/.cache/
+/.pytest_cache/
+/.mypy_cache/
+/.ruff_cache/
+/.tmp/
+/tmp/
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+*.bak
+*.backup
+*.orig
+*.rej
+
+# Credentials, tokens, and local environment secrets
+.env
+.env.*
+!.env.example
+!.env.template
+
+# Local cloud, package-manager, and authentication state
+**/.aws/
+**/.azure/
+**/.config/gcloud/
+**/.config/gh/hosts.yml
+**/.docker/config.json
+**/.kube/config
+**/.git-credentials
+/.gitconfig
+**/.gitconfig.local
+**/.netrc
+**/_netrc
+**/.npmrc
+**/.pypirc
+**/.authinfo
+**/.authinfo.gpg
+**/.ssh/
+**/.secrets/
+
+# Private keys, bundled credentials, and narrowly named service-account files
+*.pem
+*.p12
+*.pfx
+*.key
+*.pkcs12
+*.jks
+*.keystore
+**/service-account*.json
+**/*-service-account*.json
+**/service_account*.json
+**/*_service_account*.json
+**/client_secret_*.json
+**/application_default_credentials.json
+
+# Operating-system metadata
+.DS_Store
+Thumbs.db
+Desktop.ini

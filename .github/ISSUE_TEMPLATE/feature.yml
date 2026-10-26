@@ -1,0 +1,51 @@
+name: Feature request
+description: Propose a scoped capability with requirements, dependencies, and acceptance gates.
+title: "[Feature]: "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Describe the requested outcome without selecting an unresolved numerical,
+        optimization, or acceptance policy.
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objective
+      description: What observable outcome should this feature provide?
+    validations:
+      required: true
+  - type: textarea
+    id: requirements
+    attributes:
+      label: Accepted requirements
+      description: Cite applicable specification requirement IDs and approved decisions.
+      placeholder: REQ-... / DR-...
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope boundaries
+      description: Identify included and excluded workloads, variants, files, and milestones.
+    validations:
+      required: true
+  - type: textarea
+    id: design
+    attributes:
+      label: Design dependencies
+      description: List required design approvals and any UD-001 through UD-005 dependency.
+    validations:
+      required: true
+  - type: textarea
+    id: gates
+    attributes:
+      label: Acceptance gates and evidence
+      description: List applicable AC identifiers and the executable evidence needed for each.
+    validations:
+      required: true
+  - type: textarea
+    id: risks
+    attributes:
+      label: Risks and open questions
+      description: Identify contract, correctness, reproducibility, hardware, or rollout risks.

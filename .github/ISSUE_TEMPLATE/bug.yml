@@ -1,0 +1,55 @@
+name: Bug report
+description: Report reproducible behavior that differs from an approved contract or expectation.
+title: "[Bug]: "
+labels: []
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: State the observed problem and affected workload or variant.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      description: Include exact commands, inputs, seed, configuration, and revision/tree state.
+      placeholder: |-
+        1. ...
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed behavior
+      description: Include raw or traceable output and separate numerical observations when relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: Cite the specification requirement or acceptance gate supporting the expectation.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Record OS, compiler, build configuration, CUDA Toolkit, driver, and GPU as applicable; use unknown when not captured.
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification status
+      description: List each executed, failed, blocked, skipped, or planned check and its evidence.
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact and scope
+      description: Identify affected variants, workloads, gates, and known workarounds.

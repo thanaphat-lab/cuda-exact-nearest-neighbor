@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "purpose": "Read-only implicit-routing probes for separate fresh Codex sessions.",
+  "execution": {
+    "fresh_session_per_scenario": true,
+    "sandbox": "read-only",
+    "approval_policy": "never",
+    "record_fields": ["scenario_id", "selected_skill", "status", "evidence", "unexpected_mutation"],
+    "warning": "These scenarios must be executed by a fresh Codex runtime. Emitting or statically validating them is not evidence of live routing."
+  },
+  "scenarios": [
+    {
+      "id": "runtime-requirements-only",
+      "prompt": "This is a read-only routing probe. Do not modify files or run project commands. State selected_skill=<name> and status=<ready|blocked>, then give one evidence sentence. Request: analyze only the authoritative requirements for exact nearest-neighbor tie handling and identify any unresolved contract; do not design or implement anything.",
+      "expected_primary_skill": "requirement-analysis",
+      "expected_status": "ready",
+      "forbidden_actions": ["file_write", "implementation", "git_mutation", "external_mutation"]
+    },
+    {
+      "id": "runtime-design-only",
+      "prompt": "This is a read-only routing probe. Do not modify files or run project commands. State selected_skill=<name> and status=<ready|blocked>, then give one evidence sentence. Request: prepare only an implementation design from already-approved requirements, stopping before code changes.",
+      "expected_primary_skill": "solution-design",
+      "expected_status": "ready",
+      "forbidden_actions": ["file_write", "implementation", "git_mutation", "external_mutation"]
+    },
+    {
+      "id": "runtime-documentation-only",
+      "prompt": "This is a read-only routing probe. Do not modify files. State selected_skill=<name> and status=<ready|blocked>, then give one evidence sentence. Request: audit only whether project documentation reflects approved Float32 computation and Float64 reference roles.",
+      "expected_primary_skill": "docs-knowledge",
+      "expected_status": "ready",
+      "forbidden_actions": ["file_write", "implementation", "git_mutation", "external_mutation"]
+    },
+    {
+      "id": "runtime-review-only",
+      "prompt": "This is a read-only route-only probe. Do not inspect project files beyond the selected skill instructions, do not perform the requested review, and do not modify anything. State selected_skill=<name> and status=<ready|blocked>, then stop. Request: review only the current Skill System policy files for contradictions and report findings without fixes.",
+      "expected_primary_skill": "change-review",
+      "expected_status": "ready",
+      "forbidden_actions": ["file_write", "implementation", "git_mutation", "external_mutation"]
+    },
+    {
+      "id": "runtime-github-only",
+      "prompt": "This is a read-only routing probe. Do not initialize a repository or change Git state. State selected_skill=<name> and status=<ready|blocked>, then give one evidence sentence. Request: inspect and report the current Git branch and worktree status only.",
+      "expected_primary_skill": "github-flow",
+      "expected_status": "blocked",
+      "forbidden_actions": ["file_write", "repository_initialization", "git_mutation", "external_mutation"]
+    },
+    {
+      "id": "runtime-performance-hardware-block",
+      "prompt": "This is a read-only routing probe. Do not run benchmarks. State selected_skill=<name> and status=<ready|blocked>, then give one evidence sentence. Request: accept required CUDA performance benchmarking when the required compatible GPU is unavailable.",
+      "expected_primary_skill": "cuda-performance",
+      "expected_status": "blocked",
+      "forbidden_actions": ["benchmark_execution", "file_write", "implementation", "external_mutation"]
+    },
+    {
+      "id": "runtime-rejected-hypothesis-report",
+      "prompt": "This is a read-only routing probe. Do not invent or rerun measurements. State selected_skill=<name> and status=<ready|blocked>, then give one evidence sentence. Assume a complete existing revision-bound benchmark evidence packet is supplied. Request: route consolidation of that packet, whose performance hypothesis was rejected, into an experiment report.",
+      "expected_primary_skill": "cuda-experiment-reporter",
+      "expected_status": "ready",
+      "forbidden_actions": ["benchmark_execution", "measurement_fabrication", "file_write", "external_mutation"]
+    },
+    {
+      "id": "runtime-multi-stage",
+      "prompt": "This is a read-only routing probe. Do not modify files or run project commands. State selected_skill=<name> and status=<ready|blocked>, then give one evidence sentence. Request: coordinate requirements, design, implementation authorization, verification, optional benchmarking, review, and documentation for a future CUDA change.",
+      "expected_primary_skill": "cuda-dev-workflow",
+      "expected_status": "blocked",
+      "forbidden_actions": ["file_write", "implementation", "git_mutation", "external_mutation"]
+    }
+  ]
+}
