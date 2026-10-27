@@ -1,8 +1,8 @@
 # Source of Truth
 
 Status: Canonical governance record\
-Milestone: S4.2\
-Effective date: 2026-10-26 (Asia/Bangkok)
+Milestone: S5.5-B\
+Effective date: 2026-10-27 (Asia/Bangkok)
 
 ## 1. Canonical sources
 
@@ -10,6 +10,7 @@ Effective date: 2026-10-26 (Asia/Bangkok)
 |---|---|---|
 | 1 | [FinalProjectSpecification-v1.0.md](../specifications/FinalProjectSpecification-v1.0.md) | Approved project behavior, numerical contracts, optimization scope, datasets, and acceptance policy. It incorporates Technical Contract Addendum V1.0-A. |
 | 2 | [DecisionRegister.md](DecisionRegister.md) | Status and history of approved and unresolved decisions. It records but does not override the specification. |
+| Operational | [DevelopmentAndMergePolicy.md](DevelopmentAndMergePolicy.md) | Approved branch, pull-request, human-review, CI, merge, and emergency process. It governs repository operation but cannot amend project semantics. |
 | 3 | [AcceptanceCriteria.md](../requirements/AcceptanceCriteria.md) | Observable gates derived from the approved specification. |
 | 4 | [RequirementsTraceability.md](../requirements/RequirementsTraceability.md) | Mapping among requirements, gates, plans, and evidence destinations. |
 | 5 | [Architecture.md](../design/Architecture.md), [CorrectnessPlan.md](../verification/CorrectnessPlan.md), [BenchmarkProtocol.md](../performance/BenchmarkProtocol.md), and [ExperimentTemplate.md](../experiments/ExperimentTemplate.md) | Derived design and execution plans. These may specialize process details but cannot establish or weaken project requirements. |
@@ -43,3 +44,4 @@ Every normative or planning statement in this documentation set belongs to one o
 - Architecture and plan refinements may be made as derived documentation changes only when they do not choose a reserved unresolved policy.
 - Experiment results never rewrite requirements. They may support, reject, or leave a hypothesis inconclusive.
 - All experiment evidence must identify a code revision and working-tree state. Until Git exists, revision-bound experiments are blocked.
+- Repository workflow policy and GitHub settings may strengthen how changes are reviewed and integrated, but they cannot establish or weaken a numerical, optimization, dataset, or acceptance contract.

@@ -1,50 +1,69 @@
-## Purpose
+## Scope and purpose
 
-<!-- Explain the problem and the intended outcome. -->
-
-## Linked issue
-
-<!-- Link the issue or state why no issue applies. -->
-
-## Scope
+<!-- Explain the problem, intended outcome, and why this change is focused. -->
 
 - In scope:
 - Out of scope:
+- Related issue or reason none applies:
 - Variants/workloads affected:
 
-## Verification evidence
+## Requirements and decisions
 
-<!-- List exact commands that were executed and link traceable output. Do not list planned checks as passed. -->
+- Canonical requirements:
+- Decision-register entries:
+- Approved design or authorization reference, if required:
+- Unresolved decisions affected (UD-001 through UD-005 or none):
 
-| Check | Status (`passed`, `failed`, `blocked`, `skipped`, or `planned`) | Evidence |
-|---|---|---|
-| Governance/build/test check |  |  |
+## Change summary and risks
 
-## Correctness status
+- Exact files changed:
+- Behavior or governance changed:
+- Known risks and rollback/recovery approach:
+- Compatibility or migration concerns:
 
-<!-- Keep argmin, distance-error, and ambiguity observations separate when relevant. -->
+## Validation evidence
 
-- Overall correctness: not applicable
-- Revision/configuration covered:
-- GPU-required checks and environment status:
-- Unresolved or blocked gates:
+<!-- Record exact executed commands and traceable output. A planned, skipped, blocked, pending, or absent check is not a pass. -->
 
-## Performance evidence
+| Check | Status (`passed`, `failed`, `blocked`, `skipped`, or `planned`) | Revision/configuration | Evidence or URL |
+|---|---|---|---|
+| Local syntax/governance/build/test check |  |  |  |
+| Pull-request CI run |  |  |  |
 
-<!-- Complete only when performance is in scope and matching correctness has been accepted. Keep single-query, batch, kernel-only, and end-to-end evidence separate. -->
+## Correctness evidence when implementation exists
+
+<!-- Keep CPU Float32, GPU Float32, Float64 reference, argmin, distance error, and ambiguity observations distinct. -->
+
+- Implementation changed: no
+- Overall correctness status:
+- CPU/GPU/reference evidence:
+- GPU environment and required-check status:
+- Unresolved or blocked correctness gates:
+
+## Performance evidence where applicable
+
+<!-- Performance evidence requires correctness acceptance for the same relevant revision. Keep single-query, batch, kernel-only, and end-to-end results separate. -->
 
 - Performance in scope: no
-- Predeclared hypothesis and interpretation:
+- Correctness prerequisite:
+- Predeclared hypothesis:
+- Revision, environment, workload, and exact command:
 - Evidence and outcome (`supported`, `rejected`, or `inconclusive`):
 - Comparison limitations:
 
-## Documentation changes
+## Hygiene and review checklist
 
-<!-- Identify canonical, derived, or operational documents changed and why. -->
+- [ ] I reviewed the exact diff and excluded unrelated changes.
+- [ ] I confirmed that no credential, private key, token, generated binary, build output, generated dataset, or raw profiler artifact is included.
+- [ ] I recorded local validation and PR CI evidence accurately.
+- [ ] I identified reviewer concerns below and recorded their disposition.
+- [ ] A human reviewer will review the actual diff, evidence, risks, and unresolved concerns before merge.
 
-## Risks and approvals
+Reviewer concerns and disposition:
 
-- Known risks:
-- Unresolved decisions affected:
-- Design approval reference, if implementation changed:
-- Local/external mutation approvals required or obtained:
+- Concern:
+- Disposition:
+
+## Human review and merge gate
+
+Completing this template or any checkbox is author-provided evidence; it is not reviewer approval. A human reviewer must explicitly approve the pull request, confirm applicable CI passed for the intended head revision, and retain responsibility for the final merge decision. Use squash merge only; do not merge while a required check is failed, cancelled, absent, or pending.

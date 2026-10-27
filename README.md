@@ -20,6 +20,8 @@ The exact distance, input, exhaustive-search, output, and smallest-index tie con
 
 The repository is at the local-infrastructure milestone. It contains approved documentation, governance automation, and an infrastructure-only CMake project, but no CPU or CUDA implementation, build targets, tests, benchmark results, or verified GPU-support claim.
 
+Normal changes use a focused branch and a human-reviewed pull request into `main`. Applicable CI must pass, normal direct pushes to `main` are prohibited, and accepted work is integrated with squash merge. These are documented controls because the current private-repository plan does not provide branch protection or rulesets; see the [development and merge policy](docs/governance/DevelopmentAndMergePolicy.md) for responsibilities and exceptions.
+
 Build instructions are not yet available. The current [CMake project](CMakeLists.txt) only establishes the future C++17 build boundary and intentionally creates no executable, library, test, or CUDA target.
 
 ## Documentation
@@ -27,6 +29,7 @@ Build instructions are not yet available. The current [CMake project](CMakeLists
 - [Canonical project specification](docs/specifications/FinalProjectSpecification-v1.0.md)
 - [Source-of-truth policy](docs/governance/SourceOfTruth.md)
 - [Decision register](docs/governance/DecisionRegister.md)
+- [Development and merge policy](docs/governance/DevelopmentAndMergePolicy.md)
 - [Acceptance criteria](docs/requirements/AcceptanceCriteria.md)
 - [Requirements traceability](docs/requirements/RequirementsTraceability.md)
 - [Architecture](docs/design/Architecture.md)

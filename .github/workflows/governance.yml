@@ -2,6 +2,8 @@ name: Governance
 
 on:
   pull_request:
+    branches:
+      - main
   push:
     branches:
       - main
@@ -24,6 +26,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -35,6 +38,60 @@ jobs:
         run: |
           node --check .agents/skills/cuda-dev-workflow/scripts/validate-skill-system.mjs
           node --check scripts/validate-governance.mjs
+
+      - name: Validate Git whitespace
+        shell: bash
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$(git rev-parse --is-shallow-repository)" == "true" ]]; then
+            echo "::error::Whitespace validation requires complete history; checkout is shallow."
+            exit 1
+          fi
+
+          require_commit() {
+            local revision="$1"
+            local label="$2"
+            if [[ -z "$revision" ]] || ! git cat-file -e "${revision}^{commit}"; then
+              echo "::error::Required ${label} commit is unavailable: ${revision:-<empty>}"
+              exit 1
+            fi
+          }
+
+          case "$GITHUB_EVENT_NAME" in
+            pull_request)
+              require_commit "$PR_BASE_SHA" "pull request base"
+              require_commit "$PR_HEAD_SHA" "pull request head"
+              echo "Checking every PR change from merge base of $PR_BASE_SHA through $PR_HEAD_SHA"
+              git diff --check "${PR_BASE_SHA}...${PR_HEAD_SHA}"
+              ;;
+            push)
+              require_commit "$GITHUB_SHA" "push head"
+              if [[ "$PUSH_BEFORE_SHA" =~ ^0+$ ]]; then
+                EMPTY_TREE_SHA="$(git hash-object -t tree /dev/null)"
+                echo "Checking initial main push as a full-tree comparison through $GITHUB_SHA"
+                git diff --check "$EMPTY_TREE_SHA" "$GITHUB_SHA"
+              else
+                require_commit "$PUSH_BEFORE_SHA" "push before"
+                echo "Checking all changes pushed to main from $PUSH_BEFORE_SHA through $GITHUB_SHA"
+                git diff --check "$PUSH_BEFORE_SHA" "$GITHUB_SHA"
+              fi
+              ;;
+            workflow_dispatch)
+              require_commit "$GITHUB_SHA" "dispatched revision"
+              EMPTY_TREE_SHA="$(git hash-object -t tree /dev/null)"
+              echo "Manual-run policy: checking the complete tracked tree at $GITHUB_SHA"
+              git diff --check "$EMPTY_TREE_SHA" "$GITHUB_SHA"
+              ;;
+            *)
+              echo "::error::Unsupported event for whitespace validation: $GITHUB_EVENT_NAME"
+              exit 1
+              ;;
+          esac
 
       - name: Validate full deterministic Skill System
         run: node .agents/skills/cuda-dev-workflow/scripts/validate-skill-system.mjs --all

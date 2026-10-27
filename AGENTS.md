@@ -13,6 +13,7 @@ This file governs how agents work. It does not define or amend project semantics
 - [FinalProjectSpecification-v1.0.md](docs/specifications/FinalProjectSpecification-v1.0.md) is authoritative for approved behavior, numerical contracts, optimization scope, datasets, and acceptance policy.
 - [SourceOfTruth.md](docs/governance/SourceOfTruth.md) defines source responsibilities, conflict resolution, and change control.
 - [DecisionRegister.md](docs/governance/DecisionRegister.md) records approved decisions and unresolved decisions UD-001 through UD-005; it does not override the specification.
+- [DevelopmentAndMergePolicy.md](docs/governance/DevelopmentAndMergePolicy.md) defines the approved branch, pull-request, review, CI, merge, and emergency-governance process; it does not change project semantics.
 - [AcceptanceCriteria.md](docs/requirements/AcceptanceCriteria.md) defines observable acceptance gates.
 - [RequirementsTraceability.md](docs/requirements/RequirementsTraceability.md) maps requirements to gates and evidence destinations.
 - [Architecture.md](docs/design/Architecture.md), [CorrectnessPlan.md](docs/verification/CorrectnessPlan.md), [BenchmarkProtocol.md](docs/performance/BenchmarkProtocol.md), and [ExperimentTemplate.md](docs/experiments/ExperimentTemplate.md) are derived plans. They may not establish or weaken project requirements.
@@ -77,6 +78,7 @@ Apply these gates:
 - Dependency installation, environment changes, destructive operations, repository initialization, and local Git mutations require specific authorization unless the current request explicitly asks for that exact action.
 - Pushes, pull requests, issues, releases, uploads, messages, and all other external mutations require explicit approval immediately before execution.
 - Authorization is task-specific. Never convert a prior task, milestone, or approval into standing permission.
+- Follow the development and merge policy for branch names, reviewed pull requests, required CI, squash-only integration, and the human-review stop gate. Normal direct pushes to `main` are prohibited.
 
 ## Verification and Evidence Standards
 

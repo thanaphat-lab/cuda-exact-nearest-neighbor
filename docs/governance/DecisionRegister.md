@@ -1,8 +1,8 @@
 # Decision Register
 
 Status: Canonical decision-status record\
-Milestone: S4.2\
-Last updated: 2026-10-26 (Asia/Bangkok)
+Milestone: S5.5-B\
+Last updated: 2026-10-27 (Asia/Bangkok)
 
 ## 1. Approved decisions
 
@@ -25,6 +25,7 @@ Last updated: 2026-10-26 (Asia/Bangkok)
 | DR-015 | Fast math is disabled in core benchmarks. | Approved policy | REQ-B-006 |
 | DR-016 | Correctness precedes performance acceptance. | Approved policy | REQ-C-001 |
 | DR-017 | Experiments are reproducible and revision-bound; rejected hypotheses are valid outcomes. | Approved policy | REQ-R-001–REQ-R-004 |
+| DR-018 | Normal changes require a focused branch, a pull request into `main`, explicit human review, passing applicable CI, and squash-only merge. Normal direct pushes to `main` are prohibited. Because protection and rulesets are unavailable for this private repository under the current plan, human compliance is the approved mitigation. | Project-owner S5.5-B authorization | Repository governance only; no project requirement changed |
 
 ## 2. Unresolved decisions
 
@@ -50,3 +51,4 @@ These items are intentionally unresolved. Proposed values, defaults, library beh
 | Date | Change |
 |---|---|
 | 2026-10-26 | Initial S4.2 register created from the approved baseline, Addendum V1.0-A, and additional approved policies. No unresolved decision was resolved. |
+| 2026-10-27 | Recorded DR-018 and synchronized repository workflow governance for S5.5-B. UD-001 through UD-005 remain unresolved. |

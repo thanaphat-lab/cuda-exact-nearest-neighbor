@@ -126,6 +126,7 @@ function validateGovernance() {
   const decisions = read("docs/governance/DecisionRegister.md");
   const traceability = read("docs/requirements/RequirementsTraceability.md");
   const sourceOfTruth = read("docs/governance/SourceOfTruth.md");
+  const developmentPolicy = read("docs/governance/DevelopmentAndMergePolicy.md");
   const definedRequirements = ids(specification, /\bREQ-[A-Z]-\d{3}\b/g);
   const definedGates = ids(acceptance, /\bAC-\d{3}\b/g);
   const definedDecisions = ids(decisions, /\b(?:DR|UD)-\d{3}\b/g);
@@ -159,9 +160,22 @@ function validateGovernance() {
     "CorrectnessPlan.md",
     "BenchmarkProtocol.md",
     "ExperimentTemplate.md",
+    "DevelopmentAndMergePolicy.md",
   ];
   for (const source of requiredSources) if (!sourceOfTruth.includes(source)) errors.push(`SourceOfTruth.md omits ${source}`);
   if (!/material conflict[\s\S]{0,160}`blocked`/i.test(sourceOfTruth)) errors.push("SourceOfTruth.md does not retain the material-conflict blocked rule");
+  if (!/^\| DR-018 \|/m.test(decisions)) errors.push("DecisionRegister.md omits approved repository governance decision DR-018");
+  for (const phrase of [
+    "Normal direct pushes to `main` are prohibited",
+    "human reviewer",
+    "squash",
+    "branch protection",
+    "rulesets",
+    "Emergency hotfix",
+    "Codex authorization boundaries",
+  ]) {
+    if (!developmentPolicy.toLowerCase().includes(phrase.toLowerCase())) errors.push(`DevelopmentAndMergePolicy.md omits required policy: ${phrase}`);
+  }
 
   errors.length ? fail("governance-reference-consistency", errors.join("; ")) : pass("governance-reference-consistency", `${definedDecisions.size} decisions checked`);
 }
@@ -204,6 +218,7 @@ function validateWorkflow() {
     const requiredFragments = [
       "permissions:\n  contents: read",
       "persist-credentials: false",
+      "fetch-depth: 0",
       "node-version: \"24\"",
       "node --check .agents/skills/cuda-dev-workflow/scripts/validate-skill-system.mjs",
       "validate-skill-system.mjs --all",
@@ -211,6 +226,11 @@ function validateWorkflow() {
       "validate-governance.mjs --traceability",
       "validate-governance.mjs --governance",
       "validate-governance.mjs --workflow --hygiene",
+      "- name: Validate Git whitespace",
+      "git rev-parse --is-shallow-repository",
+      "git diff --check \"${PR_BASE_SHA}...${PR_HEAD_SHA}\"",
+      "git diff --check \"$PUSH_BEFORE_SHA\" \"$GITHUB_SHA\"",
+      "Manual-run policy: checking the complete tracked tree",
     ];
     for (const fragment of requiredFragments) if (!content.includes(fragment)) errors.push(`governance.yml is missing: ${fragment.replaceAll("\n", " / ")}`);
   } else errors.push(".github/workflows/governance.yml is missing");
