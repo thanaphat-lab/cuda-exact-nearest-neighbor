@@ -1,7 +1,7 @@
 # Requirements Traceability
 
 Status: Canonical traceability index\
-Specification: [FinalProjectSpecification-v1.0.md](../specifications/FinalProjectSpecification-v1.0.md)\
+Specifications: [FinalProjectSpecification-v1.0.md](../specifications/FinalProjectSpecification-v1.0.md) and [S6 Numerical Policy Addendum v1.0](../specifications/FinalProjectSpecification-S6-Numerical-Addendum-v1.0.md)\
 Acceptance gates: [AcceptanceCriteria.md](AcceptanceCriteria.md)
 
 ## 1. Workload, search, and numerical requirements
@@ -15,10 +15,10 @@ Acceptance gates: [AcceptanceCriteria.md](AcceptanceCriteria.md)
 | REQ-S-003 — Smallest-index equal-distance tie | DR-002 | AC-004, AC-005 | Common result-selection contract |
 | REQ-N-001 — Float32 CPU/GPU | DR-003 | AC-002, AC-004–AC-010 | Float32 implementation lanes |
 | REQ-N-002 — Float64 reference | DR-003 | AC-002, AC-005–AC-008 | Reference/diagnostic lane |
-| REQ-N-003 — Evaluation-order differences | DR-004 | AC-005–AC-008 | Separate numerical observations |
+| REQ-N-003 — Approved arithmetic graphs | DR-004, DR-020 | AC-002, AC-005, AC-006, AC-010 | Shared ascending-dimension sequential FMA graphs; independent graph-conformance validator |
 | REQ-N-004 — Separate index/error/ambiguity | DR-005 | AC-005–AC-008 | Validator evidence schema |
 | REQ-N-005 — Near ties diagnostic only | DR-006 | AC-007, AC-008 | Diagnostic classifier, no automatic verdict |
-| REQ-N-006 — Numerical policy unresolved | UD-001–UD-003 | AC-005–AC-008, AC-012 | Blocked-policy fields in correctness reports |
+| REQ-N-006 — Approved numerical policy | DR-021–DR-023 | AC-005–AC-008, AC-012 | Every-candidate bound; exact/conservative contender classification; ordered verdict and provenance fields |
 
 ## 2. Input, optimization, and dataset requirements
 
@@ -43,7 +43,7 @@ Acceptance gates: [AcceptanceCriteria.md](AcceptanceCriteria.md)
 |---|---|---|---|
 | REQ-C-001 — Correctness first | DR-016 | AC-012 | Workflow gate before performance acceptance |
 | REQ-C-002 — Independent observations | DR-005 | AC-005–AC-008 | Correctness report schema |
-| REQ-C-003 — Unresolved verdicts block | UD-001–UD-003 | AC-005–AC-008, AC-012 | Blocked-status rules |
+| REQ-C-003 — Ordered evidence and verdict handling | DR-023 | AC-005–AC-008, AC-012 | Demonstrated failure precedence; missing mandatory evidence blocks; qualified acceptance only after all gates pass |
 | REQ-C-004 — Evidence statuses | Final Project Specification v1.0 (REQ-C-004) | All | Verification and experiment status tables |
 | REQ-B-001 — Two timing classes | DR-012 | AC-013 | Benchmark protocol timing sections |
 | REQ-B-002 — 10/100 iterations | DR-013 | AC-013 | Run procedure and raw-sample checks |
@@ -71,12 +71,26 @@ Acceptance gates: [AcceptanceCriteria.md](AcceptanceCriteria.md)
 | U07 | REQ-B-004 | AC-013 |
 | U08 | REQ-B-005 | AC-014 |
 
-## 5. Evidence destinations
+## 5. S6 numerical-policy coverage
+
+| Policy | Canonical requirements | Acceptance gates | Primary evidence destination |
+|---|---|---|---|
+| `S6-NUM-GRAPH-v1.0` | REQ-S-001–REQ-S-003; REQ-N-001–REQ-N-003 | AC-002–AC-006, AC-010 | Architecture graph boundary; every-candidate graph validator |
+| `S6-NUM-ENV-v1.0` | REQ-N-003; REQ-R-001–REQ-R-004 | AC-005, AC-006, AC-009, AC-014 | Runtime/compiler arithmetic-environment evidence |
+| `S6-UD001-DIST-BOUND-v1.0` | REQ-N-004, REQ-N-006; REQ-C-002, REQ-C-003 | AC-005, AC-006, AC-008, AC-012 | Every-candidate bound report and exact-zero fixtures |
+| `S6-UD002-RANK-INTERVAL-v1.0` | REQ-N-004–REQ-N-006 | AC-005, AC-007, AC-008 | Exact/outward endpoints, `C`, `Ĉ`, uncertainty and provenance |
+| `S6-NUM-TIE-LABELS-v1.0` | REQ-S-003; REQ-N-004 | AC-004, AC-005, AC-008 | Mathematical, Float64 and Float32 tie fields |
+| `S6-UD003-QCA-v1.0` | REQ-N-004–REQ-N-006; REQ-C-001–REQ-C-003 | AC-005, AC-008, AC-012 | Ordered decision trace and final NN verdict |
+| `S6-NUM-EVIDENCE-v1.0` | REQ-C-001–REQ-C-004; REQ-R-001–REQ-R-004 | AC-003–AC-012, AC-014 | Independent validator, stress oracle, direct reduction and production-path evidence |
+
+## 6. Evidence destinations
 
 - Architecture and component ownership: [Architecture.md](../design/Architecture.md)
 - Correctness cases and report schema: [CorrectnessPlan.md](../verification/CorrectnessPlan.md)
 - Measurement execution and timing definitions: [BenchmarkProtocol.md](../performance/BenchmarkProtocol.md)
 - Revision-bound report shell: [ExperimentTemplate.md](../experiments/ExperimentTemplate.md)
 - Open decisions and affected gates: [DecisionRegister.md](../governance/DecisionRegister.md)
+- Approved S6 numerical policy: [S6-CONSOLIDATED-NUMERICAL-POLICY-v1.0.md](../specifications/S6-CONSOLIDATED-NUMERICAL-POLICY-v1.0.md)
+- Exact approval binding: [S6NumericalPolicyApprovalRecord.md](../governance/S6NumericalPolicyApprovalRecord.md)
 
 No row in this matrix is execution evidence. It is a coverage map for future implementation, verification, benchmarking, and reporting.

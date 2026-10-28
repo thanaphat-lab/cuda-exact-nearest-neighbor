@@ -1,8 +1,8 @@
 # Decision Register
 
 Status: Canonical decision-status record\
-Milestone: S5.5-B\
-Last updated: 2026-10-27 (Asia/Bangkok)
+Milestone: S6 — Approved numerical policy\
+Last updated: 2026-10-28 (Asia/Bangkok)
 
 ## 1. Approved decisions
 
@@ -26,29 +26,45 @@ Last updated: 2026-10-27 (Asia/Bangkok)
 | DR-016 | Correctness precedes performance acceptance. | Approved policy | REQ-C-001 |
 | DR-017 | Experiments are reproducible and revision-bound; rejected hypotheses are valid outcomes. | Approved policy | REQ-R-001–REQ-R-004 |
 | DR-018 | Normal changes require a focused branch, a pull request into `main`, explicit human review, passing applicable CI, and squash-only merge. Normal direct pushes to `main` are prohibited. Because protection and rulesets are unavailable for this private repository under the current plan, human compliance is the approved mitigation. | Project-owner S5.5-B authorization | Repository governance only; no project requirement changed |
+| DR-019 | The exact carrier `S6-CONSOLIDATED-NUMERICAL-POLICY-v1.0`, SHA-256 `503aa6b2c97567d814a9316fb0f2f9890d5472aea2bcf1f928ac505c29d1aa39`, is the approved S6 numerical-policy source. | Project Owner, 2026-10-28 | REQ-N-003–REQ-N-006; REQ-C-001–REQ-C-003 |
+| DR-020 | Float32 CPU and CUDA V0–V3 use the approved ascending-dimension sequential fused-FMA graph; the Float64 diagnostic reference uses its approved corresponding graph and arithmetic environment. | S6 N01–N03; `S6-NUM-GRAPH-v1.0`; `S6-NUM-ENV-v1.0` | REQ-N-001–REQ-N-003; AC-002, AC-005, AC-006, AC-010 |
+| DR-021 | UD-001 is resolved by the approved every-candidate combined absolute/relative bound, exact-zero rule and exact/outward-safe comparison policy. | `S6-UD001-DIST-BOUND-v1.0` | REQ-N-004, REQ-N-006; AC-006, AC-012 |
+| DR-022 | UD-002 is resolved by the approved tight ranking intervals, inclusive boundary, exact contender set `C`, conservative outward set `Ĉ` and explicit boundary-uncertainty provenance. | `S6-UD002-RANK-INTERVAL-v1.0` | REQ-N-004–REQ-N-006; AC-005, AC-007, AC-008 |
+| DR-023 | UD-003 is resolved by the approved ordered verdict policy and Conservative Qualified Acceptance Policy A. Invalid-input outcomes remain separate from nearest-neighbor verdicts. | `S6-UD003-QCA-v1.0` | REQ-N-004–REQ-N-006; REQ-C-002, REQ-C-003; AC-005, AC-008, AC-012 |
+| DR-024 | Correctness evidence requires independent graph validation, every-candidate bound and argmin coverage, exact-dyadic stress cases, direct reduction fixtures and production-path verification. Diagnostic, oracle and report-generation costs remain outside production benchmark timings. | `S6-NUM-EVIDENCE-v1.0` | REQ-C-001–REQ-C-004; REQ-R-001–REQ-R-004; AC-005–AC-012 |
 
-## 2. Unresolved decisions
+## 2. Resolved open decisions
+
+| Former ID | Resolution | Approval evidence | Runtime status |
+|---|---|---|---|
+| UD-001 | Policy resolved by `S6-UD001-DIST-BOUND-v1.0`. | DR-019, DR-021; approved policy SHA-256 | Not executed; dependent runtime gates require implementation evidence. |
+| UD-002 | Policy resolved by `S6-UD002-RANK-INTERVAL-v1.0`. | DR-019, DR-022; approved policy SHA-256 | Not executed. |
+| UD-003 | Policy resolved by `S6-UD003-QCA-v1.0` and Policy A. | DR-019, DR-023; approved policy SHA-256 | Not executed. |
+
+## 3. Unresolved and partially resolved decisions
 
 These items are intentionally unresolved. Proposed values, defaults, library behavior, or implementation observations must not be treated as approval.
 
 | ID | Unresolved decision | Why it is open | Affected acceptance gates | Required resolution evidence |
 |---|---|---|---|---|
-| UD-001 | Exact numerical distance-error tolerance, including whether it is absolute, relative, combined, or dimension-scaled. | No value or formula was approved. | AC-006; AC-012 performance prerequisite | Explicit project-owner approval, then synchronized specification/addendum and test policy. |
-| UD-002 | Numerical near-tie classification threshold and formula. | Float64 is approved for diagnostics, but no classification boundary exists. | AC-007; AC-008; AC-012 performance prerequisite | Explicit project-owner approval defining the classification rule and units. |
-| UD-003 | Acceptance treatment for cases classified as numerically ambiguous. | U02 requires separate reporting and U03 forbids automatic acceptance; neither defines the verdict. | AC-005; AC-008; AC-012 performance prerequisite | Explicit project-owner approval of pass/fail/conditional handling and required evidence. |
-| UD-004 | Hardware-specific optimization settings. | Launch shapes, occupancy targets, vector widths, tiling, and similar settings depend on future design and hardware evidence. | AC-010; AC-013; AC-014 when such settings are used | Approved implementation design plus recorded target environment; no single setting is required by S4.2. |
-| UD-005 | Detailed implementation choices, including API, data layout, accumulation/reduction structure, error representation, and memory ownership. | The baseline approves behavior and optimization stages, not these mechanics. | AC-001–AC-005; AC-009; AC-010 | Approved design record consistent with the canonical requirements before implementation. |
+| UD-004 | Hardware-specific optimization settings. | Launch shapes, occupancy targets, vector widths, tiling, and similar settings depend on future design and hardware evidence. | AC-010; AC-013; AC-014 when such settings are used | Approved implementation design plus recorded target environment; no single setting is required by the numerical policy. |
+| UD-005 | Remaining detailed implementation choices, including API, data layout, error representation, memory ownership, launch configuration and reduction architecture. | The arithmetic accumulation graph is approved by DR-020. The listed remaining mechanics are not approved by that decision. | AC-001–AC-005; AC-009; AC-010 | Approved implementation design consistent with the numerical graph and all canonical requirements. |
 
-## 3. Gate rule for unresolved decisions
+## 4. Gate and runtime-evidence rules
 
-- A test may collect and report index, error, and diagnostic data while UD-001–UD-003 remain open.
-- A gate whose verdict depends on an unresolved item is `blocked`; it is never converted to passed by convention or by a locally selected threshold.
-- Unambiguous contract checks that do not depend on those items may still pass or fail independently.
-- Performance measurements may not receive performance acceptance until correctness is accepted for the same revision and configuration.
+- Closing UD-001–UD-003 defines the policy; it does not provide executed correctness evidence.
+- A demonstrated correctness defect is `failed`.
+- Without a demonstrated defect, absent, invalid or unresolved mandatory evidence is `blocked/unverified`.
+- Exact or conservative contender membership alone is never acceptance.
+- Qualified `accepted-ambiguous` requires every applicable independent correctness gate to pass.
+- Invalid-input outcomes are reported separately with no nearest-neighbor verdict.
+- Unambiguous contract checks that do not depend on unresolved implementation decisions may still pass or fail independently.
+- Performance measurements may not receive performance acceptance until the complete applicable correctness matrix is accepted for the matching revision, working-tree state, build, workload, arithmetic environment and variant.
 
-## 4. Change history
+## 5. Change history
 
 | Date | Change |
 |---|---|
 | 2026-10-26 | Initial S4.2 register created from the approved baseline, Addendum V1.0-A, and additional approved policies. No unresolved decision was resolved. |
 | 2026-10-27 | Recorded DR-018 and synchronized repository workflow governance for S5.5-B. UD-001 through UD-005 remain unresolved. |
+| 2026-10-28 | Recorded the approved S6 policy carrier and resolved UD-001–UD-003 at the policy-decision level. Kept UD-004 open and UD-005 partially resolved. No runtime gate was marked passed. |

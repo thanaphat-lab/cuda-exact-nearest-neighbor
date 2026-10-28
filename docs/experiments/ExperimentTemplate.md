@@ -2,7 +2,8 @@
 
 Status: Reusable template; contains no results\
 Benchmark method: [BenchmarkProtocol.md](../performance/BenchmarkProtocol.md)\
-Correctness method: [CorrectnessPlan.md](../verification/CorrectnessPlan.md)
+Correctness method: [CorrectnessPlan.md](../verification/CorrectnessPlan.md)\
+Numerical policy: [S6-CONSOLIDATED-NUMERICAL-POLICY-v1.0.md](../specifications/S6-CONSOLIDATED-NUMERICAL-POLICY-v1.0.md)
 
 > Replace every angle-bracket placeholder with observed evidence, `not applicable`, `unknown`, `unresolved`, or `blocked`. Never delete a required field merely because evidence is unavailable.
 
@@ -67,15 +68,17 @@ If results cannot be tied to a revision and working state, mark reproducibility 
 |---|---|---|
 | Input-domain behavior (AC-001) | `<passed/failed/blocked/skipped>` | `<reference>` |
 | Distance/search/tie behavior (AC-002–AC-004) | `<status>` | `<reference>` |
-| Argmin observation (AC-005) | `<status and observed indices>` | `<reference>` |
-| Distance-error observation (AC-006) | `<status, metric, value, policy ID>` | `<reference>` |
-| Ambiguity classification (AC-007) | `<status, rule ID, diagnostic>` | `<reference>` |
-| Ambiguous-case treatment (AC-008) | `<status and policy ID>` | `<reference>` |
+| Argmin/Float32 lexicographic correctness (AC-005) | `<status, returned index, Float64 agreement and all-candidate lexicographic status>` | `<reference>` |
+| Every-candidate distance bound (AC-006) | `<status, policy ID, candidate coverage, exact/outward comparison method>` | `<reference>` |
+| Exact/conservative contender classification (AC-007) | `<policy ID, C or unknown, Ĉ, boundary-uncertain indices, provenance>` | `<reference>` |
+| Ordered NN verdict (AC-008) | `<accepted-unambiguous / accepted-ambiguous / failed / blocked/unverified / not-applicable>` | `<decision-trace reference>` |
+| Graph and arithmetic environment | `<graph policy, conformance, RNE/FMA/FTZ-DAZ/compiler status>` | `<reference>` |
+| Mathematical/F64/F32 tie labels | `<separate sets and tie fields>` | `<reference>` |
 | Float32 finiteness (AC-009) | `<status>` | `<reference>` |
 | V0–V3 common contract / coverage (AC-010–AC-011) | `<status>` | `<reference>` |
-| Overall correctness | `<accepted/failed/blocked>` | `<report reference>` |
+| Complete matrix correctness | `<accepted/failed/blocked; include matching revision/tree/build/workload/environment/variant>` | `<report reference>` |
 
-Float64 near-tie diagnostics are not automatic acceptance. If correctness is not accepted for the matching revision/configuration, state that performance acceptance is blocked.
+Float64 index agreement, exact contender membership, or conservative contender membership alone is not acceptance. Conservative cases retain `exact_ambiguity=unknown` and boundary provenance. If the complete applicable correctness matrix is not accepted for the matching revision, tree state, build, workload, arithmetic environment, and variant, performance acceptance is blocked.
 
 ## 6. Method and commands
 
@@ -107,9 +110,9 @@ run_order: <observed>
 
 ### 7.1 Correctness results
 
-| Case/configuration | Variant | Argmin observation | Distance error | Ambiguity diagnostic | Gate status | Evidence |
-|---|---|---|---|---|---|---|
-| `<entry>` | `<entry>` | `<entry>` | `<entry>` | `<entry>` | `<entry>` | `<reference>` |
+| Case/configuration | Variant | Graph/bound status | Float32 lexicographic status | C / Ĉ and provenance | Exact ambiguity / boundary uncertainty | NN verdict | Evidence |
+|---|---|---|---|---|---|---|---|
+| `<entry>` | `<entry>` | `<entry>` | `<entry>` | `<entry>` | `<entry>` | `<entry>` | `<reference>` |
 
 ### 7.2 Performance results — single query (primary)
 
@@ -144,7 +147,8 @@ run_order: <observed>
 | Item | Entry |
 |---|---|
 | Hypothesis outcome | `<supported / rejected / inconclusive>` |
-| Correctness status | `<accepted / failed / blocked>` |
+| Correctness matrix status | `<accepted / failed / blocked>` |
+| Accepted case classes present | `<accepted-unambiguous / accepted-ambiguous / both / none>` |
 | Performance acceptance status | `<accepted / failed / blocked / not in scope>` |
 | Failed checks | `<list or none>` |
 | Blocked checks | `<list exact missing conditions or none>` |
@@ -158,6 +162,7 @@ A `rejected` hypothesis is a valid experiment outcome when evidence is complete.
 | Artifact | Location/reference | Integrity/hash if available |
 |---|---|---|
 | Source revision | `<reference>` | `<value>` |
+| Approved numerical policy | `<policy artifact reference>` | `503aa6b2c97567d814a9316fb0f2f9890d5472aea2bcf1f928ac505c29d1aa39` |
 | Environment manifest | `<reference>` | `<value>` |
 | Build log/configuration | `<reference>` | `<value>` |
 | Commands/log | `<reference>` | `<value>` |

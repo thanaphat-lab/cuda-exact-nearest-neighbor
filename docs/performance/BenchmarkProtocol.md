@@ -1,12 +1,12 @@
 # Benchmark Protocol
 
 Status: Derived protocol; not executed\
-Requirements: [FinalProjectSpecification-v1.0.md](../specifications/FinalProjectSpecification-v1.0.md)\
+Requirements: [FinalProjectSpecification-v1.0.md](../specifications/FinalProjectSpecification-v1.0.md) and [S6 Numerical Policy Addendum v1.0](../specifications/FinalProjectSpecification-S6-Numerical-Addendum-v1.0.md)\
 Acceptance gates: AC-012–AC-015 in [AcceptanceCriteria.md](../requirements/AcceptanceCriteria.md)
 
 ## 1. Gate and scope
 
-Performance acceptance requires accepted correctness evidence for the same relevant revision, build configuration, workload, and variant. No benchmark result is accepted merely because it was measured. If correctness is failed or blocked, any separately authorized exploratory timing must be labeled non-acceptance evidence.
+Performance acceptance requires acceptance of the complete applicable correctness matrix for the same revision and working-tree state, build configuration, workload, arithmetic environment, and implementation variant. Both `accepted-unambiguous` and qualified `accepted-ambiguous` cases may contribute only when issued under the approved UD-003 policy with complete mandatory evidence and no required failed or blocked gate. One accepted case is insufficient. No benchmark result is accepted merely because it was measured. If correctness is failed or blocked, any separately authorized exploratory timing must be labeled non-acceptance evidence.
 
 The primary benchmark is single query. Batch query is secondary and reported separately. V0–V3 are core; V4 is optional and separately labeled.
 
@@ -37,7 +37,7 @@ Capture actual values before measurement:
 | Workload | Single/batch label, variant, `N`, `D`, batch size if applicable, seed, generator/configuration |
 | Runtime configuration | Launch/configuration values actually used, power/clock settings if known, concurrency/stream policy if applicable |
 | Method | Exact commands, timer mechanism, timing boundaries, allocation/reuse policy, percentile calculation method |
-| Correctness prerequisite | Link to accepted correctness evidence with matching revision/configuration |
+| Correctness prerequisite | Link to the complete accepted correctness matrix, including per-case NN verdict, contender provenance, and matching revision/tree/build/workload/arithmetic-environment/variant identifiers |
 
 Unknown environment facts are recorded as `unknown`; required missing facts can make AC-014 blocked. Hardware-specific values are observations/configuration, not canonical optimization requirements.
 
@@ -50,7 +50,7 @@ Semantic boundary:
 - inputs and output storage are already available in device memory before the measured interval;
 - start immediately before the evaluated kernel sequence;
 - stop after that sequence completes, including the synchronization needed to establish completion for timing;
-- exclude host preprocessing, allocation outside the interval, host-to-device transfer, device-to-host transfer, correctness validation, logging, and dataset generation.
+- exclude host preprocessing, allocation outside the interval, host-to-device transfer, device-to-host transfer, independent validators, exact-dyadic oracles, diagnostic buffers/reporting, logging, and dataset generation.
 
 If one logical variant requires multiple kernels, the declared kernel-only interval includes every kernel required to produce its result. Any excluded setup kernel or device preprocessing step must be disclosed; otherwise comparisons are not treated as equivalent.
 
@@ -61,7 +61,7 @@ Semantic boundary:
 - start immediately before per-invocation preprocessing of an already-generated host-side input;
 - include preprocessing performed for that invocation, required host-to-device transfer, the full evaluated compute sequence, required device-to-host transfer, and synchronization;
 - stop when the result needed by the caller is available in host memory;
-- exclude dataset generation, program startup, compiler activity, report formatting, and correctness analysis;
+- exclude dataset generation, program startup, compiler activity, independent validation, exact-dyadic oracle work, diagnostic/report generation, and correctness analysis;
 - include allocation or other setup when it occurs per invocation; exclude genuinely one-time setup only when reuse is declared and that exclusion is applied consistently.
 
 The report must itemize transfer, preprocessing, allocation, and reusable-state treatment. For batch measurements, state what is reused across queries and what is charged to the measured batch.
@@ -70,7 +70,7 @@ The report must itemize transfer, preprocessing, allocation, and reusable-state 
 
 For each unique configuration and timing class:
 
-1. Confirm matching accepted correctness evidence.
+1. Confirm the complete matching correctness matrix is accepted under AC-012 and record all matching revision, tree, build, workload, arithmetic-environment, and variant identifiers.
 2. Capture the pre-run environment/configuration manifest.
 3. Prepare the seeded workload and verify Float32 finite-distance constraints.
 4. Execute exactly 10 warm-up iterations; do not include them in statistics.

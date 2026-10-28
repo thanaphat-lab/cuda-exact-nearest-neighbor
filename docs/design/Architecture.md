@@ -1,14 +1,14 @@
 # Architecture
 
-Status: S4.2 derived architecture; no implementation approval\
-Requirements: [FinalProjectSpecification-v1.0.md](../specifications/FinalProjectSpecification-v1.0.md)\
+Status: S6-synchronized derived architecture; no implementation approval\
+Requirements: [FinalProjectSpecification-v1.0.md](../specifications/FinalProjectSpecification-v1.0.md) and [S6 Numerical Policy Addendum v1.0](../specifications/FinalProjectSpecification-S6-Numerical-Addendum-v1.0.md)\
 Traceability: [RequirementsTraceability.md](../requirements/RequirementsTraceability.md)
 
 ## 1. Architectural intent
 
 The project compares exact nearest-neighbor implementations under a common behavioral contract. The primary path processes one query; batch processing is a separate secondary path. Float32 CPU/GPU computation is evaluated with a Float64 reference and an independent validation layer.
 
-This document defines boundaries and responsibilities only. It does not select an API, file layout, memory layout, launch configuration, reduction algorithm, error representation, or hardware-specific setting. Those remain future approved-design work under UD-004 and UD-005 in [DecisionRegister.md](../governance/DecisionRegister.md).
+This document defines boundaries and responsibilities only. The arithmetic accumulation graphs are fixed by the approved S6 numerical policy. API, file layout, memory layout, launch configuration, reduction architecture, error representation, ownership, and hardware-specific settings remain future approved-design work under UD-004 and the unresolved portion of UD-005 in [DecisionRegister.md](../governance/DecisionRegister.md).
 
 ## 2. Logical data flow
 
@@ -29,9 +29,12 @@ reference     comparator       V0 -> V1 -> V2 -> V3
    +-------------+------------------+
                  v
        Result and numerical validator
-       - argmin index observation
-       - distance-error observation
-       - ambiguity diagnostic
+       - every-candidate Float32 graph conformance
+       - every-candidate UD-001 bound
+       - exact C / conservative Ĉ classification
+       - boundary uncertainty and contender provenance
+       - Float32 lexicographic argmin and tie checks
+       - ordered UD-003 verdict
                  |
                  v
        Correctness gate / evidence store
@@ -49,15 +52,16 @@ reference     comparator       V0 -> V1 -> V2 -> V3
 |---|---|---|
 | Dataset/query generator | Produce seeded synthetic Float32 inputs for required `(N,D)` combinations and derived edge cases. | Keeps core distances finite; records seed/configuration; does not choose numerical acceptance thresholds. |
 | Input-domain validator | Enforce rejection of NaN, infinity, `N = 0`, and `D = 0`; permit signed zero. | Common behavior across CPU and V0–V3; exact error representation is deferred. |
-| Float64 reference | Compute high-precision reference distances, reference argmin, and near-tie diagnostic inputs. | Diagnostic/reference only; never automatically accepts a Float32 result. |
-| Float32 CPU comparator | Provide a Float32 computation lane for cross-checking the common behavior contract. | Uses L2², exhaustive search, and smallest-index ties; it is not the Float64 reference. |
+| Float64 reference | Execute the approved ascending-dimension sequential Float64 FMA graph after exact promotion of binary32 operands; retain per-candidate distances, argmin, and tie diagnostics. | Diagnostic/reference only; index agreement never substitutes for Float32 correctness. |
+| Float32 CPU production baseline | Execute the same approved Float32 graph and behavior contract required of CUDA V0–V3. | Uses exhaustive L2² and smallest-index ties; graph substitutions or evaluation-order changes are nonconforming. |
 | CUDA V0 | Provide the naive GPU baseline. | Same semantics/input/tie contract as every core variant. |
 | CUDA V1 | Target coalesced memory access. | Detailed layout/access scheme is future design work. |
 | CUDA V2 | Target block-level reduction. | Detailed reduction and synchronization scheme is future design work. |
 | CUDA V3 | Target warp-level or otherwise optimized reduction. | Detailed primitives and hardware tuning are future design work. |
 | Optional V4 | Explore batch optimization and data reuse. | Separate secondary scope; not required for core completion. |
-| Result/numerical validator | Record argmin, distance error, and ambiguity separately and apply only approved policies. | Cannot invent UD-001–UD-003 or equate Float64 near ties with acceptance. |
-| Benchmark harness | Produce separate kernel-only and end-to-end samples after the correctness gate. | Disables fast math for core benchmarks and records actual environment/timing boundaries. |
+| Result/numerical validator | Independently reproduce the approved Float32 graph for every candidate; check UD-001, exhaustive lexicographic argmin, exact/conservative contender sets, ties, provenance, and ordered verdict. | Cannot use Float64 agreement, contender membership, or boundary uncertainty alone as acceptance. |
+| Exact-dyadic stress oracle | Evaluate mathematical ties, proof-sensitive values, exact-zero, underflow-to-zero, and interval-boundary cases with exact dyadic arithmetic. | Supplements the fast validator; it is not required to process every candidate in every large core matrix case. |
+| Benchmark harness | Produce separate kernel-only and end-to-end samples only after the complete matching correctness matrix is accepted. | Excludes validator, oracle, diagnostics, and report-generation costs from production timing boundaries; preserves the existing sampling methodology. |
 | Experiment reporter | Bind evidence to revision/configuration and report supported, rejected, or inconclusive outcomes. | Does not generate missing measurements or smooth over blocked evidence. |
 
 ## 4. Common result contract
@@ -71,6 +75,8 @@ For every valid single-query invocation, each production implementation conceptu
 This is a behavioral boundary, not a prescribed language-level function signature. Equal computed distances select the smallest index. V0–V3 cannot change the distance definition, candidate set, valid-input domain, output meaning, or tie rule.
 
 The Float64 reference may retain additional distances for diagnostics. Its output is not interchangeable with the production Float32 result.
+
+Production distance computation conforms to `S6-NUM-GRAPH-v1.0` and `S6-NUM-ENV-v1.0`. Passing the distance bound does not prove graph conformance, and graph conformance does not replace every-candidate bound or lexicographic-result validation.
 
 ## 5. Workload boundaries
 
@@ -88,17 +94,22 @@ V4 may introduce batch-oriented reuse only after a future design approval. It ca
 
 ## 6. Error and evidence boundaries
 
-- Invalid input is rejected before a successful nearest-neighbor result is claimed.
+- Invalid input is reported through the independent input outcome; no NN verdict is issued.
+- Valid input outside the approved numerical domain is distinct from invalid input.
+- Graph conformance, UD-001 distance error, UD-002 contender classification, Float32 lexicographic correctness, and the final NN verdict remain separate evidence.
+- Exact contender membership and conservative outward membership retain distinct provenance.
+- A demonstrated defect fails; otherwise missing mandatory evidence blocks.
 - A missing compatible GPU makes required GPU execution blocked, not passed.
-- Numerical observations remain separate fields through validation and reporting.
-- Measurement begins only after correctness acceptance for the same relevant revision/configuration when performance acceptance is sought.
+- Measurement acceptance begins only after the complete correctness matrix is accepted for the matching revision, tree state, build, workload, arithmetic environment, and variant.
 - Raw or traceable samples and environment manifests are retained outside the logical compute components.
 
 ## 7. Design risks and deferred choices
 
 | Risk/deferred item | Control |
 |---|---|
-| Different Float32 evaluation orders change ordering near a tie. | Collect separate index/error/ambiguity evidence; block dependent verdicts until UD-001–UD-003 are resolved. |
+| Compiler or implementation changes the approved arithmetic graph or environment. | Independently verify graph behavior, RNE, fused FMA, FTZ/DAZ state, reassociation, and intermediates; nonconformance fails. |
+| Outward interval implementation is unsound or conservative membership is mislabeled exact. | Verify every arithmetic enclosure and comparison; retain exact/conservative provenance and boundary uncertainty. |
+| Conservative contender sets become broad. | Treat breadth as diagnostic; acceptance still requires independent every-candidate Float32 correctness. |
 | An optimization changes semantics. | Run one common V0–V3 contract suite and require AC-010. |
 | Dataset values overflow Float32 squared distances. | Constrain and assert core data finiteness under AC-009. |
 | Benchmark setup hides transfer/preprocessing costs. | Maintain separate timing classes with explicit boundaries under AC-013. |
@@ -107,4 +118,4 @@ V4 may introduce batch-oriented reuse only after a future design approval. It ca
 
 ## 8. Approval boundary
 
-This S4.2 architecture is documentation derived from approved contracts. Before CPU/CUDA implementation, a later milestone must approve detailed interfaces, layouts, algorithms, build configuration, and other choices required by UD-004/UD-005. This document does not authorize code creation.
+The S6 numerical policy approves the arithmetic accumulation graphs and numerical evidence contracts. UD-004 and the remaining UD-005 design choices still require an approved implementation design before code creation. Neither policy approval nor this derived architecture is implementation authorization.
