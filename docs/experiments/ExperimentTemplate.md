@@ -20,6 +20,8 @@ Numerical policy: [S6-CONSOLIDATED-NUMERICAL-POLICY-v1.0.md](../specifications/S
 | Outcome interpretation | `<criteria for supported/rejected/inconclusive; do not invent an unapproved acceptance threshold>` |
 | Scope | `<correctness / benchmark / profiling; single query primary or batch secondary>` |
 | Variants | `<cpu-f32 / v0 / v1 / v2 / v3 / v4-optional>` |
+| Sample role | `<tuning / final / correctness / profiling>` |
+| Approved design ID/revision | `<design ID and containing repository revision>` |
 
 ## 2. Revision and working state
 
@@ -57,6 +59,9 @@ If results cannot be tied to a revision and working state, mark reproducibility 
 | `D` | `<value>` |
 | Batch size | `<value or not applicable>` |
 | Seed | `<value>` |
+| Tuning seed | `<value or not applicable>` |
+| Final-reporting seed | `<value or not applicable>` |
+| Seed separation status | `<verified / failed / blocked / not applicable>` |
 | Generator/configuration | `<exact reference>` |
 | Edge-case IDs | `<IDs or not applicable>` |
 | Float32 finite-distance check | `<evidence/status>` |
@@ -76,6 +81,9 @@ If results cannot be tied to a revision and working state, mark reproducibility 
 | Mathematical/F64/F32 tie labels | `<separate sets and tie fields>` | `<reference>` |
 | Float32 finiteness (AC-009) | `<status>` | `<reference>` |
 | V0–V3 common contract / coverage (AC-010–AC-011) | `<status>` | `<reference>` |
+| V3 COND-01 mask/safe-source status | `<passed/failed/blocked/not applicable>` | `<reference>` |
+| COND-02 nonfinite real-candidate propagation | `<passed/failed/blocked/not applicable>` | `<reference>` |
+| Reduction-record ABI | `<passed/failed/blocked/not applicable>` | `<reference>` |
 | Complete matrix correctness | `<accepted/failed/blocked; include matching revision/tree/build/workload/environment/variant>` | `<report reference>` |
 
 Float64 index agreement, exact contender membership, or conservative contender membership alone is not acceptance. Conservative cases retain `exact_ambiguity=unknown` and boundary provenance. If the complete applicable correctness matrix is not accepted for the matching revision, tree state, build, workload, arithmetic environment, and variant, performance acceptance is blocked.
@@ -95,7 +103,15 @@ Float64 index agreement, exact contender membership, or conservative contender m
 variant: <value>
 build_configuration: <value>
 launch_or_runtime_configuration: <observed value; not a universal requirement>
+block_candidates: <128,256,512 for approved tuning>
+selected_block_size: <observed or unresolved>
+selection_metric: <BND-KERNEL median>
+exact_tie_rule: <smaller block size>
+tuning_evidence_reference: <reference or not applicable>
+configuration_freeze_manifest: <reference or not applicable>
+correctness_rerun_after_freeze: <status/reference>
 timing_class: <kernel-only / end-to-end / not applicable>
+timing_boundary_id: <BND-KERNEL / BND-E2E-RAW / BND-E2E-PREP / not applicable>
 timing_boundary: <exact inclusion/exclusion statement>
 transfer_treatment: <included/excluded and where>
 preprocessing_treatment: <included/excluded and where>
@@ -154,6 +170,7 @@ run_order: <observed>
 | Blocked checks | `<list exact missing conditions or none>` |
 | Skipped checks | `<list and reason or none>` |
 | Limitations | `<list>` |
+| Retrospective tuning from final samples | `<no required; yes is protocol failure>` |
 
 A `rejected` hypothesis is a valid experiment outcome when evidence is complete. It does not mean the experiment failed.
 

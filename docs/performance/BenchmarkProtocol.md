@@ -12,6 +12,11 @@ The primary benchmark is single query. Batch query is secondary and reported sep
 
 No absolute runtime or speedup threshold is approved. Every performance experiment must state its hypothesis and interpretation before execution.
 
+The primary end-to-end boundary is `BND-E2E-RAW`. Prepared-dataset reuse is
+the supplementary `BND-E2E-PREP` track. `BND-KERNEL` measures the complete
+production kernel sequence. Supplementary reuse cannot replace the primary
+raw-input single-query evidence.
+
 ## 2. Required configurations
 
 For each in-scope core variant, evaluate the required matrix:
@@ -30,7 +35,7 @@ Capture actual values before measurement:
 
 | Category | Required fields |
 |---|---|
-| Identity | Revision identifier, working-tree state, experiment ID, date/time/timezone |
+| Identity | Revision identifier, working-tree state, approved design revision, experiment ID, sample role (`tuning` or `final`), date/time/timezone |
 | Hardware | GPU vendor/model, GPU identifier if relevant, memory capacity, CPU, host memory |
 | Software | Operating system/environment, GPU driver, CUDA Toolkit, compiler and versions |
 | Build | Build type/flags, architecture target, fast-math state (`disabled` for core), relevant libraries |
@@ -43,30 +48,65 @@ Unknown environment facts are recorded as `unknown`; required missing facts can 
 
 ## 4. Timing classes
 
-### 4.1 Kernel-only
+### 4.1 BND-KERNEL — complete production kernel sequence
 
-Semantic boundary:
+Dataset, query, result, status and workspace storage are device resident before
+timing. Record a device start event immediately before the first required
+production kernel and an end event immediately after the last required
+production kernel on the same stream. Include V0/V1 serial reduction, all V2/V3
+hierarchical stages and production failure-status propagation. Synchronize the
+end event to establish completion.
 
-- inputs and output storage are already available in device memory before the measured interval;
-- start immediately before the evaluated kernel sequence;
-- stop after that sequence completes, including the synchronization needed to establish completion for timing;
-- exclude host preprocessing, allocation outside the interval, host-to-device transfer, device-to-host transfer, independent validators, exact-dyadic oracles, diagnostic buffers/reporting, logging, and dataset generation.
+Exclude allocation, layout conversion, host preprocessing, H2D/D2H transfer,
+independent validation, Float64 reference, exact-dyadic oracle, diagnostic-only
+kernels, logging and report generation.
 
-If one logical variant requires multiple kernels, the declared kernel-only interval includes every kernel required to produce its result. Any excluded setup kernel or device preprocessing step must be disclosed; otherwise comparisons are not treated as equivalent.
+### 4.2 BND-E2E-RAW — primary raw-input one-shot
 
-### 4.2 End-to-end
+Start immediately before the one-shot API performs validation, preprocessing,
+allocation or transfer on an already-generated host AoS dataset and query.
+Include structural and contract validation, per-call allocation, V1–V3 host
+AoS-to-SoA conversion, dataset/query H2D transfer, the full production kernel
+sequence, result/status D2H transfer, synchronization and call-owned transient
+cleanup.
 
-Semantic boundary:
+Stop when the synchronous call returns with host result/status available and
+transient resources released.
 
-- start immediately before per-invocation preprocessing of an already-generated host-side input;
-- include preprocessing performed for that invocation, required host-to-device transfer, the full evaluated compute sequence, required device-to-host transfer, and synchronization;
-- stop when the result needed by the caller is available in host memory;
-- exclude dataset generation, program startup, compiler activity, independent validation, exact-dyadic oracle work, diagnostic/report generation, and correctness analysis;
-- include allocation or other setup when it occurs per invocation; exclude genuinely one-time setup only when reuse is declared and that exclusion is applied consistently.
+Exclude dataset generation, startup, compilation, validators, Float64
+reference, exact-dyadic oracle, diagnostic-only capture, correctness
+classification, logging and report generation.
 
-The report must itemize transfer, preprocessing, allocation, and reusable-state treatment. For batch measurements, state what is reused across queries and what is charged to the measured batch.
+### 4.3 BND-E2E-PREP — supplementary prepared reuse
 
-## 5. Iteration procedure
+Dataset preparation and compatible workspace allocation complete before
+timing. Start immediately before per-query validation. Include query
+validation, status reset, query H2D transfer, the complete production kernel
+sequence, result/status D2H transfer, synchronization and per-search cleanup.
+Stop when the synchronous prepared search returns.
+
+Exclude dataset preparation and persistent workspace allocation. Report those
+costs separately if measured; do not silently amortize them. This
+supplementary track cannot replace `BND-E2E-RAW`.
+
+## 5. Independent block-size tuning
+
+1. Predeclare candidates `{128,256,512}`.
+2. Use a tuning seed distinct from the final-reporting seed.
+3. Require applicable correctness qualification before a candidate is eligible.
+4. Collect independent tuning samples; reported tuning configurations retain
+   10 warm-ups, 100 measured repetitions, median, p5 and p95.
+5. Select by the predeclared `BND-KERNEL` median.
+6. An exact measured median tie selects the smaller block size.
+7. Freeze the selection in a revision/configuration manifest.
+8. Rerun the complete applicable correctness matrix for the selected
+   revision/configuration.
+9. Collect final samples independently.
+10. Never retune from final measurements; a later attempt is a new experiment.
+
+Actual winners are observed target-specific values, not canonical constants.
+
+## 6. Iteration procedure
 
 For each unique configuration and timing class:
 
@@ -78,17 +118,22 @@ For each unique configuration and timing class:
 6. Retain all 100 raw or traceable samples with units and configuration identity.
 7. Report median, p5, and p95 from those samples.
 8. Record the percentile calculation method; use the same method for compared configurations.
-9. Repeat for the second timing class without combining its distribution with the first.
+9. Repeat for each required timing boundary without combining its distribution with another boundary.
 10. Classify the stated hypothesis as `supported`, `rejected`, or `inconclusive` under its predeclared interpretation.
 
 Run ordering or randomization may be selected by a future experiment design, but it must be recorded and applied consistently. No unapproved hardware-specific setting is prescribed here.
 
-## 6. Reporting layout
+Record `sample_role=tuning|final`, tuning/final seed identities, block candidate
+set, selected block size, freeze manifest and timing-boundary ID. Tuning samples
+must never appear in final-reporting distributions.
+
+## 7. Reporting layout
 
 Use separate tables for:
 
-- single-query kernel-only;
-- single-query end-to-end;
+- single-query `BND-KERNEL`;
+- primary single-query `BND-E2E-RAW`;
+- supplementary single-query `BND-E2E-PREP`, if reported;
 - batch-query kernel-only, if evaluated;
 - batch-query end-to-end, if evaluated;
 - optional V4, if evaluated.
@@ -110,7 +155,7 @@ Minimum row schema:
 | Environment manifest | `<reference>` |
 | Limitations | `<required, or none observed>` |
 
-## 7. Comparison rules
+## 8. Comparison rules
 
 - Compare kernel-only only with kernel-only and end-to-end only with end-to-end.
 - Do not merge single-query and batch-query conclusions.
@@ -119,7 +164,7 @@ Minimum row schema:
 - Do not claim causality from a version label alone; attribute conclusions only to the controlled experiment.
 - A rejected hypothesis is a valid evidence-backed outcome. Missing or incompatible evidence is `inconclusive` or `blocked`, as applicable, not a favorable result.
 
-## 8. Failure and block handling
+## 9. Failure and block handling
 
 - Incorrect results: performance acceptance is blocked until correctness is restored and reaccepted.
 - Missing revision identity: reproducibility/acceptance is blocked.

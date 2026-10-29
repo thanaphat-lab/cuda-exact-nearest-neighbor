@@ -39,7 +39,7 @@ The NN-policy tokens `accepted-unambiguous`, `accepted-ambiguous`, `failed`, and
 
 | Gate | Acceptance condition | Required evidence | Dependencies/status notes |
 |---|---|---|---|
-| AC-010 — V0–V3 contract preservation | V0, V1, V2, and V3 each satisfy AC-001–AC-009 under one common public behavior contract. | Per-variant test matrix and design/review evidence; no variant-specific waiver. | UD-004 and the remaining UD-005 choices stay open. AC-006–AC-008 now have approved policies but still require executed per-variant evidence. |
+| AC-010 — V0–V3 contract preservation | V0, V1, V2, and V3 each satisfy AC-001–AC-009 under one common public behavior contract. | Per-variant test matrix and design/review evidence; no variant-specific waiver. | The UD-004 tuning method and UD-005 V0–V3 architecture are design-approved under `S6-DESIGN-OWNER-APPROVAL-001`. Actual hardware-selected values, ABI/compiler behavior and AC-001–AC-009 execution remain unverified. No variant-specific waiver is permitted. |
 | AC-011 — Required coverage | Core evaluation covers all 12 combinations of approved `N` and `D` values using a recorded seed, plus the derived edge-case catalog. | Manifest listing seed, generator/configuration, every `(N,D)` pair, edge-case IDs, implementation variant, and result locations. | Batch cases are reported separately. Resource failure is blocked, not skipped without rationale. |
 | AC-016 — Scope completion | Core completion includes V0–V3 evidence. V4 is optional and cannot compensate for missing V0–V3 evidence. | Completion matrix showing each core variant and separately labeled optional work. | No V4 result is required for a core pass. |
 
