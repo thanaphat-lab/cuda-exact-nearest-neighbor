@@ -462,15 +462,32 @@ ValidationReport validate_cpu_search(DatasetView dataset, QueryView query,
     }
 
     const auto environment = inspect_arithmetic_environment();
+    const DomainStatus independently_derived_domain =
+        dataset.dimension <= kMaximumPolicyDimension
+            ? DomainStatus::core_eligible
+            : DomainStatus::valid_outside_approved_domain;
+    report.graph_provenance = options.graph_evidence_available
+                                  ? EvidenceProvenance::external_attestation
+                                  : EvidenceProvenance::unavailable;
+    // Source spelling, matching outputs, or a caller assertion cannot establish
+    // independent compiler/runtime graph conformance. No such evidence producer
+    // exists in this library, so the mandatory graph gate remains blocked.
+    report.graph_status = EvidenceStatus::blocked;
     report.arithmetic_environment_status =
         options.arithmetic_environment_evidence_available
             ? (environment.conforming() ? EvidenceStatus::passed : EvidenceStatus::failed)
             : EvidenceStatus::blocked;
-    report.graph_status = options.graph_evidence_available ? EvidenceStatus::passed
-                                                           : EvidenceStatus::blocked;
-    report.candidate_coverage_status = options.candidate_evidence_complete
-                                           ? EvidenceStatus::passed
-                                           : EvidenceStatus::blocked;
+    report.arithmetic_environment_provenance =
+        options.arithmetic_environment_evidence_available
+            ? EvidenceProvenance::internally_observed
+            : EvidenceProvenance::unavailable;
+    report.candidate_coverage_provenance = EvidenceProvenance::internally_observed;
+    report.production_candidate_coverage_provenance =
+        options.candidate_evidence_complete ? EvidenceProvenance::external_attestation
+                                            : EvidenceProvenance::unavailable;
+    // Independent recomputation can prove validator coverage, but a Boolean
+    // attestation cannot prove exhaustive participation by the production path.
+    report.production_candidate_coverage_status = EvidenceStatus::blocked;
 
     const auto dimension = static_cast<std::size_t>(dataset.dimension);
     const auto count = static_cast<std::size_t>(dataset.candidate_count);
@@ -526,16 +543,44 @@ ValidationReport validate_cpu_search(DatasetView dataset, QueryView query,
         }
         report.bound_evidence.push_back(
             evaluate_ud001(dataset.dimension, distance32, distance64, exact_match));
+        ++report.independently_observed_candidate_count;
+    }
+
+    report.candidate_coverage_status =
+        report.independently_observed_candidate_count == dataset.candidate_count &&
+                report.independently_computed_float32_distances.size() == count &&
+                report.independently_computed_float64_distances.size() == count &&
+                report.bound_evidence.size() == count
+            ? EvidenceStatus::passed
+            : EvidenceStatus::failed;
+
+    if (production.domain_status == DomainStatus::unknown ||
+        production.domain_status == DomainStatus::not_applicable) {
+        report.domain_status = DomainStatus::unknown;
+        report.domain_consistency_status = EvidenceStatus::blocked;
+    } else if (production.domain_status == independently_derived_domain) {
+        report.domain_status = independently_derived_domain;
+        report.domain_consistency_status = EvidenceStatus::passed;
+    } else if (validator_nonfinite &&
+               production.domain_status == DomainStatus::valid_outside_approved_domain) {
+        report.domain_status = DomainStatus::valid_outside_approved_domain;
+        report.domain_consistency_status = EvidenceStatus::passed;
+    } else {
+        report.domain_status = DomainStatus::unknown;
+        report.domain_consistency_status = EvidenceStatus::failed;
     }
 
     report.production_match_status =
-        production.invocation_status == InvocationStatus::completed && production.result &&
+        production.invocation_status == InvocationStatus::completed &&
+                production.input_outcome == InputOutcome::valid && production.result &&
                 have_minimum && production.result->index == independent_index &&
                 same_float(production.result->squared_distance, independent_minimum)
             ? EvidenceStatus::passed
             : EvidenceStatus::failed;
 
     bool reference_matches = reference.invocation_status == InvocationStatus::completed &&
+                             reference.input_outcome == InputOutcome::valid &&
+                             reference.domain_status == independently_derived_domain &&
                              reference.distances.size() == count && reference.argmin_index &&
                              have_reference_minimum &&
                              *reference.argmin_index == independent_reference_index &&
@@ -564,10 +609,12 @@ ValidationReport validate_cpu_search(DatasetView dataset, QueryView query,
     }
 
     if (options.ranking_evidence_available) {
+        report.ranking_provenance = EvidenceProvenance::internally_observed;
         report.ranking = evaluate_ud002(dataset.dimension,
                                         report.independently_computed_float64_distances);
         report.ud002_status = report.ranking.status;
     } else {
+        report.ranking_provenance = EvidenceProvenance::unavailable;
         report.ud002_status = EvidenceStatus::blocked;
     }
 
@@ -587,17 +634,29 @@ ValidationReport validate_cpu_search(DatasetView dataset, QueryView query,
         production.result && contains_index(report.ranking.conservative_contenders,
                                             production.result->index);
 
+    if (report.ud002_status == EvidenceStatus::passed) {
+        if (report.ranking.exact_membership_resolved) {
+            report.contender_provenance = ContenderProvenance::exact_resolved;
+            report.exact_ambiguity_known = true;
+            report.exact_ambiguity = report.ranking.exact_contenders.size() > 1;
+        } else {
+            report.contender_provenance = ContenderProvenance::conservative_outward;
+            report.exact_ambiguity_known = false;
+        }
+    }
+
     const bool demonstrated_failure =
         validator_nonfinite ||
+        report.domain_consistency_status == EvidenceStatus::failed ||
         report.arithmetic_environment_status == EvidenceStatus::failed ||
+        report.candidate_coverage_status == EvidenceStatus::failed ||
         report.production_match_status == EvidenceStatus::failed ||
         report.reference_match_status == EvidenceStatus::failed ||
         report.ud001_status == EvidenceStatus::failed ||
         report.ud002_status == EvidenceStatus::failed ||
         (report.ranking.exact_membership_resolved && production.result && !returned_in_exact) ||
         (!report.ranking.exact_membership_resolved && production.result &&
-         report.ud002_status == EvidenceStatus::passed && !returned_in_conservative) ||
-        (options.require_core_domain && production.domain_status != DomainStatus::core_eligible);
+         report.ud002_status == EvidenceStatus::passed && !returned_in_conservative);
 
     if (demonstrated_failure) {
         report.nn_verdict = NnVerdict::failed;
@@ -606,22 +665,38 @@ ValidationReport validate_cpu_search(DatasetView dataset, QueryView query,
     }
 
     const bool missing_evidence =
+        report.domain_consistency_status == EvidenceStatus::blocked ||
         report.graph_status == EvidenceStatus::blocked ||
         report.arithmetic_environment_status == EvidenceStatus::blocked ||
         report.candidate_coverage_status == EvidenceStatus::blocked ||
+        report.production_candidate_coverage_status == EvidenceStatus::blocked ||
         report.ud001_status == EvidenceStatus::blocked ||
         report.ud002_status == EvidenceStatus::blocked || !production.result ||
-        !reference.argmin_index;
+        !reference.argmin_index ||
+        (options.require_core_domain &&
+         report.domain_status != DomainStatus::core_eligible);
     if (missing_evidence) {
         report.nn_verdict = NnVerdict::blocked_unverified;
-        report.decision_trace = "precedence 5: mandatory evidence missing";
+        if (options.require_core_domain &&
+            report.domain_status == DomainStatus::valid_outside_approved_domain) {
+            report.decision_trace =
+                "precedence 6: valid outside approved numerical domain";
+        } else if (report.domain_status == DomainStatus::unknown) {
+            report.decision_trace = "precedence 5: domain eligibility unknown";
+        } else if (report.graph_status == EvidenceStatus::blocked) {
+            report.decision_trace =
+                "precedence 5: independent graph conformance evidence unavailable";
+        } else if (report.production_candidate_coverage_status ==
+                   EvidenceStatus::blocked) {
+            report.decision_trace =
+                "precedence 5: production-path candidate coverage evidence unavailable";
+        } else {
+            report.decision_trace = "precedence 5: mandatory evidence missing";
+        }
         return report;
     }
 
     if (report.ranking.exact_membership_resolved) {
-        report.contender_provenance = ContenderProvenance::exact_resolved;
-        report.exact_ambiguity_known = true;
-        report.exact_ambiguity = report.ranking.exact_contenders.size() > 1;
         if (report.ranking.exact_contenders.size() == 1 && report.float64_index_agrees) {
             report.nn_verdict = NnVerdict::accepted_unambiguous;
             report.decision_trace = "precedence 7: exact singleton and Float64 agreement";
@@ -630,8 +705,6 @@ ValidationReport validate_cpu_search(DatasetView dataset, QueryView query,
             report.decision_trace = "precedence 8: exact multi-candidate contender set";
         }
     } else {
-        report.contender_provenance = ContenderProvenance::conservative_outward;
-        report.exact_ambiguity_known = false;
         report.nn_verdict = NnVerdict::accepted_ambiguous;
         report.decision_trace =
             "precedence 9: conservative outward set; exact ambiguity unknown";

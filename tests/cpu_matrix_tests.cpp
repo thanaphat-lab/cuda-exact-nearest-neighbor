@@ -61,20 +61,25 @@ void run_case(std::uint64_t n, std::uint64_t d) {
         s6::validate_cpu_search(dataset_view, query_view, production, reference);
     require(report.candidate_coverage_status == s6::EvidenceStatus::passed,
             "matrix candidate coverage failed");
-    require(report.graph_status == s6::EvidenceStatus::passed,
-            "matrix graph evidence failed");
+    require(report.graph_status == s6::EvidenceStatus::blocked &&
+                report.graph_provenance == s6::EvidenceProvenance::external_attestation,
+            "matrix external graph attestation was misrepresented as proof");
     require(report.ud001_status == s6::EvidenceStatus::passed,
             "matrix UD-001 failed or blocked");
     require(report.ud002_status == s6::EvidenceStatus::passed,
             "matrix UD-002 failed or blocked");
-    require(report.nn_verdict == s6::NnVerdict::accepted_unambiguous,
-            "matrix verdict was not accepted-unambiguous");
+    require(report.production_candidate_coverage_status == s6::EvidenceStatus::blocked &&
+                report.production_candidate_coverage_provenance ==
+                    s6::EvidenceProvenance::external_attestation,
+            "matrix production coverage attestation was misrepresented as proof");
+    require(report.nn_verdict == s6::NnVerdict::blocked_unverified,
+            "matrix verdict bypassed mandatory graph/production-path evidence");
     require(report.independently_computed_float32_distances.size() ==
                 static_cast<std::size_t>(n),
             "matrix independent Float32 coverage mismatch");
 
     std::cout << "matrix N=" << n << " D=" << d << " seed=" << kSeed
-              << " verdict=accepted-unambiguous\n";
+              << " verdict=blocked-unverified evidence=graph,production-coverage\n";
 }
 
 }  // namespace

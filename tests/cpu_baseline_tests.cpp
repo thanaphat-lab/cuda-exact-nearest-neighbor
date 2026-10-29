@@ -156,8 +156,10 @@ void test_signed_zero_subnormal_and_exact_zero() {
     require(bits(production.result->squared_distance) == 0U,
             "exact match was not positive zero");
     const auto report = run_validated(zeros);
-    require(report.nn_verdict == s6::NnVerdict::accepted_ambiguous,
-            "equal exact matches were not accepted ambiguous");
+    require(report.nn_verdict == s6::NnVerdict::blocked_unverified,
+            "equal exact matches bypassed missing graph/production evidence");
+    require(report.exact_ambiguity_known && report.exact_ambiguity,
+            "equal exact matches lost their separate ambiguity evidence");
     for (const auto& evidence : report.bound_evidence) {
         require(evidence.exact_zero_required && evidence.exact_zero_satisfied,
                 "exact-zero evidence was not retained");
@@ -168,6 +170,14 @@ void test_signed_zero_subnormal_and_exact_zero() {
     const auto tiny_result = s6::cpu_search_float32(tiny.dataset_view(), tiny.query_view());
     require(tiny_result.result && bits(tiny_result.result->squared_distance) == 0U,
             "minimum-subnormal square did not underflow to positive zero");
+    const auto tiny_reference =
+        s6::compute_float64_reference(tiny.dataset_view(), tiny.query_view());
+    const auto tiny_report = s6::validate_cpu_search(
+        tiny.dataset_view(), tiny.query_view(), tiny_result, tiny_reference);
+    require(tiny_report.bound_evidence.size() == 1 &&
+                !tiny_report.bound_evidence[0].exact_zero_required &&
+                tiny_report.independently_computed_float64_distances[0] > 0.0,
+            "positive exact value rounded to zero was mislabeled an exact match");
     // Exact dyadic oracle: decode the binary32 operand, then square its integer
     // significand and power-of-two exponent without floating-point arithmetic.
     const auto exact_tiny_square = exact_square_against_zero(minimum_subnormal);
@@ -217,8 +227,8 @@ void test_nearest_neighbor_and_independence() {
                                           reference);
     require(report.independently_computed_float32_distances.size() == 3,
             "validator did not cover every candidate");
-    require(report.nn_verdict == s6::NnVerdict::accepted_unambiguous,
-            "unique nearest neighbor was not accepted unambiguous");
+    require(report.nn_verdict == s6::NnVerdict::blocked_unverified,
+            "unique nearest neighbor bypassed missing graph/production evidence");
     require(report.float64_index_agrees, "Float64 agreement was not recorded separately");
 
     auto corrupted_distance = production;
@@ -250,6 +260,13 @@ void test_nearest_neighbor_and_independence() {
         input.dataset_view(), input.query_view(), production, corrupted_reference_argmin);
     require(reference_argmin_report.nn_verdict == s6::NnVerdict::failed,
             "corrupted Float64 argmin was not detected independently");
+
+    auto inconsistent_input_status = production;
+    inconsistent_input_status.input_outcome = s6::InputOutcome::not_applicable;
+    const auto status_report = s6::validate_cpu_search(
+        input.dataset_view(), input.query_view(), inconsistent_input_status, reference);
+    require(status_report.nn_verdict == s6::NnVerdict::failed,
+            "inconsistent production input status was not detected");
 }
 
 void test_bounds_ranking_and_verdict_precedence() {
@@ -301,8 +318,9 @@ void test_bounds_ranking_and_verdict_precedence() {
             "smallest-index equal-distance tie failed");
     auto tied_report =
         s6::validate_cpu_search(tied.dataset_view(), tied.query_view(), production, reference);
-    require(tied_report.nn_verdict == s6::NnVerdict::accepted_ambiguous,
-            "equal-distance case was not accepted ambiguous");
+    require(tied_report.nn_verdict == s6::NnVerdict::blocked_unverified &&
+                tied_report.exact_ambiguity_known && tied_report.exact_ambiguity,
+            "equal-distance evidence or mandatory blocking was lost");
 
     s6::ValidationOptions missing;
     missing.candidate_evidence_complete = false;
@@ -310,6 +328,53 @@ void test_bounds_ranking_and_verdict_precedence() {
                                                   production, reference, missing);
     require(missing_report.nn_verdict == s6::NnVerdict::blocked_unverified,
             "missing candidate evidence did not block acceptance");
+    require(missing_report.candidate_coverage_status == s6::EvidenceStatus::passed &&
+                missing_report.candidate_coverage_provenance ==
+                    s6::EvidenceProvenance::internally_observed &&
+                missing_report.production_candidate_coverage_status ==
+                    s6::EvidenceStatus::blocked &&
+                missing_report.production_candidate_coverage_provenance ==
+                    s6::EvidenceProvenance::unavailable,
+            "validator and production candidate coverage were conflated");
+
+    s6::ValidationOptions no_graph;
+    no_graph.graph_evidence_available = false;
+    const auto no_graph_report = s6::validate_cpu_search(
+        tied.dataset_view(), tied.query_view(), production, reference, no_graph);
+    require(no_graph_report.nn_verdict == s6::NnVerdict::blocked_unverified &&
+                no_graph_report.graph_status == s6::EvidenceStatus::blocked &&
+                no_graph_report.graph_provenance == s6::EvidenceProvenance::unavailable,
+            "missing graph evidence did not remain blocked");
+
+    s6::ValidationOptions unsupported_graph;
+    unsupported_graph.graph_evidence_available = true;
+    const auto unsupported_graph_report = s6::validate_cpu_search(
+        tied.dataset_view(), tied.query_view(), production, reference, unsupported_graph);
+    require(unsupported_graph_report.nn_verdict == s6::NnVerdict::blocked_unverified &&
+                unsupported_graph_report.graph_status == s6::EvidenceStatus::blocked &&
+                unsupported_graph_report.graph_provenance ==
+                    s6::EvidenceProvenance::external_attestation,
+            "external graph attestation was treated as independent proof");
+
+    s6::ValidationOptions missing_ranking;
+    missing_ranking.ranking_evidence_available = false;
+    const auto missing_ranking_report = s6::validate_cpu_search(
+        tied.dataset_view(), tied.query_view(), production, reference, missing_ranking);
+    require(missing_ranking_report.nn_verdict == s6::NnVerdict::blocked_unverified &&
+                missing_ranking_report.ud002_status == s6::EvidenceStatus::blocked &&
+                missing_ranking_report.ranking_provenance ==
+                    s6::EvidenceProvenance::unavailable,
+            "missing ranking evidence did not block acceptance");
+
+    auto unknown_domain = production;
+    unknown_domain.domain_status = s6::DomainStatus::unknown;
+    const auto unknown_domain_report = s6::validate_cpu_search(
+        tied.dataset_view(), tied.query_view(), unknown_domain, reference);
+    require(unknown_domain_report.nn_verdict == s6::NnVerdict::blocked_unverified &&
+                unknown_domain_report.domain_status == s6::DomainStatus::unknown &&
+                unknown_domain_report.domain_consistency_status ==
+                    s6::EvidenceStatus::blocked,
+            "unknown domain eligibility was accepted or failed instead of blocked");
 
     auto corrupt = production;
     corrupt.result->index = 1;
@@ -331,6 +396,38 @@ void test_bounds_ranking_and_verdict_precedence() {
             "contract-invalid input received an NN verdict");
 }
 
+void test_end_to_end_outside_domain_verdict() {
+    constexpr std::uint64_t outside_dimension = std::uint64_t{1} << 24U;
+    std::vector<float> dataset(static_cast<std::size_t>(outside_dimension), 0.0F);
+    std::vector<float> query(static_cast<std::size_t>(outside_dimension), 0.0F);
+    const s6::DatasetView dataset_view{dataset.data(), 1, outside_dimension, dataset.size()};
+    const s6::QueryView query_view{query.data(), outside_dimension, query.size()};
+
+    const auto production = s6::cpu_search_float32(dataset_view, query_view);
+    const auto reference = s6::compute_float64_reference(dataset_view, query_view);
+    require(production.invocation_status == s6::InvocationStatus::completed &&
+                production.domain_status ==
+                    s6::DomainStatus::valid_outside_approved_domain &&
+                production.result && production.result->squared_distance == 0.0F,
+            "end-to-end outside-domain production classification failed");
+    const auto report =
+        s6::validate_cpu_search(dataset_view, query_view, production, reference);
+    require(report.domain_status == s6::DomainStatus::valid_outside_approved_domain &&
+                report.domain_consistency_status == s6::EvidenceStatus::passed &&
+                report.nn_verdict == s6::NnVerdict::blocked_unverified,
+            "valid outside-domain execution was failed or accepted");
+    require(report.decision_trace ==
+                "precedence 6: valid outside approved numerical domain",
+            "outside-domain decision trace did not identify precedence 6");
+
+    auto corrupted = production;
+    corrupted.result->squared_distance = 1.0F;
+    const auto failed_report =
+        s6::validate_cpu_search(dataset_view, query_view, corrupted, reference);
+    require(failed_report.nn_verdict == s6::NnVerdict::failed,
+            "demonstrated numerical failure did not override outside-domain status");
+}
+
 }  // namespace
 
 int main() {
@@ -343,6 +440,7 @@ int main() {
         test_finite_input_nonfinite_arithmetic();
         test_nearest_neighbor_and_independence();
         test_bounds_ranking_and_verdict_precedence();
+        test_end_to_end_outside_domain_verdict();
         const auto environment = s6::inspect_arithmetic_environment();
         std::cout << "arithmetic-environment RNE=" << environment.round_to_nearest_even
                   << " FTZ-disabled=" << environment.ftz_disabled

@@ -39,6 +39,11 @@ enum class DomainStatus {
 };
 
 enum class EvidenceStatus { passed, failed, blocked };
+enum class EvidenceProvenance {
+    internally_observed,
+    external_attestation,
+    unavailable,
+};
 enum class NnVerdict {
     accepted_unambiguous,
     accepted_ambiguous,
@@ -127,6 +132,9 @@ struct RankingEvaluation {
 
 struct ValidationOptions {
     bool require_core_domain = true;
+    // Availability flags are evidence-consumer controls, not proof. In
+    // particular, graph and production-coverage attestations remain external
+    // and cannot independently satisfy their mandatory gates.
     bool graph_evidence_available = true;
     bool arithmetic_environment_evidence_available = true;
     bool candidate_evidence_complete = true;
@@ -138,13 +146,23 @@ struct ValidationReport {
     DomainStatus domain_status = DomainStatus::not_applicable;
     NnVerdict nn_verdict = NnVerdict::not_applicable;
     ContenderProvenance contender_provenance = ContenderProvenance::not_applicable;
+    EvidenceStatus domain_consistency_status = EvidenceStatus::blocked;
     EvidenceStatus graph_status = EvidenceStatus::blocked;
+    EvidenceProvenance graph_provenance = EvidenceProvenance::unavailable;
     EvidenceStatus arithmetic_environment_status = EvidenceStatus::blocked;
+    EvidenceProvenance arithmetic_environment_provenance =
+        EvidenceProvenance::unavailable;
     EvidenceStatus candidate_coverage_status = EvidenceStatus::blocked;
+    EvidenceProvenance candidate_coverage_provenance = EvidenceProvenance::unavailable;
+    EvidenceStatus production_candidate_coverage_status = EvidenceStatus::blocked;
+    EvidenceProvenance production_candidate_coverage_provenance =
+        EvidenceProvenance::unavailable;
     EvidenceStatus production_match_status = EvidenceStatus::blocked;
     EvidenceStatus reference_match_status = EvidenceStatus::blocked;
     EvidenceStatus ud001_status = EvidenceStatus::blocked;
     EvidenceStatus ud002_status = EvidenceStatus::blocked;
+    EvidenceProvenance ranking_provenance = EvidenceProvenance::unavailable;
+    std::uint64_t independently_observed_candidate_count = 0;
     bool exact_ambiguity_known = false;
     bool exact_ambiguity = false;
     bool float64_index_agrees = false;
