@@ -19,6 +19,11 @@ Before execution, record:
 - exact executed command(s);
 - dataset generator/configuration and seed;
 - the approved identifiers/versions for any numerical tolerance, near-tie rule, and ambiguous-case policy.
+- approved design identifier and containing repository revision;
+- selected block size and tuning-qualification evidence when applicable;
+- reduction-record ABI evidence;
+- COND-01 mask/participation evidence;
+- COND-02 real-candidate nonfinite-status propagation evidence.
 
 If a required GPU or compatible CUDA environment is unavailable, GPU checks are `blocked`. CPU-only evidence is not a substitute. Before any accepted result, verify the applicable S6 graph, environment, bound, ranking, and verdict policy versions. Missing runtime/compiler, every-candidate, interval, reduction, or production-path evidence is `blocked/unverified` unless a concrete defect has already established `failed`.
 
@@ -62,6 +67,10 @@ The following cases derive coverage from approved behavior; they do not add new 
 | EC-015 | Exact and outward interval boundary | Exercise inclusive `L_i <= U_*`, confirmed inclusion/exclusion, and boundary-uncertain conservative retention. |
 | EC-016 | Valid input outside numerical core domain | Record `valid-outside-approved-domain`; do not report expected invalid-input rejection. |
 | EC-017 | Required finite-core nonfinite result | Record a demonstrated correctness failure. |
+| EC-018 | V3 logical tail warp | All launched lanes participate; missing candidates use `valid=false`; safe shuffle sources and the final result match the independent reducer. |
+| EC-019 | V3 cross-warp/cross-block equal distance | The smallest full-width index wins across every hierarchy boundary. |
+| EC-020 | Real candidate with nonfinite completed arithmetic | The candidate remains logically present, contributes no value to the finite argmin, never enters the floating comparator, and propagates nonfinite/domain-failure status to the host. Finite-core execution fails; outside-domain execution is not mislabeled invalid input and receives no accepted NN result. |
+| EC-021 | Reduction-record ABI | Host/device size, alignment, field widths and transfer preserve Float32 distance, flags and `uint64` index. |
 
 Additional cases may be added as derived coverage when they do not change the valid-input or numerical-acceptance contract.
 
@@ -77,7 +86,7 @@ Additional cases may be added as derived coverage when they do not change the va
 8. Verify exhaustive coverage and the lexicographic minimum of `(computed Float32 squared distance, index)`.
 9. Compute exact `C`, or certified outward `Ĉ` with boundary-uncertain indices and explicit provenance; retain mathematical, Float64, and Float32 tie labels separately.
 10. Apply the ordered UD-003 policy, recording the first decisive condition and final NN verdict.
-11. Verify direct reduction/tie fixtures and the actual production path independently of diagnostic-only modes.
+11. Verify direct reduction/tie fixtures, COND-01 participation masks and safe sources, logical tail records and full-width index transport. For COND-02, verify independently that finite lexicographic reduction excludes nonfinite values, failure-status aggregation includes every real candidate, both operations remain associative through the hierarchy, and applicable failure prevents a successful accepted NN result. Verify the actual production path independently of diagnostic-only modes.
 12. Assign gate-level evidence statuses and retain revision-, build-, environment-, and configuration-bound evidence.
 
 ## 6. Verdict composition
@@ -105,6 +114,8 @@ The report must not compress the three numerical observations into one opaque re
 case_id:
 workload: single-query | batch-query
 variant: cpu-f32 | v0 | v1 | v2 | v3 | v4-optional
+design_id:
+design_revision:
 N:
 D:
 seed:
@@ -142,6 +153,17 @@ exact_ambiguity:
 outward_boundary_uncertainty:
 float64_index_agreement:
 reduction_fixture_status:
+block_size:
+tuning_qualification_status:
+reduction_record_abi_status:
+logical_candidate_coverage_status:
+production_nonfinite_status:
+finite_argmin_excludes_nonfinite_status:
+failure_status_aggregation_status:
+combined_reduction_associativity_status:
+v3_participation_mask_status:
+v3_safe_source_status:
+production_status_propagation_status:
 production_path_status:
 verdict_policy_id:
 ordered_decision_trace:
@@ -156,3 +178,10 @@ Unknown or unresolved fields must say `unresolved`, `not captured`, or `not appl
 ## 8. Exit criteria
 
 Correctness is accepted only when the complete applicable functional, input, numerical, variant, and dataset matrix has executable revision-bound evidence and no required gate is failed or blocked. The S6 policy defines AC-006–AC-008 but supplies no runtime results. Until an implementation and its required evidence exist, executed correctness remains not executed and performance acceptance remains blocked.
+
+Design approval is not executed evidence. A missing candidate, an unsafe V3
+mask/source, loss of full-width index information, conversion of a real
+nonfinite candidate to a logical-invalid tail, passage of NaN/infinity through
+the ordinary finite comparator, loss of failure status through the production
+hierarchy, or reporting success despite applicable failure is failed when
+demonstrated and otherwise blocked/unverified when required evidence is absent.

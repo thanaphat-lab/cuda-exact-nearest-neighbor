@@ -1,8 +1,8 @@
 # Decision Register
 
 Status: Canonical decision-status record\
-Milestone: S6 — Approved numerical policy\
-Last updated: 2026-10-28 (Asia/Bangkok)
+Milestone: S6 — Approved numerical policy and implementation design\
+Last updated: 2026-10-29 (Asia/Bangkok)
 
 ## 1. Approved decisions
 
@@ -32,6 +32,10 @@ Last updated: 2026-10-28 (Asia/Bangkok)
 | DR-022 | UD-002 is resolved by the approved tight ranking intervals, inclusive boundary, exact contender set `C`, conservative outward set `Ĉ` and explicit boundary-uncertainty provenance. | `S6-UD002-RANK-INTERVAL-v1.0` | REQ-N-004–REQ-N-006; AC-005, AC-007, AC-008 |
 | DR-023 | UD-003 is resolved by the approved ordered verdict policy and Conservative Qualified Acceptance Policy A. Invalid-input outcomes remain separate from nearest-neighbor verdicts. | `S6-UD003-QCA-v1.0` | REQ-N-004–REQ-N-006; REQ-C-002, REQ-C-003; AC-005, AC-008, AC-012 |
 | DR-024 | Correctness evidence requires independent graph validation, every-candidate bound and argmin coverage, exact-dyadic stress cases, direct reduction fixtures and production-path verification. Diagnostic, oracle and report-generation costs remain outside production benchmark timings. | `S6-NUM-EVIDENCE-v1.0` | REQ-C-001–REQ-C-004; REQ-R-001–REQ-R-004; AC-005–AC-012 |
+| DR-025 | `S6-DESIGN-OWNER-APPROVAL-001` approves the S6 implementation design assembled from the v1.0 report, the v1.1 refinement and controlling COND-01–03. No source checksum is claimed for the conversational reports. | Project Owner; [S6DesignApprovalRecord.md](S6DesignApprovalRecord.md) | UD-004, UD-005; requirements and gates mapped by the approved design record |
+| DR-026 | UD-004's design method is approved: candidates `{128,256,512}`, correctness-gated independent tuning, kernel-only median selection, smaller block for exact measured ties, configuration freeze, correctness rerun and separation from final samples. Actual hardware winners and environment/resource facts remain unverified. | `S6-DESIGN-OWNER-APPROVAL-001`, COND-03 | REQ-O-001–REQ-O-005, REQ-B-001–REQ-B-008, REQ-R-001–REQ-R-004; AC-010, AC-012–AC-015 |
+| DR-027 | UD-005's V0–V3 API, ownership, CPU/Float64, layout, reduction, timing and verification architecture is approved. COND-01 governs full-warp participation, masks, safe shuffle sources and hierarchy ties. COND-02 separates associative finite lexicographic argmin from associative nonfinite/domain-failure aggregation: real nonfinite candidates remain logically present, never enter the ordinary floating comparator and propagate failure status through the complete hierarchy. No mandatory failing-index selection rule is established. The proposed 16-byte transport record remains subject to ABI verification. V4 is deferred. | `S6-DESIGN-OWNER-APPROVAL-001`, COND-01, COND-02 | REQ-S-001–REQ-S-003, REQ-N-001–REQ-N-006, REQ-I-001–REQ-I-003, REQ-O-001–REQ-O-006; AC-001–AC-016 |
+| DR-028 | S6 design documentation and future implementation integration use the approved focused-branch/PR process, and the Project Owner alone performs Squash & Merge into `main`. Codex may not merge or enable auto-merge. Branch deletion remains an Owner decision. | `S6-DESIGN-OWNER-APPROVAL-001`; DR-018 | Repository governance only |
 
 ## 2. Resolved open decisions
 
@@ -40,6 +44,7 @@ Last updated: 2026-10-28 (Asia/Bangkok)
 | UD-001 | Policy resolved by `S6-UD001-DIST-BOUND-v1.0`. | DR-019, DR-021; approved policy SHA-256 | Not executed; dependent runtime gates require implementation evidence. |
 | UD-002 | Policy resolved by `S6-UD002-RANK-INTERVAL-v1.0`. | DR-019, DR-022; approved policy SHA-256 | Not executed. |
 | UD-003 | Policy resolved by `S6-UD003-QCA-v1.0` and Policy A. | DR-019, DR-023; approved policy SHA-256 | Not executed. |
+| UD-005 | Design-resolved for the approved V0–V3 API, ownership, data layouts, CPU/Float64 paths, V0/V1/V2/V3 reductions, timing boundaries and verification architecture. V4 is deferred. | DR-025, DR-027; `S6-DESIGN-OWNER-APPROVAL-001` | No ABI, compiler, correctness, hardware or performance evidence has executed. |
 
 ## 3. Unresolved and partially resolved decisions
 
@@ -47,8 +52,7 @@ These items are intentionally unresolved. Proposed values, defaults, library beh
 
 | ID | Unresolved decision | Why it is open | Affected acceptance gates | Required resolution evidence |
 |---|---|---|---|---|
-| UD-004 | Hardware-specific optimization settings. | Launch shapes, occupancy targets, vector widths, tiling, and similar settings depend on future design and hardware evidence. | AC-010; AC-013; AC-014 when such settings are used | Approved implementation design plus recorded target environment; no single setting is required by the numerical policy. |
-| UD-005 | Remaining detailed implementation choices, including API, data layout, error representation, memory ownership, launch configuration and reduction architecture. | The arithmetic accumulation graph is approved by DR-020. The listed remaining mechanics are not approved by that decision. | AC-001–AC-005; AC-009; AC-010 | Approved implementation design consistent with the numerical graph and all canonical requirements. |
+| UD-004 | **DESIGN METHOD APPROVED; HARDWARE VALUES UNVERIFIED.** Candidates, correctness qualification, independent tuning, selection rule, configuration freeze, correctness rerun and resource-evidence obligations are approved. Winning block size, occupancy, registers, spills, vector widths, memory capacity, compiler/toolchain compatibility and arithmetic-environment conformance remain measurement-dependent and unverified. | No runtime evidence exists; no hardware-specific value is Owner-approved as a constant. | AC-010, AC-012–AC-015 | Separately authorized preflight, correctness and experiment evidence bound to the selected revision/configuration. |
 
 ## 4. Gate and runtime-evidence rules
 
@@ -60,6 +64,8 @@ These items are intentionally unresolved. Proposed values, defaults, library beh
 - Invalid-input outcomes are reported separately with no nearest-neighbor verdict.
 - Unambiguous contract checks that do not depend on unresolved implementation decisions may still pass or fail independently.
 - Performance measurements may not receive performance acceptance until the complete applicable correctness matrix is accepted for the matching revision, working-tree state, build, workload, arithmetic environment and variant.
+- Design approval closes implementation-choice status only. It does not pass AC-001–AC-016 or establish actual ABI, compiler, device, correctness or performance behavior.
+- Design approval authorizes no repository or runtime action. Documentation editing and each Git/GitHub stage require their applicable separate authorization. Only the Project Owner performs Squash & Merge into `main`; Codex may not merge or enable auto-merge.
 
 ## 5. Change history
 
@@ -68,3 +74,4 @@ These items are intentionally unresolved. Proposed values, defaults, library beh
 | 2026-10-26 | Initial S4.2 register created from the approved baseline, Addendum V1.0-A, and additional approved policies. No unresolved decision was resolved. |
 | 2026-10-27 | Recorded DR-018 and synchronized repository workflow governance for S5.5-B. UD-001 through UD-005 remain unresolved. |
 | 2026-10-28 | Recorded the approved S6 policy carrier and resolved UD-001–UD-003 at the policy-decision level. Kept UD-004 open and UD-005 partially resolved. No runtime gate was marked passed. |
+| 2026-10-29 | Recorded `S6-DESIGN-OWNER-APPROVAL-001`, design-level closure of UD-005, approved UD-004 methodology, controlling COND-01–03, deferred V4 and retained all runtime gates as not executed or blocked. |

@@ -27,11 +27,11 @@ Acceptance gates: [AcceptanceCriteria.md](AcceptanceCriteria.md)
 | REQ-I-001 — Reject invalid inputs | DR-007 | AC-001 | Input validation boundary and invalid-case suite |
 | REQ-I-002 — Accept signed zero | DR-007 | AC-001 | Signed-zero cases |
 | REQ-I-003 — Finite Float32 core distances | DR-008 | AC-009 | Dataset constraints and finite assertions |
-| REQ-O-001 — V0 naive CUDA | DR-010 | AC-010, AC-016 | Core GPU variant V0 |
-| REQ-O-002 — V1 coalescing | DR-010 | AC-010, AC-016 | Core GPU variant V1 |
-| REQ-O-003 — V2 block reduction | DR-010 | AC-010, AC-016 | Core GPU variant V2 |
-| REQ-O-004 — V3 optimized reduction | DR-010 | AC-010, AC-016 | Core GPU variant V3 |
-| REQ-O-005 — Common V0–V3 contracts | DR-009 | AC-010 | Shared interface and verification matrix |
+| REQ-O-001 — V0 naive CUDA | DR-010, DR-027 | AC-010, AC-016 | Approved design: AoS candidate kernel plus serial device reducer |
+| REQ-O-002 — V1 coalescing | DR-010, DR-027 | AC-010, AC-016 | Approved design: host-prepared SoA plus serial device reducer |
+| REQ-O-003 — V2 block reduction | DR-010, DR-027 | AC-010, AC-016 | Approved shared-memory and pair-hierarchy design |
+| REQ-O-004 — V3 optimized reduction | DR-010, DR-027; COND-01, COND-02 | AC-010, AC-016 | Approved full-warp safe-source hierarchy and independent nonfinite status propagation |
+| REQ-O-005 — Common V0–V3 contracts | DR-009, DR-027 | AC-010 | Approved typed API, common reduction semantics and verification matrix |
 | REQ-O-006 — Optional V4 | DR-010 | AC-015, AC-016 | Separate optional batch/data-reuse path |
 | REQ-D-001 — Seeded synthetic data | DR-011 | AC-011, AC-014 | Dataset manifest and experiment metadata |
 | REQ-D-002 — Required `N × D` matrix | DR-011 | AC-011, AC-013 | Correctness/benchmark matrices |
@@ -45,16 +45,16 @@ Acceptance gates: [AcceptanceCriteria.md](AcceptanceCriteria.md)
 | REQ-C-002 — Independent observations | DR-005 | AC-005–AC-008 | Correctness report schema |
 | REQ-C-003 — Ordered evidence and verdict handling | DR-023 | AC-005–AC-008, AC-012 | Demonstrated failure precedence; missing mandatory evidence blocks; qualified acceptance only after all gates pass |
 | REQ-C-004 — Evidence statuses | Final Project Specification v1.0 (REQ-C-004) | All | Verification and experiment status tables |
-| REQ-B-001 — Two timing classes | DR-012 | AC-013 | Benchmark protocol timing sections |
+| REQ-B-001 — Two timing classes | DR-012, DR-027 | AC-013 | `BND-KERNEL`, primary `BND-E2E-RAW`, supplementary `BND-E2E-PREP` |
 | REQ-B-002 — 10/100 iterations | DR-013 | AC-013 | Run procedure and raw-sample checks |
 | REQ-B-003 — Median/p5/p95 | DR-013 | AC-013 | Statistics output schema |
-| REQ-B-004 — Explicit timing costs | DR-012 | AC-013 | Kernel-only/end-to-end boundary declarations |
+| REQ-B-004 — Explicit timing costs | DR-012, DR-027 | AC-013 | Approved named boundary inclusion/exclusion rules |
 | REQ-B-005 — Real environment metadata | DR-014 | AC-014 | Pre-run manifest |
 | REQ-B-006 — Fast math disabled | DR-015 | AC-014, AC-015 | Build evidence |
 | REQ-B-007 — Workload separation | DR-001, DR-010 | AC-013, AC-015, AC-016 | Separate result tables |
 | REQ-B-008 — No implied target | Final Project Specification v1.0 (REQ-B-008) | AC-015 | Pre-run hypothesis section |
 | REQ-R-001 — Revision binding | DR-017 | AC-014 | Experiment identity |
-| REQ-R-002 — Reproduction evidence | DR-017 | AC-013–AC-015 | Commands, metadata, and raw-output references |
+| REQ-R-002 — Reproduction evidence | DR-017, DR-026 | AC-013–AC-015 | Commands, metadata, independent tuning/final samples, freeze manifest and raw-output references |
 | REQ-R-003 — Three hypothesis outcomes | DR-017 | AC-015 | Experiment conclusion |
 | REQ-R-004 — No fabrication | DR-017 | All evidence gates | Missing/blocked fields retained explicitly |
 
@@ -85,6 +85,8 @@ Acceptance gates: [AcceptanceCriteria.md](AcceptanceCriteria.md)
 
 ## 6. Evidence destinations
 
+- Approved implementation design: [S6ApprovedImplementationDesign-v1.0.md](../design/S6ApprovedImplementationDesign-v1.0.md)
+- S6 design approval provenance: [S6DesignApprovalRecord.md](../governance/S6DesignApprovalRecord.md)
 - Architecture and component ownership: [Architecture.md](../design/Architecture.md)
 - Correctness cases and report schema: [CorrectnessPlan.md](../verification/CorrectnessPlan.md)
 - Measurement execution and timing definitions: [BenchmarkProtocol.md](../performance/BenchmarkProtocol.md)
