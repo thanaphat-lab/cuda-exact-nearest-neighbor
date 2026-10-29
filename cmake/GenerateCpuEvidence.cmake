@@ -4,6 +4,7 @@ file(MAKE_DIRECTORY "${output_directory}")
 set(object_disassembly "${S6_PREFIX}.object.disasm.txt")
 set(executable_disassembly "${S6_PREFIX}.executable.disasm.txt")
 set(symbols "${S6_PREFIX}.symbols.txt")
+set(library_symbols "${S6_PREFIX}.library.symbols.txt")
 
 execute_process(
     COMMAND "${S6_DUMPBIN}" /DISASM "${S6_OBJECT}"
@@ -20,9 +21,15 @@ execute_process(
     OUTPUT_FILE "${symbols}"
     RESULT_VARIABLE symbols_result
 )
+execute_process(
+    COMMAND "${S6_DUMPBIN}" /LINKERMEMBER:1 "${S6_LIBRARY}"
+    OUTPUT_FILE "${library_symbols}"
+    RESULT_VARIABLE library_symbols_result
+)
 if(NOT object_disassembly_result EQUAL 0 OR
    NOT executable_disassembly_result EQUAL 0 OR
-   NOT symbols_result EQUAL 0)
+   NOT symbols_result EQUAL 0 OR
+   NOT library_symbols_result EQUAL 0)
     message(FATAL_ERROR "dumpbin failed while generating CPU evidence")
 endif()
 
@@ -43,6 +50,9 @@ foreach(path IN ITEMS
         message(FATAL_ERROR "Required CPU evidence artifact missing: ${${path}}")
     endif()
 endforeach()
+if(NOT EXISTS "${library_symbols}")
+    message(FATAL_ERROR "Required CPU evidence artifact missing: ${library_symbols}")
+endif()
 
 file(SHA256 "${S6_EXECUTABLE}" executable_sha256)
 file(SHA256 "${S6_LIBRARY}" library_sha256)
@@ -59,9 +69,10 @@ file(SHA256 "${compile_commands}" compile_commands_sha256)
 file(SHA256 "${object_disassembly}" object_disassembly_sha256)
 file(SHA256 "${executable_disassembly}" executable_disassembly_sha256)
 file(SHA256 "${symbols}" symbols_sha256)
+file(SHA256 "${library_symbols}" library_symbols_sha256)
 
 file(WRITE "${S6_MANIFEST}"
-"schema=S6-CPU-PRODUCTION-EVIDENCE-v1.0\n"
+"schema=S6-CPU-PRODUCTION-EVIDENCE-v1.1\n"
 "target=${S6_TARGET_NAME}\n"
 "revision=${S6_REVISION}\n"
 "working_tree_state=${S6_WORKTREE_STATE}\n"
@@ -97,4 +108,6 @@ file(WRITE "${S6_MANIFEST}"
 "executable_disassembly_path=${executable_disassembly}\n"
 "executable_disassembly_sha256=${executable_disassembly_sha256}\n"
 "symbols_path=${symbols}\n"
-"symbols_sha256=${symbols_sha256}\n")
+"symbols_sha256=${symbols_sha256}\n"
+"library_symbols_path=${library_symbols}\n"
+"library_symbols_sha256=${library_symbols_sha256}\n")

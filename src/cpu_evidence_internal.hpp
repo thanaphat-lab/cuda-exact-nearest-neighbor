@@ -15,5 +15,7 @@ class CandidateVisitObserver {
 
 ProductionOutcome cpu_search_float32_impl(DatasetView dataset, QueryView query,
                                           CandidateVisitObserver* observer);
+std::uintptr_t production_distance_function_address() noexcept;
+std::uintptr_t cpu_search_float32_impl_function_address() noexcept;
 
 }  // namespace s6::detail

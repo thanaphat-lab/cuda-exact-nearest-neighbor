@@ -9,7 +9,7 @@
 namespace s6 {
 
 inline constexpr const char* kCpuEvidenceSchema =
-    "S6-CPU-PRODUCTION-EVIDENCE-v1.0";
+    "S6-CPU-PRODUCTION-EVIDENCE-v1.1";
 
 struct CoverageAssessment {
     EvidenceStatus status = EvidenceStatus::blocked;

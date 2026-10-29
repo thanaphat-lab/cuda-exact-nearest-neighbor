@@ -226,6 +226,10 @@ bool same_double(double lhs, double rhs) noexcept { return bits_of(lhs) == bits_
 
 }  // namespace
 
+std::uintptr_t detail::production_distance_function_address() noexcept {
+    return reinterpret_cast<std::uintptr_t>(&production_distance);
+}
+
 bool ArithmeticEnvironment::conforming() const noexcept {
     return round_to_nearest_even && ftz_disabled && daz_disabled && fused_fma_probe &&
            sequential_order_probe;
@@ -317,6 +321,10 @@ ProductionOutcome detail::cpu_search_float32_impl(DatasetView dataset, QueryView
         }
     }
     return outcome;
+}
+
+std::uintptr_t detail::cpu_search_float32_impl_function_address() noexcept {
+    return reinterpret_cast<std::uintptr_t>(&cpu_search_float32_impl);
 }
 
 ProductionOutcome cpu_search_float32(DatasetView dataset, QueryView query) {

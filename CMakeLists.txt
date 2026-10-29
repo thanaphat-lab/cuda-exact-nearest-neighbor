@@ -67,6 +67,9 @@ file(SHA256
 set(S6_REQUIRED_COMPILE_FLAGS "/O2|/Ob2|/DNDEBUG|-std:c++17|/W4|/WX|/fp:strict|/permissive-")
 get_filename_component(S6_COMPILER_DIRECTORY ${CMAKE_CXX_COMPILER} DIRECTORY)
 set(S6_DUMPBIN "${S6_COMPILER_DIRECTORY}/dumpbin.exe")
+file(TO_CMAKE_PATH "${CMAKE_CURRENT_SOURCE_DIR}" S6_CONFIGURED_SOURCE_ROOT)
+file(TO_CMAKE_PATH "${CMAKE_CURRENT_BINARY_DIR}" S6_CONFIGURED_BUILD_ROOT)
+file(TO_CMAKE_PATH "${CMAKE_CXX_COMPILER}" S6_CONFIGURED_COMPILER_PATH)
 if(NOT EXISTS ${S6_DUMPBIN})
     message(FATAL_ERROR "MSVC dumpbin.exe is required for CPU graph evidence")
 endif()
@@ -145,6 +148,7 @@ if(BUILD_TESTING)
                 ${CMAKE_CURRENT_SOURCE_DIR}/cmake/GenerateCpuEvidence.cmake
                 ${CMAKE_CURRENT_SOURCE_DIR}/src/cpu_baseline.cpp
                 ${CMAKE_CURRENT_SOURCE_DIR}/include/s6/cpu_baseline.hpp
+                ${CMAKE_CURRENT_BINARY_DIR}/compile_commands.json
             VERBATIM
         )
         add_custom_target(${target}_evidence_artifacts ALL DEPENDS ${manifest})
