@@ -99,12 +99,45 @@ struct ArithmeticEnvironment {
     bool daz_disabled = false;
     bool fused_fma_probe = false;
     bool sequential_order_probe = false;
+    bool float64_fused_fma_probe = false;
+    bool float64_sequential_order_probe = false;
+    bool conforming_float32() const noexcept;
+    bool conforming_float64() const noexcept;
     bool conforming() const noexcept;
+};
+
+struct NumericalPathEvidence {
+    EvidenceStatus production_float32_graph = EvidenceStatus::blocked;
+    EvidenceStatus validator_float32_graph = EvidenceStatus::blocked;
+    EvidenceStatus reference_float64_graph = EvidenceStatus::blocked;
+    EvidenceStatus validator_float64_graph = EvidenceStatus::blocked;
+    EvidenceStatus production_float32_environment = EvidenceStatus::blocked;
+    EvidenceStatus validator_float32_environment = EvidenceStatus::blocked;
+    EvidenceStatus reference_float64_environment = EvidenceStatus::blocked;
+    EvidenceStatus validator_float64_environment = EvidenceStatus::blocked;
+};
+
+struct MandatoryGateEvidence {
+    EvidenceStatus fixture_status = EvidenceStatus::blocked;
+    EvidenceStatus oracle_status = EvidenceStatus::blocked;
+    EvidenceStatus tie_status = EvidenceStatus::blocked;
+    EvidenceStatus reduction_status = EvidenceStatus::blocked;
+    std::string source_identity;
+    std::string fixture_ids;
 };
 
 struct Interval {
     double lower = 0.0;
     double upper = 0.0;
+};
+
+struct NumericalPolicyEvaluation {
+    Interval gamma32;
+    Interval gamma64;
+    Interval e32;
+    Interval e64;
+    Interval additive;
+    Interval relative;
 };
 
 struct BoundEvaluation {
@@ -137,6 +170,7 @@ struct RankingEvaluation {
 struct ValidationOptions {
     bool require_core_domain = true;
     const CpuProductionEvidence* production_evidence = nullptr;
+    const MandatoryGateEvidence* mandatory_gate_evidence = nullptr;
     // Availability flags are evidence-consumer controls, not proof. In
     // particular, graph and production-coverage attestations remain external
     // and cannot independently satisfy their mandatory gates.
@@ -153,6 +187,7 @@ struct ValidationReport {
     ContenderProvenance contender_provenance = ContenderProvenance::not_applicable;
     EvidenceStatus domain_consistency_status = EvidenceStatus::blocked;
     EvidenceStatus graph_status = EvidenceStatus::blocked;
+    NumericalPathEvidence numerical_paths;
     EvidenceProvenance graph_provenance = EvidenceProvenance::unavailable;
     EvidenceStatus arithmetic_environment_status = EvidenceStatus::blocked;
     EvidenceProvenance arithmetic_environment_provenance =
@@ -168,6 +203,11 @@ struct ValidationReport {
     EvidenceStatus reference_match_status = EvidenceStatus::blocked;
     EvidenceStatus ud001_status = EvidenceStatus::blocked;
     EvidenceStatus ud002_status = EvidenceStatus::blocked;
+    EvidenceStatus fixture_status = EvidenceStatus::blocked;
+    EvidenceStatus oracle_status = EvidenceStatus::blocked;
+    EvidenceStatus tie_status = EvidenceStatus::blocked;
+    EvidenceStatus reduction_status = EvidenceStatus::blocked;
+    std::string fixture_ids;
     EvidenceProvenance ranking_provenance = EvidenceProvenance::unavailable;
     std::uint64_t independently_observed_candidate_count = 0;
     std::optional<std::uint64_t> independently_computed_float32_argmin_index;
@@ -176,6 +216,7 @@ struct ValidationReport {
     bool float64_index_agrees = false;
     std::vector<float> independently_computed_float32_distances;
     std::vector<double> independently_computed_float64_distances;
+    NumericalPolicyEvaluation numerical_policy;
     std::vector<BoundEvaluation> bound_evidence;
     RankingEvaluation ranking;
     std::string decision_trace;

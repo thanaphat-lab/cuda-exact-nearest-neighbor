@@ -8,6 +8,7 @@
 #include <cctype>
 #include <iostream>
 #include <limits>
+#include <cstring>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -39,6 +40,28 @@ void write_text(const std::filesystem::path& path, const std::string& text) {
         throw std::runtime_error("cannot write test artifact");
     }
     output << text;
+}
+
+std::vector<char> read_binary(const std::filesystem::path& path) {
+    std::ifstream input(path, std::ios::binary);
+    if (!input) {
+        throw std::runtime_error("cannot read binary test artifact");
+    }
+    return {std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>()};
+}
+
+void write_binary(const std::filesystem::path& path, const std::vector<char>& bytes) {
+    std::ofstream output(path, std::ios::binary | std::ios::trunc);
+    if (!output) {
+        throw std::runtime_error("cannot write binary test artifact");
+    }
+    output.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+}
+
+std::uint64_t double_bits(double value) {
+    std::uint64_t bits = 0;
+    std::memcpy(&bits, &value, sizeof(bits));
+    return bits;
 }
 
 std::string field(const std::string& manifest, const std::string& name) {
@@ -212,7 +235,11 @@ void test_graph_negative(const std::filesystem::path& manifest_path) {
     const auto linker_map = read_text(field(manifest, "map_path"));
     const auto valid = s6::assess_graph_disassembly_for_testing(
         object_disassembly, executable_disassembly, linker_map);
-    require(valid.status == s6::EvidenceStatus::passed,
+    require(valid.status == s6::EvidenceStatus::passed &&
+                valid.production_float32_status == s6::EvidenceStatus::passed &&
+                valid.validator_float32_status == s6::EvidenceStatus::passed &&
+                valid.reference_float64_status == s6::EvidenceStatus::passed &&
+                valid.validator_float64_status == s6::EvidenceStatus::passed,
             "valid graph inspection fixture did not pass");
 
     auto tampered = object_disassembly;
@@ -222,6 +249,56 @@ void test_graph_negative(const std::filesystem::path& manifest_path) {
         tampered, executable_disassembly, linker_map);
     require(invalid.status == s6::EvidenceStatus::failed,
             "invalid graph evidence was not failed");
+
+    auto invalid_validator32 = object_disassembly;
+    replace_after(invalid_validator32, "\n?validator_distance@", "subss       xmm0",
+                  "mulss       xmm0");
+    require(s6::assess_graph_disassembly_for_testing(
+                invalid_validator32, executable_disassembly, linker_map)
+                .validator_float32_status == s6::EvidenceStatus::failed,
+            "invalid validator Float32 graph was accepted");
+
+    auto invalid_reference64 = object_disassembly;
+    replace_after(invalid_reference64, "\n?reference_distance@", "subsd       xmm1",
+                  "mulsd       xmm1");
+    require(s6::assess_graph_disassembly_for_testing(
+                invalid_reference64, executable_disassembly, linker_map)
+                .reference_float64_status == s6::EvidenceStatus::failed,
+            "invalid reference Float64 graph was accepted");
+
+    auto wrong_reference_type = object_disassembly;
+    replace_after(wrong_reference_type, "\n?reference_distance@", "subsd       xmm1",
+                  "subss       xmm1");
+    require(s6::assess_graph_disassembly_for_testing(
+                wrong_reference_type, executable_disassembly, linker_map)
+                .reference_float64_status == s6::EvidenceStatus::failed,
+            "Float32 operation in reference Float64 graph was accepted");
+
+    auto invalid_validator64 = object_disassembly;
+    replace_after(invalid_validator64, "\n?validator_reference_distance@",
+                  "subsd       xmm1", "mulsd       xmm1");
+    require(s6::assess_graph_disassembly_for_testing(
+                invalid_validator64, executable_disassembly, linker_map)
+                .validator_float64_status == s6::EvidenceStatus::failed,
+            "invalid validator Float64 graph was accepted");
+
+    auto wrong_reference_fma = object_disassembly;
+    replace_after(wrong_reference_fma, "\n?reference_distance@",
+                  "call        qword ptr [__imp_fma]",
+                  "call        qword ptr [__imp_fmaf]");
+    require(s6::assess_graph_disassembly_for_testing(
+                wrong_reference_fma, executable_disassembly, linker_map)
+                .reference_float64_status == s6::EvidenceStatus::failed,
+            "wrong Float64 FMA binding was accepted");
+
+    auto missing_validator64 = object_disassembly;
+    replace_after(missing_validator64, "\n?validator_reference_distance@",
+                  "?validator_reference_distance@",
+                  "?missing_validator_reference_distance@");
+    require(s6::assess_graph_disassembly_for_testing(
+                missing_validator64, executable_disassembly, linker_map)
+                .validator_float64_status != s6::EvidenceStatus::passed,
+            "missing validator Float64 graph was accepted");
 
     auto broken_accumulator = object_disassembly;
     replace_after(broken_accumulator, "\n?production_distance@",
@@ -299,6 +376,14 @@ void test_end_to_end_evidence(const s6::CpuBuildEvidence& build_evidence) {
     const auto reference = s6::compute_float64_reference(dataset_view, query_view);
     s6::ValidationOptions options;
     options.production_evidence = &evidenced.evidence;
+    s6::MandatoryGateEvidence gates;
+    gates.fixture_status = s6::EvidenceStatus::passed;
+    gates.oracle_status = s6::EvidenceStatus::passed;
+    gates.tie_status = s6::EvidenceStatus::passed;
+    gates.reduction_status = s6::EvidenceStatus::passed;
+    gates.source_identity = build_evidence.source_identity();
+    gates.fixture_ids = "evidence-unit-fixture,evidence-unit-oracle,evidence-unit-tie";
+    options.mandatory_gate_evidence = &gates;
     const auto report = s6::validate_cpu_search(dataset_view, query_view,
                                                 evidenced.production, reference, options);
     require(report.evidence_identity_status == s6::EvidenceStatus::passed &&
@@ -307,6 +392,24 @@ void test_end_to_end_evidence(const s6::CpuBuildEvidence& build_evidence) {
                     s6::EvidenceStatus::passed &&
                 report.nn_verdict == s6::NnVerdict::accepted_unambiguous,
             "genuine verified production evidence was not accepted");
+    require(report.numerical_paths.production_float32_graph ==
+                    s6::EvidenceStatus::passed &&
+                report.numerical_paths.validator_float32_graph ==
+                    s6::EvidenceStatus::passed &&
+                report.numerical_paths.reference_float64_graph ==
+                    s6::EvidenceStatus::passed &&
+                report.numerical_paths.validator_float64_graph ==
+                    s6::EvidenceStatus::passed,
+            "end-to-end validation did not bind all four numerical graphs");
+
+    auto blocked_gates = gates;
+    blocked_gates.tie_status = s6::EvidenceStatus::blocked;
+    options.mandatory_gate_evidence = &blocked_gates;
+    const auto missing_gate = s6::validate_cpu_search(
+        dataset_view, query_view, evidenced.production, reference, options);
+    require(missing_gate.nn_verdict == s6::NnVerdict::blocked_unverified,
+            "missing mandatory tie evidence did not block acceptance");
+    options.mandatory_gate_evidence = &gates;
 
     std::vector<float> other_dataset = dataset;
     other_dataset[0] = 3.0F;
@@ -351,6 +454,111 @@ void test_end_to_end_evidence(const s6::CpuBuildEvidence& build_evidence) {
             "aborted production evidence was not distinguished from exhaustive success");
 }
 
+void test_structured_evidence_negative(
+    const s6::CpuBuildEvidence& build_evidence,
+    const std::filesystem::path& manifest_path) {
+    const auto directory = manifest_path.parent_path() / "negative-evidence" /
+                           "structured-report";
+    std::filesystem::create_directories(directory);
+    std::vector<float> dataset = {0.0F, 0.0F, 2.0F, 2.0F};
+    std::vector<float> query = {0.0F, 0.0F};
+    const s6::DatasetView dataset_view{dataset.data(), 2, 2, dataset.size()};
+    const s6::QueryView query_view{query.data(), 2, query.size()};
+    const auto evidenced =
+        s6::cpu_search_float32_evidenced(dataset_view, query_view, build_evidence);
+    const auto reference = s6::compute_float64_reference(dataset_view, query_view);
+    s6::MandatoryGateEvidence gates;
+    gates.fixture_status = s6::EvidenceStatus::passed;
+    gates.oracle_status = s6::EvidenceStatus::passed;
+    gates.tie_status = s6::EvidenceStatus::passed;
+    gates.reduction_status = s6::EvidenceStatus::passed;
+    gates.source_identity = build_evidence.source_identity();
+    gates.fixture_ids = "structured-fixture,structured-oracle,structured-tie";
+    s6::ValidationOptions options;
+    options.production_evidence = &evidenced.evidence;
+    options.mandatory_gate_evidence = &gates;
+    const auto report = s6::validate_cpu_search(
+        dataset_view, query_view, evidenced.production, reference, options);
+    require(report.nn_verdict == s6::NnVerdict::accepted_unambiguous,
+            "structured negative-test baseline was not accepted");
+
+    const auto write_report = [&]() {
+        const auto summary = s6::write_cpu_matrix_case_report(
+            directory.string(), "negative-case", 7U, dataset_view, query_view,
+            build_evidence, evidenced, reference, report, gates, {0U, 32768U}, -12);
+        require(summary.status == s6::EvidenceStatus::passed,
+                "structured negative-test baseline report did not verify");
+        return summary;
+    };
+
+    auto summary = write_report();
+    auto bytes = read_binary(summary.candidate_path);
+    require(bytes.size() >= 124U, "candidate report too small for truncation test");
+    bytes.resize(bytes.size() - 124U);
+    write_binary(summary.candidate_path, bytes);
+    auto metadata = read_text(summary.metadata_path);
+    metadata = replace_field(metadata, "candidate_bytes", std::to_string(bytes.size()));
+    metadata = replace_field(metadata, "candidate_sha256", sha256_file(summary.candidate_path));
+    write_text(summary.metadata_path, metadata);
+    require(s6::verify_cpu_matrix_case_report(summary.metadata_path).status ==
+                s6::EvidenceStatus::failed,
+            "missing candidate record was accepted");
+
+    summary = write_report();
+    bytes = read_binary(summary.candidate_path);
+    constexpr std::size_t header_size = 24U;
+    constexpr std::size_t record_size = 124U;
+    require(bytes.size() >= header_size + 2U * record_size,
+            "candidate report too small for duplicate test");
+    const std::uint64_t duplicate_index = 0;
+    std::memcpy(bytes.data() + header_size + record_size, &duplicate_index,
+                sizeof(duplicate_index));
+    write_binary(summary.candidate_path, bytes);
+    metadata = replace_field(read_text(summary.metadata_path), "candidate_sha256",
+                             sha256_file(summary.candidate_path));
+    write_text(summary.metadata_path, metadata);
+    require(s6::verify_cpu_matrix_case_report(summary.metadata_path).status ==
+                s6::EvidenceStatus::failed,
+            "duplicate candidate record was accepted");
+
+    summary = write_report();
+    bytes = read_binary(summary.candidate_path);
+    const auto invalid_lower = double_bits(2.0);
+    const auto invalid_upper = double_bits(1.0);
+    constexpr std::size_t observed_lower_offset = header_size + 20U;
+    constexpr std::size_t observed_upper_offset = header_size + 28U;
+    std::memcpy(bytes.data() + observed_lower_offset, &invalid_lower,
+                sizeof(invalid_lower));
+    std::memcpy(bytes.data() + observed_upper_offset, &invalid_upper,
+                sizeof(invalid_upper));
+    write_binary(summary.candidate_path, bytes);
+    metadata = replace_field(read_text(summary.metadata_path), "candidate_sha256",
+                             sha256_file(summary.candidate_path));
+    write_text(summary.metadata_path, metadata);
+    require(s6::verify_cpu_matrix_case_report(summary.metadata_path).status ==
+                s6::EvidenceStatus::failed,
+            "invalid bound interval trace was accepted");
+
+    summary = write_report();
+    metadata = replace_field(read_text(summary.metadata_path), "tie_status", "failed");
+    write_text(summary.metadata_path, metadata);
+    require(s6::verify_cpu_matrix_case_report(summary.metadata_path).status ==
+                s6::EvidenceStatus::failed,
+            "accepted verdict with failed tie evidence was accepted");
+
+    summary = write_report();
+    metadata = read_text(summary.metadata_path);
+    const std::string fixture_line = "fixture_ids=" + field(metadata, "fixture_ids") + "\n";
+    const auto fixture_position = metadata.find(fixture_line);
+    require(fixture_position != std::string::npos,
+            "fixture provenance line missing in baseline report");
+    metadata.erase(fixture_position, fixture_line.size());
+    write_text(summary.metadata_path, metadata);
+    require(s6::verify_cpu_matrix_case_report(summary.metadata_path).status ==
+                s6::EvidenceStatus::failed,
+            "missing fixture provenance was accepted");
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -366,10 +574,20 @@ int main(int argc, char** argv) {
             throw std::runtime_error("valid production graph did not pass: " +
                                      build_evidence.detail());
         }
+        require(build_evidence.production_float32_graph_status() ==
+                        s6::EvidenceStatus::passed &&
+                    build_evidence.validator_float32_graph_status() ==
+                        s6::EvidenceStatus::passed &&
+                    build_evidence.reference_float64_graph_status() ==
+                        s6::EvidenceStatus::passed &&
+                    build_evidence.validator_float64_graph_status() ==
+                        s6::EvidenceStatus::passed,
+                "valid build did not verify all four numerical paths");
         test_manifest_rejection(manifest_path);
         test_graph_negative(manifest_path);
         test_coverage_verifier();
         test_end_to_end_evidence(build_evidence);
+        test_structured_evidence_negative(build_evidence, manifest_path);
         std::cout << "S6 CPU evidence tests: PASS identity=" << build_evidence.identity()
                   << '\n';
         return 0;

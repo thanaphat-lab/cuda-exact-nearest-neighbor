@@ -1,4 +1,5 @@
 #include "s6/cpu_baseline.hpp"
+#include "s6/cpu_evidence.hpp"
 
 #include <cfenv>
 #include <cmath>
@@ -123,6 +124,10 @@ void test_arithmetic_environment_and_graph() {
     require(environment.daz_disabled, "DAZ is active");
     require(environment.fused_fma_probe, "fused Float32 FMA probe failed");
     require(environment.sequential_order_probe, "sequential-order probe failed");
+    require(environment.float64_fused_fma_probe,
+            "fused Float64 FMA probe failed");
+    require(environment.float64_sequential_order_probe,
+            "Float64 sequential-order probe failed");
 
     volatile float one = 1.0F;
     volatile float half_ulp = std::ldexp(1.0F, -24);
@@ -430,8 +435,21 @@ void test_end_to_end_outside_domain_verdict() {
 
 }  // namespace
 
-int main() {
+int main(int argc, char** argv) {
     try {
+        require(argc == 3, "fixture manifest and output arguments are required");
+        const auto build_evidence = s6::verify_cpu_build_evidence(argv[1]);
+        require(build_evidence.identity_status() == s6::EvidenceStatus::passed,
+                "fixture build identity failed");
+        require(build_evidence.production_float32_graph_status() ==
+                    s6::EvidenceStatus::passed &&
+                build_evidence.validator_float32_graph_status() ==
+                    s6::EvidenceStatus::passed &&
+                build_evidence.reference_float64_graph_status() ==
+                    s6::EvidenceStatus::passed &&
+                build_evidence.validator_float64_graph_status() ==
+                    s6::EvidenceStatus::passed,
+                "fixture four-path graph evidence failed");
         test_input_and_shape_contract();
         test_nonfinite_rejection();
         test_arithmetic_environment_and_graph();
@@ -446,11 +464,26 @@ int main() {
                   << " FTZ-disabled=" << environment.ftz_disabled
                   << " DAZ-disabled=" << environment.daz_disabled
                   << " fused-FMA=" << environment.fused_fma_probe
-                  << " sequential-order=" << environment.sequential_order_probe << '\n';
+                  << " sequential-order=" << environment.sequential_order_probe
+                  << " f64-fused-FMA=" << environment.float64_fused_fma_probe
+                  << " f64-sequential-order="
+                  << environment.float64_sequential_order_probe << '\n';
         std::cout << "policies " << s6::kGraphPolicy << ' ' << s6::kEnvironmentPolicy
                   << ' ' << s6::kBoundPolicy << ' ' << s6::kRankingPolicy << ' '
                   << s6::kVerdictPolicy << '\n';
         std::cout << "S6 CPU fixture tests: PASS\n";
+        s6::MandatoryGateEvidence gates;
+        gates.fixture_status = s6::EvidenceStatus::passed;
+        gates.oracle_status = s6::EvidenceStatus::passed;
+        gates.tie_status = s6::EvidenceStatus::passed;
+        gates.reduction_status = s6::EvidenceStatus::passed;
+        gates.source_identity = build_evidence.source_identity();
+        gates.fixture_ids =
+            "EC-001..EC-017|exact-dyadic-v1|cpu-lexicographic-tie-v1";
+        std::string fixture_detail;
+        require(s6::write_cpu_fixture_evidence(argv[2], build_evidence, gates,
+                                               fixture_detail),
+                "fixture evidence write failed");
         return 0;
     } catch (const std::exception& error) {
         std::cerr << "S6 CPU fixture tests: FAIL: " << error.what() << '\n';

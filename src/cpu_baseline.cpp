@@ -189,12 +189,7 @@ Interval absolute(Interval value) noexcept {
     return {0.0, std::max(-value.lower, value.upper)};
 }
 
-struct PolicyIntervals {
-    Interval additive;
-    Interval relative;
-};
-
-PolicyIntervals policy_intervals(std::uint64_t dimension) noexcept {
+NumericalPolicyEvaluation policy_intervals(std::uint64_t dimension) noexcept {
     const Interval one{1.0, 1.0};
     const Interval u32{std::ldexp(1.0, -24), std::ldexp(1.0, -24)};
     const Interval u64{std::ldexp(1.0, -53), std::ldexp(1.0, -53)};
@@ -218,7 +213,7 @@ PolicyIntervals policy_intervals(std::uint64_t dimension) noexcept {
     auto additive = multiply(multiply(dimensions, eta32), add(one, gamma32));
     additive.lower = std::max(0.0, additive.lower);
     relative.lower = std::max(0.0, relative.lower);
-    return {additive, relative};
+    return {gamma32, gamma64, e32, e64, additive, relative};
 }
 
 bool same_float(float lhs, float rhs) noexcept { return bits_of(lhs) == bits_of(rhs); }
@@ -230,9 +225,30 @@ std::uintptr_t detail::production_distance_function_address() noexcept {
     return reinterpret_cast<std::uintptr_t>(&production_distance);
 }
 
-bool ArithmeticEnvironment::conforming() const noexcept {
+std::uintptr_t detail::validator_distance_function_address() noexcept {
+    return reinterpret_cast<std::uintptr_t>(&validator_distance);
+}
+
+std::uintptr_t detail::reference_distance_function_address() noexcept {
+    return reinterpret_cast<std::uintptr_t>(&reference_distance);
+}
+
+std::uintptr_t detail::validator_reference_distance_function_address() noexcept {
+    return reinterpret_cast<std::uintptr_t>(&validator_reference_distance);
+}
+
+bool ArithmeticEnvironment::conforming_float32() const noexcept {
     return round_to_nearest_even && ftz_disabled && daz_disabled && fused_fma_probe &&
            sequential_order_probe;
+}
+
+bool ArithmeticEnvironment::conforming_float64() const noexcept {
+    return round_to_nearest_even && ftz_disabled && daz_disabled &&
+           float64_fused_fma_probe && float64_sequential_order_probe;
+}
+
+bool ArithmeticEnvironment::conforming() const noexcept {
+    return conforming_float32() && conforming_float64();
 }
 
 ArithmeticEnvironment inspect_arithmetic_environment() noexcept {
@@ -257,6 +273,19 @@ ArithmeticEnvironment inspect_arithmetic_environment() noexcept {
     sequential = std::fma(1.0F, 1.0F, sequential);
     sequential = std::fma(1.0F, 1.0F, sequential);
     result.sequential_order_probe = bits_of(sequential) == 0x4b800000U;
+
+    volatile double da = 1.0 + std::ldexp(1.0, -52);
+    volatile double db = 1.0 - std::ldexp(1.0, -52);
+    volatile double dc = -1.0;
+    const double fused64 = std::fma(da, db, dc);
+    result.float64_fused_fma_probe =
+        bits_of(fused64) == bits_of(-std::ldexp(1.0, -104));
+    double sequential64 = 0.0;
+    sequential64 = std::fma(134217728.0, 134217728.0, sequential64);
+    sequential64 = std::fma(1.0, 1.0, sequential64);
+    sequential64 = std::fma(1.0, 1.0, sequential64);
+    result.float64_sequential_order_probe =
+        bits_of(sequential64) == bits_of(std::ldexp(1.0, 54));
     return result;
 }
 
@@ -271,7 +300,7 @@ ProductionOutcome detail::cpu_search_float32_impl(DatasetView dataset, QueryView
     if (input.invocation != InvocationStatus::completed) {
         return outcome;
     }
-    if (!inspect_arithmetic_environment().conforming()) {
+    if (!inspect_arithmetic_environment().conforming_float32()) {
         outcome.invocation_status = InvocationStatus::backend_failure;
         outcome.domain_status = DomainStatus::unknown;
         outcome.backend_detail = "nonconforming Float32 arithmetic environment";
@@ -341,7 +370,7 @@ Float64Reference compute_float64_reference(DatasetView dataset, QueryView query)
     if (input.invocation != InvocationStatus::completed) {
         return outcome;
     }
-    if (!inspect_arithmetic_environment().conforming()) {
+    if (!inspect_arithmetic_environment().conforming_float64()) {
         outcome.invocation_status = InvocationStatus::backend_failure;
         outcome.domain_status = DomainStatus::unknown;
         outcome.backend_detail = "nonconforming Float64 arithmetic environment";
@@ -499,6 +528,14 @@ ValidationReport validate_cpu_search(DatasetView dataset, QueryView query,
         report.evidence_identity_status = EvidenceStatus::passed;
         report.evidence_identity = options.production_evidence->identity();
         report.graph_status = options.production_evidence->graph_status();
+        report.numerical_paths.production_float32_graph =
+            options.production_evidence->production_float32_graph_status();
+        report.numerical_paths.validator_float32_graph =
+            options.production_evidence->validator_float32_graph_status();
+        report.numerical_paths.reference_float64_graph =
+            options.production_evidence->reference_float64_graph_status();
+        report.numerical_paths.validator_float64_graph =
+            options.production_evidence->validator_float64_graph_status();
         report.graph_provenance = EvidenceProvenance::verified_build_artifact;
         report.production_candidate_coverage_status =
             options.production_evidence->coverage_status();
@@ -526,18 +563,51 @@ ValidationReport validate_cpu_search(DatasetView dataset, QueryView query,
                 : EvidenceProvenance::unavailable;
         report.production_candidate_coverage_status = EvidenceStatus::blocked;
     }
-    report.arithmetic_environment_status =
-        options.arithmetic_environment_evidence_available
-            ? (environment.conforming() ? EvidenceStatus::passed : EvidenceStatus::failed)
-            : EvidenceStatus::blocked;
+    if (options.arithmetic_environment_evidence_available) {
+        const auto float32_environment = environment.conforming_float32()
+                                             ? EvidenceStatus::passed
+                                             : EvidenceStatus::failed;
+        const auto float64_environment = environment.conforming_float64()
+                                             ? EvidenceStatus::passed
+                                             : EvidenceStatus::failed;
+        report.numerical_paths.production_float32_environment = float32_environment;
+        report.numerical_paths.validator_float32_environment = float32_environment;
+        report.numerical_paths.reference_float64_environment = float64_environment;
+        report.numerical_paths.validator_float64_environment = float64_environment;
+        report.arithmetic_environment_status =
+            float32_environment == EvidenceStatus::passed &&
+                    float64_environment == EvidenceStatus::passed
+                ? EvidenceStatus::passed
+                : EvidenceStatus::failed;
+    } else {
+        report.arithmetic_environment_status = EvidenceStatus::blocked;
+    }
     report.arithmetic_environment_provenance =
         options.arithmetic_environment_evidence_available
             ? EvidenceProvenance::internally_observed
             : EvidenceProvenance::unavailable;
     report.candidate_coverage_provenance = EvidenceProvenance::internally_observed;
 
+    if (options.mandatory_gate_evidence != nullptr &&
+        options.production_evidence != nullptr &&
+        options.mandatory_gate_evidence->source_identity ==
+            options.production_evidence->source_identity()) {
+        report.fixture_status = options.mandatory_gate_evidence->fixture_status;
+        report.oracle_status = options.mandatory_gate_evidence->oracle_status;
+        report.tie_status = options.mandatory_gate_evidence->tie_status;
+        report.reduction_status = options.mandatory_gate_evidence->reduction_status;
+        report.fixture_ids = options.mandatory_gate_evidence->fixture_ids;
+    } else if (options.mandatory_gate_evidence != nullptr) {
+        report.fixture_status = EvidenceStatus::failed;
+        report.oracle_status = EvidenceStatus::failed;
+        report.tie_status = EvidenceStatus::failed;
+        report.reduction_status = EvidenceStatus::failed;
+        report.fixture_ids = options.mandatory_gate_evidence->fixture_ids;
+    }
+
     const auto dimension = static_cast<std::size_t>(dataset.dimension);
     const auto count = static_cast<std::size_t>(dataset.candidate_count);
+    report.numerical_policy = policy_intervals(dataset.dimension);
     try {
         report.independently_computed_float32_distances.resize(count);
         report.independently_computed_float64_distances.resize(count);
@@ -706,6 +776,10 @@ ValidationReport validate_cpu_search(DatasetView dataset, QueryView query,
         report.reference_match_status == EvidenceStatus::failed ||
         report.ud001_status == EvidenceStatus::failed ||
         report.ud002_status == EvidenceStatus::failed ||
+        report.fixture_status == EvidenceStatus::failed ||
+        report.oracle_status == EvidenceStatus::failed ||
+        report.tie_status == EvidenceStatus::failed ||
+        report.reduction_status == EvidenceStatus::failed ||
         (report.ranking.exact_membership_resolved && production.result && !returned_in_exact) ||
         (!report.ranking.exact_membership_resolved && production.result &&
          report.ud002_status == EvidenceStatus::passed && !returned_in_conservative);
@@ -725,6 +799,10 @@ ValidationReport validate_cpu_search(DatasetView dataset, QueryView query,
         report.production_candidate_coverage_status == EvidenceStatus::blocked ||
         report.ud001_status == EvidenceStatus::blocked ||
         report.ud002_status == EvidenceStatus::blocked || !production.result ||
+        report.fixture_status == EvidenceStatus::blocked ||
+        report.oracle_status == EvidenceStatus::blocked ||
+        report.tie_status == EvidenceStatus::blocked ||
+        report.reduction_status == EvidenceStatus::blocked ||
         !reference.argmin_index ||
         (options.require_core_domain &&
          report.domain_status != DomainStatus::core_eligible);

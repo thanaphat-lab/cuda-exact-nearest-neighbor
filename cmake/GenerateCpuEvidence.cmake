@@ -1,3 +1,21 @@
+execute_process(
+    COMMAND "${CMAKE_COMMAND}"
+        -DS6_IDENTITY_FILE=${S6_IDENTITY_FILE}
+        -DS6_SOURCE_ROOT=${S6_SOURCE_ROOT}
+        -DS6_GIT=${S6_GIT}
+        -P "${S6_SOURCE_ROOT}/cmake/VerifySourceIdentity.cmake"
+    RESULT_VARIABLE identity_result
+)
+if(NOT identity_result EQUAL 0)
+    message(FATAL_ERROR "Source identity changed before evidence generation")
+endif()
+file(STRINGS "${S6_IDENTITY_FILE}" identity_lines)
+foreach(line IN LISTS identity_lines)
+    if(line MATCHES "^([^=]+)=(.*)$")
+        set("identity_${CMAKE_MATCH_1}" "${CMAKE_MATCH_2}")
+    endif()
+endforeach()
+
 get_filename_component(output_directory "${S6_PREFIX}" DIRECTORY)
 file(MAKE_DIRECTORY "${output_directory}")
 
@@ -72,10 +90,12 @@ file(SHA256 "${symbols}" symbols_sha256)
 file(SHA256 "${library_symbols}" library_symbols_sha256)
 
 file(WRITE "${S6_MANIFEST}"
-"schema=S6-CPU-PRODUCTION-EVIDENCE-v1.1\n"
+"schema=S6-CPU-PRODUCTION-EVIDENCE-v1.2\n"
 "target=${S6_TARGET_NAME}\n"
-"revision=${S6_REVISION}\n"
-"working_tree_state=${S6_WORKTREE_STATE}\n"
+"revision=${identity_revision}\n"
+"working_tree_state=${identity_working_tree_state}\n"
+"working_tree_fingerprint=${identity_working_tree_fingerprint}\n"
+"source_manifest_sha256=${identity_source_manifest_sha256}\n"
 "compiler_id=${S6_COMPILER_ID}\n"
 "compiler_version=${S6_COMPILER_VERSION}\n"
 "required_compile_flags=${S6_REQUIRED_FLAGS}\n"
