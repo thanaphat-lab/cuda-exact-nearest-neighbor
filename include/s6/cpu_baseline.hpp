@@ -8,6 +8,8 @@
 
 namespace s6 {
 
+class CpuProductionEvidence;
+
 inline constexpr const char* kGraphPolicy = "S6-NUM-GRAPH-v1.0";
 inline constexpr const char* kEnvironmentPolicy = "S6-NUM-ENV-v1.0";
 inline constexpr const char* kBoundPolicy = "S6-UD001-DIST-BOUND-v1.0";
@@ -41,6 +43,8 @@ enum class DomainStatus {
 enum class EvidenceStatus { passed, failed, blocked };
 enum class EvidenceProvenance {
     internally_observed,
+    verified_build_artifact,
+    production_instrumentation,
     external_attestation,
     unavailable,
 };
@@ -132,6 +136,7 @@ struct RankingEvaluation {
 
 struct ValidationOptions {
     bool require_core_domain = true;
+    const CpuProductionEvidence* production_evidence = nullptr;
     // Availability flags are evidence-consumer controls, not proof. In
     // particular, graph and production-coverage attestations remain external
     // and cannot independently satisfy their mandatory gates.
@@ -157,12 +162,15 @@ struct ValidationReport {
     EvidenceStatus production_candidate_coverage_status = EvidenceStatus::blocked;
     EvidenceProvenance production_candidate_coverage_provenance =
         EvidenceProvenance::unavailable;
+    EvidenceStatus evidence_identity_status = EvidenceStatus::blocked;
+    std::string evidence_identity;
     EvidenceStatus production_match_status = EvidenceStatus::blocked;
     EvidenceStatus reference_match_status = EvidenceStatus::blocked;
     EvidenceStatus ud001_status = EvidenceStatus::blocked;
     EvidenceStatus ud002_status = EvidenceStatus::blocked;
     EvidenceProvenance ranking_provenance = EvidenceProvenance::unavailable;
     std::uint64_t independently_observed_candidate_count = 0;
+    std::optional<std::uint64_t> independently_computed_float32_argmin_index;
     bool exact_ambiguity_known = false;
     bool exact_ambiguity = false;
     bool float64_index_agrees = false;

@@ -1,4 +1,7 @@
 #include "s6/cpu_baseline.hpp"
+#include "s6/cpu_evidence.hpp"
+
+#include "cpu_evidence_internal.hpp"
 
 #include <algorithm>
 #include <cfenv>
@@ -253,7 +256,8 @@ ArithmeticEnvironment inspect_arithmetic_environment() noexcept {
     return result;
 }
 
-ProductionOutcome cpu_search_float32(DatasetView dataset, QueryView query) {
+ProductionOutcome detail::cpu_search_float32_impl(DatasetView dataset, QueryView query,
+                                                  CandidateVisitObserver* observer) {
     ProductionOutcome outcome;
     const auto input = inspect_input(dataset, query);
     outcome.invocation_status = input.invocation;
@@ -275,6 +279,9 @@ ProductionOutcome cpu_search_float32(DatasetView dataset, QueryView query) {
         bool have_best = false;
         SearchResult best{};
         for (std::uint64_t i = 0; i < dataset.candidate_count; ++i) {
+            if (observer != nullptr) {
+                observer->observe(i);
+            }
             const auto offset = static_cast<std::size_t>(i) * dimension;
             const float distance = production_distance(dataset.data + offset, query.data,
                                                        dimension);
@@ -283,6 +290,9 @@ ProductionOutcome cpu_search_float32(DatasetView dataset, QueryView query) {
                 outcome.domain_status = DomainStatus::valid_outside_approved_domain;
                 outcome.backend_detail = "nonfinite Float32 candidate distance";
                 outcome.result.reset();
+                if (observer != nullptr) {
+                    observer->finish(false);
+                }
                 return outcome;
             }
             if (!have_best || distance < best.squared_distance ||
@@ -294,13 +304,23 @@ ProductionOutcome cpu_search_float32(DatasetView dataset, QueryView query) {
         outcome.result = best;
         outcome.invocation_status = InvocationStatus::completed;
         outcome.backend_detail.clear();
+        if (observer != nullptr) {
+            observer->finish(true);
+        }
     } catch (const std::bad_alloc&) {
         outcome.invocation_status = InvocationStatus::resource_failure;
         outcome.domain_status = DomainStatus::unknown;
         outcome.result.reset();
         outcome.backend_detail = "allocation failure";
+        if (observer != nullptr) {
+            observer->finish(false);
+        }
     }
     return outcome;
+}
+
+ProductionOutcome cpu_search_float32(DatasetView dataset, QueryView query) {
+    return detail::cpu_search_float32_impl(dataset, query, nullptr);
 }
 
 Float64Reference compute_float64_reference(DatasetView dataset, QueryView query) {
@@ -466,13 +486,38 @@ ValidationReport validate_cpu_search(DatasetView dataset, QueryView query,
         dataset.dimension <= kMaximumPolicyDimension
             ? DomainStatus::core_eligible
             : DomainStatus::valid_outside_approved_domain;
-    report.graph_provenance = options.graph_evidence_available
-                                  ? EvidenceProvenance::external_attestation
-                                  : EvidenceProvenance::unavailable;
-    // Source spelling, matching outputs, or a caller assertion cannot establish
-    // independent compiler/runtime graph conformance. No such evidence producer
-    // exists in this library, so the mandatory graph gate remains blocked.
-    report.graph_status = EvidenceStatus::blocked;
+    if (options.production_evidence != nullptr &&
+        options.production_evidence->matches(dataset, query, production)) {
+        report.evidence_identity_status = EvidenceStatus::passed;
+        report.evidence_identity = options.production_evidence->identity();
+        report.graph_status = options.production_evidence->graph_status();
+        report.graph_provenance = EvidenceProvenance::verified_build_artifact;
+        report.production_candidate_coverage_status =
+            options.production_evidence->coverage_status();
+        report.production_candidate_coverage_provenance =
+            EvidenceProvenance::production_instrumentation;
+    } else if (options.production_evidence != nullptr) {
+        report.evidence_identity_status = EvidenceStatus::failed;
+        report.evidence_identity = options.production_evidence->identity();
+        report.graph_status = EvidenceStatus::blocked;
+        report.graph_provenance = EvidenceProvenance::unavailable;
+        report.production_candidate_coverage_status = EvidenceStatus::blocked;
+        report.production_candidate_coverage_provenance =
+            EvidenceProvenance::unavailable;
+    } else {
+        report.evidence_identity_status = EvidenceStatus::blocked;
+        report.graph_provenance = options.graph_evidence_available
+                                      ? EvidenceProvenance::external_attestation
+                                      : EvidenceProvenance::unavailable;
+        // Source spelling, matching outputs, or a caller assertion cannot establish
+        // independent compiler/runtime graph conformance.
+        report.graph_status = EvidenceStatus::blocked;
+        report.production_candidate_coverage_provenance =
+            options.candidate_evidence_complete
+                ? EvidenceProvenance::external_attestation
+                : EvidenceProvenance::unavailable;
+        report.production_candidate_coverage_status = EvidenceStatus::blocked;
+    }
     report.arithmetic_environment_status =
         options.arithmetic_environment_evidence_available
             ? (environment.conforming() ? EvidenceStatus::passed : EvidenceStatus::failed)
@@ -482,12 +527,6 @@ ValidationReport validate_cpu_search(DatasetView dataset, QueryView query,
             ? EvidenceProvenance::internally_observed
             : EvidenceProvenance::unavailable;
     report.candidate_coverage_provenance = EvidenceProvenance::internally_observed;
-    report.production_candidate_coverage_provenance =
-        options.candidate_evidence_complete ? EvidenceProvenance::external_attestation
-                                            : EvidenceProvenance::unavailable;
-    // Independent recomputation can prove validator coverage, but a Boolean
-    // attestation cannot prove exhaustive participation by the production path.
-    report.production_candidate_coverage_status = EvidenceStatus::blocked;
 
     const auto dimension = static_cast<std::size_t>(dataset.dimension);
     const auto count = static_cast<std::size_t>(dataset.candidate_count);
@@ -553,6 +592,9 @@ ValidationReport validate_cpu_search(DatasetView dataset, QueryView query,
                 report.bound_evidence.size() == count
             ? EvidenceStatus::passed
             : EvidenceStatus::failed;
+    if (have_minimum) {
+        report.independently_computed_float32_argmin_index = independent_index;
+    }
 
     if (production.domain_status == DomainStatus::unknown ||
         production.domain_status == DomainStatus::not_applicable) {
@@ -647,9 +689,11 @@ ValidationReport validate_cpu_search(DatasetView dataset, QueryView query,
 
     const bool demonstrated_failure =
         validator_nonfinite ||
+        report.graph_status == EvidenceStatus::failed ||
         report.domain_consistency_status == EvidenceStatus::failed ||
         report.arithmetic_environment_status == EvidenceStatus::failed ||
         report.candidate_coverage_status == EvidenceStatus::failed ||
+        report.production_candidate_coverage_status == EvidenceStatus::failed ||
         report.production_match_status == EvidenceStatus::failed ||
         report.reference_match_status == EvidenceStatus::failed ||
         report.ud001_status == EvidenceStatus::failed ||
@@ -669,6 +713,7 @@ ValidationReport validate_cpu_search(DatasetView dataset, QueryView query,
         report.graph_status == EvidenceStatus::blocked ||
         report.arithmetic_environment_status == EvidenceStatus::blocked ||
         report.candidate_coverage_status == EvidenceStatus::blocked ||
+        report.evidence_identity_status != EvidenceStatus::passed ||
         report.production_candidate_coverage_status == EvidenceStatus::blocked ||
         report.ud001_status == EvidenceStatus::blocked ||
         report.ud002_status == EvidenceStatus::blocked || !production.result ||

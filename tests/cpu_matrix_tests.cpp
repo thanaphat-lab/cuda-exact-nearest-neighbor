@@ -1,4 +1,5 @@
 #include "s6/cpu_baseline.hpp"
+#include "s6/cpu_evidence.hpp"
 
 #include <array>
 #include <cstdint>
@@ -16,7 +17,8 @@ void require(bool condition, const char* message) {
     }
 }
 
-void run_case(std::uint64_t n, std::uint64_t d) {
+void run_case(std::uint64_t n, std::uint64_t d,
+              const s6::CpuBuildEvidence& build_evidence) {
     std::vector<float> query(static_cast<std::size_t>(d));
     for (std::uint64_t j = 0; j < d; ++j) {
         const auto centered = static_cast<int>((j + (kSeed & 15U)) % 17U) - 8;
@@ -44,7 +46,9 @@ void run_case(std::uint64_t n, std::uint64_t d) {
 
     const s6::DatasetView dataset_view{dataset.data(), n, d, dataset.size()};
     const s6::QueryView query_view{query.data(), d, query.size()};
-    const auto production = s6::cpu_search_float32(dataset_view, query_view);
+    const auto evidenced =
+        s6::cpu_search_float32_evidenced(dataset_view, query_view, build_evidence);
+    const auto& production = evidenced.production;
     require(production.invocation_status == s6::InvocationStatus::completed,
             "matrix production execution failed");
     require(production.result && production.result->index == expected_index &&
@@ -57,41 +61,66 @@ void run_case(std::uint64_t n, std::uint64_t d) {
     require(reference.distances.size() == static_cast<std::size_t>(n),
             "matrix Float64 candidate retention mismatch");
 
-    const auto report =
-        s6::validate_cpu_search(dataset_view, query_view, production, reference);
+    s6::ValidationOptions validation_options;
+    validation_options.production_evidence = &evidenced.evidence;
+    const auto report = s6::validate_cpu_search(dataset_view, query_view, production,
+                                                reference, validation_options);
     require(report.candidate_coverage_status == s6::EvidenceStatus::passed,
             "matrix candidate coverage failed");
-    require(report.graph_status == s6::EvidenceStatus::blocked &&
-                report.graph_provenance == s6::EvidenceProvenance::external_attestation,
-            "matrix external graph attestation was misrepresented as proof");
+    require(report.evidence_identity_status == s6::EvidenceStatus::passed,
+            "matrix evidence identity mismatch");
+    require(report.graph_status == s6::EvidenceStatus::passed &&
+                report.graph_provenance ==
+                    s6::EvidenceProvenance::verified_build_artifact,
+            "matrix graph evidence did not pass");
     require(report.ud001_status == s6::EvidenceStatus::passed,
             "matrix UD-001 failed or blocked");
     require(report.ud002_status == s6::EvidenceStatus::passed,
             "matrix UD-002 failed or blocked");
-    require(report.production_candidate_coverage_status == s6::EvidenceStatus::blocked &&
+    require(report.production_candidate_coverage_status == s6::EvidenceStatus::passed &&
                 report.production_candidate_coverage_provenance ==
-                    s6::EvidenceProvenance::external_attestation,
-            "matrix production coverage attestation was misrepresented as proof");
-    require(report.nn_verdict == s6::NnVerdict::blocked_unverified,
-            "matrix verdict bypassed mandatory graph/production-path evidence");
+                    s6::EvidenceProvenance::production_instrumentation,
+            "matrix production coverage evidence did not pass");
+    require(report.nn_verdict == s6::NnVerdict::accepted_unambiguous,
+            "matrix did not reach evidence-qualified unambiguous acceptance");
     require(report.independently_computed_float32_distances.size() ==
                 static_cast<std::size_t>(n),
             "matrix independent Float32 coverage mismatch");
+    require(report.independently_computed_float32_argmin_index.has_value(),
+            "matrix independent Float32 argmin missing");
 
     std::cout << "matrix N=" << n << " D=" << d << " seed=" << kSeed
-              << " verdict=blocked-unverified evidence=graph,production-coverage\n";
+              << " invocation=completed result_index=" << production.result->index
+              << " result_distance=" << production.result->squared_distance
+              << " independent_f32_index="
+              << *report.independently_computed_float32_argmin_index
+              << " independent_f32_distance="
+              << report.independently_computed_float32_distances[
+                     static_cast<std::size_t>(
+                         *report.independently_computed_float32_argmin_index)]
+              << " f64_index=" << *reference.argmin_index
+              << " ud001=passed ud002=passed graph=passed coverage=passed"
+              << " workload_sha256=" << evidenced.evidence.workload_identity()
+              << " evidence_identity=" << report.evidence_identity
+              << " verdict=accepted-unambiguous\n";
 }
 
 }  // namespace
 
-int main() {
+int main(int argc, char** argv) {
     try {
+        require(argc == 2, "matrix evidence manifest argument missing");
+        const auto build_evidence = s6::verify_cpu_build_evidence(argv[1]);
+        require(build_evidence.identity_status() == s6::EvidenceStatus::passed,
+                "matrix build evidence identity failed");
+        require(build_evidence.graph_status() == s6::EvidenceStatus::passed,
+                "matrix graph inspection failed");
         constexpr std::array<std::uint64_t, 4> candidate_counts = {
             1024U, 16384U, 262144U, 1048576U};
         constexpr std::array<std::uint64_t, 3> dimensions = {8U, 32U, 128U};
         for (const auto n : candidate_counts) {
             for (const auto d : dimensions) {
-                run_case(n, d);
+                run_case(n, d, build_evidence);
             }
         }
         std::cout << "S6 CPU required 12-case matrix: PASS\n";
