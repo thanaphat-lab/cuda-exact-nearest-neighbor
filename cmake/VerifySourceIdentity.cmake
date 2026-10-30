@@ -10,6 +10,9 @@ endforeach()
 if(NOT identity_schema STREQUAL "S6-SOURCE-IDENTITY-v1.0")
     message(FATAL_ERROR "Unsupported source identity schema")
 endif()
+if(NOT identity_working_tree_state STREQUAL "clean")
+    message(FATAL_ERROR "Configured source identity is not clean")
+endif()
 
 execute_process(
     COMMAND "${S6_GIT}" rev-parse HEAD
@@ -31,6 +34,9 @@ else()
     set(current_state "dirty")
 endif()
 string(SHA256 current_fingerprint "${current_status}")
+if(NOT current_state STREQUAL "clean")
+    message(FATAL_ERROR "Current source identity is dirty; evidence is unavailable")
+endif()
 if(NOT current_revision STREQUAL identity_revision OR
    NOT current_state STREQUAL identity_working_tree_state OR
    NOT current_fingerprint STREQUAL identity_working_tree_fingerprint)

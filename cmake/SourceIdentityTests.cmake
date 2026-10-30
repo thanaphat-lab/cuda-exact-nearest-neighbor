@@ -24,6 +24,10 @@ string(REGEX REPLACE "revision=[0-9a-f]+"
     stale_revision "${original_identity}")
 expect_identity_rejected("stale-revision" "${stale_revision}")
 
+string(REPLACE "working_tree_state=clean" "working_tree_state=dirty"
+    dirty_configured_state "${original_identity}")
+expect_identity_rejected("dirty-configured-state" "${dirty_configured_state}")
+
 string(REGEX REPLACE "working_tree_fingerprint=[0-9a-f]+"
     "working_tree_fingerprint=0000000000000000000000000000000000000000000000000000000000000000"
     dirty_fingerprint "${original_identity}")

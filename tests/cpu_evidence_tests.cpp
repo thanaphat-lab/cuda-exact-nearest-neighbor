@@ -92,6 +92,18 @@ std::string replace_field(std::string manifest, const std::string& name,
     return manifest;
 }
 
+std::string remove_field(std::string manifest, const std::string& name) {
+    const auto prefix = name + "=";
+    const auto start = manifest.find(prefix);
+    if (start == std::string::npos) {
+        throw std::runtime_error("manifest test field missing");
+    }
+    const auto end = manifest.find('\n', start);
+    manifest.erase(start, end == std::string::npos ? std::string::npos
+                                                    : end - start + 1U);
+    return manifest;
+}
+
 std::string sha256_file(const std::filesystem::path& path) {
     std::ifstream input(path, std::ios::binary);
     require(static_cast<bool>(input), "cannot hash negative-test artifact");
@@ -147,7 +159,11 @@ void test_manifest_rejection(const std::filesystem::path& manifest_path) {
 
     const std::vector<std::pair<std::string, std::string>> corruptions = {
         {"revision", std::string(40, '0')},
+        {"working_tree_state", "dirty"},
+        {"source_manifest_sha256", std::string(64, '0')},
+        {"compiler_id", "invalid"},
         {"compiler_version", "0.0.invalid"},
+        {"build_configuration", "Debug"},
         {"required_compile_flags", "/fp:fast"},
         {"executable_sha256", std::string(64, '0')},
         {"baseline_source_sha256", std::string(64, 'f')}};
@@ -193,6 +209,26 @@ void test_manifest_rejection(const std::filesystem::path& manifest_path) {
     require(missing.identity_status() == s6::EvidenceStatus::blocked &&
                 missing.graph_status() == s6::EvidenceStatus::blocked,
             "missing build evidence was not blocked");
+
+    const auto dirty_manifest = directory / "dirty-acceptance.manifest.txt";
+    write_text(dirty_manifest,
+               replace_field(original, "working_tree_state", "dirty"));
+    const auto dirty_build =
+        s6::verify_cpu_build_evidence(dirty_manifest.string());
+    std::vector<float> dataset = {0.0F, 2.0F};
+    std::vector<float> query = {0.0F};
+    const s6::DatasetView dataset_view{dataset.data(), 2, 1, dataset.size()};
+    const s6::QueryView query_view{query.data(), 1, query.size()};
+    const auto evidenced =
+        s6::cpu_search_float32_evidenced(dataset_view, query_view, dirty_build);
+    const auto reference = s6::compute_float64_reference(dataset_view, query_view);
+    s6::ValidationOptions options;
+    options.production_evidence = &evidenced.evidence;
+    const auto report = s6::validate_cpu_search(
+        dataset_view, query_view, evidenced.production, reference, options);
+    require(report.evidence_identity_status == s6::EvidenceStatus::failed &&
+                report.nn_verdict == s6::NnVerdict::failed,
+            "demonstrated dirty build identity did not fail numerical acceptance");
 }
 
 void replace_after(std::string& text, const std::string& anchor, const std::string& needle,
@@ -482,14 +518,75 @@ void test_structured_evidence_negative(
     require(report.nn_verdict == s6::NnVerdict::accepted_unambiguous,
             "structured negative-test baseline was not accepted");
 
+    const std::vector<std::uint64_t> mathematical_distance_numerators = {
+        0U, 32768U};
+    s6::MatrixReportExpectation expectation;
+    expectation.case_id = "negative-case";
+    expectation.seed = 7U;
+    expectation.dataset = dataset_view;
+    expectation.query = query_view;
+    expectation.build_evidence = &build_evidence;
+    expectation.evidenced = &evidenced;
+    expectation.reference = &reference;
+    expectation.validation_report = &report;
+    expectation.mandatory_gate_evidence = &gates;
+    expectation.mathematical_distance_numerators =
+        &mathematical_distance_numerators;
+    expectation.mathematical_distance_exponent = -12;
+
     const auto write_report = [&]() {
         const auto summary = s6::write_cpu_matrix_case_report(
             directory.string(), "negative-case", 7U, dataset_view, query_view,
-            build_evidence, evidenced, reference, report, gates, {0U, 32768U}, -12);
+            build_evidence, evidenced, reference, report, gates,
+            mathematical_distance_numerators, -12);
         require(summary.status == s6::EvidenceStatus::passed,
                 "structured negative-test baseline report did not verify");
         return summary;
     };
+
+    auto complete = write_report();
+    require(s6::verify_cpu_matrix_case_report(complete.metadata_path).status ==
+                s6::EvidenceStatus::blocked,
+            "unbound report verification issued an accepted verdict");
+    require(s6::verify_cpu_matrix_case_report(complete.metadata_path, expectation)
+                    .status == s6::EvidenceStatus::passed,
+            "complete workload-bound report did not pass strict verification");
+
+    for (const auto& required_field :
+         s6::cpu_matrix_required_metadata_fields()) {
+        auto missing = write_report();
+        write_text(missing.metadata_path,
+                   remove_field(read_text(missing.metadata_path), required_field));
+        require(s6::verify_cpu_matrix_case_report(missing.metadata_path, expectation)
+                        .status == s6::EvidenceStatus::failed,
+                ("missing required matrix field was accepted: " + required_field)
+                    .c_str());
+
+        auto corrupt = write_report();
+        write_text(corrupt.metadata_path,
+                   replace_field(read_text(corrupt.metadata_path), required_field,
+                                 "corrupt"));
+        require(s6::verify_cpu_matrix_case_report(corrupt.metadata_path, expectation)
+                        .status == s6::EvidenceStatus::failed,
+                ("corrupt required matrix field was accepted: " + required_field)
+                    .c_str());
+    }
+
+    auto duplicate = write_report();
+    auto duplicate_metadata = read_text(duplicate.metadata_path);
+    duplicate_metadata += "revision=" + field(duplicate_metadata, "revision") + "\n";
+    write_text(duplicate.metadata_path, duplicate_metadata);
+    require(s6::verify_cpu_matrix_case_report(duplicate.metadata_path, expectation)
+                    .status == s6::EvidenceStatus::failed,
+            "duplicate required matrix field was accepted");
+
+    auto wrong_expectation = expectation;
+    wrong_expectation.seed = expectation.seed + 1U;
+    complete = write_report();
+    require(s6::verify_cpu_matrix_case_report(complete.metadata_path,
+                                               wrong_expectation)
+                    .status == s6::EvidenceStatus::failed,
+            "report-to-workload expectation mismatch was accepted");
 
     auto summary = write_report();
     auto bytes = read_binary(summary.candidate_path);

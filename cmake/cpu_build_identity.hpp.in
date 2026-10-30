@@ -8,6 +8,7 @@ inline constexpr const char* kWorkingTreeFingerprint = "@S6_WORKTREE_FINGERPRINT
 inline constexpr const char* kSourceManifestSha256 = "@S6_SOURCE_MANIFEST_SHA256@";
 inline constexpr const char* kCompilerId = "@CMAKE_CXX_COMPILER_ID@";
 inline constexpr const char* kCompilerVersion = "@CMAKE_CXX_COMPILER_VERSION@";
+inline constexpr const char* kBuildConfiguration = "@S6_BUILD_CONFIGURATION@";
 inline constexpr const char* kRequiredCompileFlags = "@S6_REQUIRED_COMPILE_FLAGS@";
 inline constexpr const char* kSourceRoot = R"s6(@S6_CONFIGURED_SOURCE_ROOT@)s6";
 inline constexpr const char* kBuildRoot = R"s6(@S6_CONFIGURED_BUILD_ROOT@)s6";

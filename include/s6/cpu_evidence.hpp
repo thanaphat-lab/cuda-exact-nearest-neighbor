@@ -13,7 +13,7 @@ inline constexpr const char* kCpuEvidenceSchema =
 inline constexpr const char* kCpuFixtureEvidenceSchema =
     "S6-CPU-FIXTURE-EVIDENCE-v1.0";
 inline constexpr const char* kCpuMatrixEvidenceSchema =
-    "S6-CPU-MATRIX-EVIDENCE-v1.0";
+    "S6-CPU-MATRIX-EVIDENCE-v1.1";
 
 struct CoverageAssessment {
     EvidenceStatus status = EvidenceStatus::blocked;
@@ -79,6 +79,9 @@ class CpuBuildEvidence {
     }
     const std::string& compiler_id() const noexcept { return compiler_id_; }
     const std::string& compiler_version() const noexcept { return compiler_version_; }
+    const std::string& build_configuration() const noexcept {
+        return build_configuration_;
+    }
     const std::string& required_compile_flags() const noexcept {
         return required_compile_flags_;
     }
@@ -100,6 +103,7 @@ class CpuBuildEvidence {
     std::string source_manifest_sha256_;
     std::string compiler_id_;
     std::string compiler_version_;
+    std::string build_configuration_;
     std::string required_compile_flags_;
 
     friend CpuBuildEvidence verify_cpu_build_evidence(const std::string& manifest_path);
@@ -189,6 +193,22 @@ struct MatrixReportSummary {
     std::string detail;
 };
 
+struct MatrixReportExpectation {
+    std::string case_id;
+    std::uint64_t seed = 0;
+    DatasetView dataset;
+    QueryView query;
+    const CpuBuildEvidence* build_evidence = nullptr;
+    const EvidencedProductionOutcome* evidenced = nullptr;
+    const Float64Reference* reference = nullptr;
+    const ValidationReport* validation_report = nullptr;
+    const MandatoryGateEvidence* mandatory_gate_evidence = nullptr;
+    const std::vector<std::uint64_t>* mathematical_distance_numerators = nullptr;
+    std::int32_t mathematical_distance_exponent = 0;
+};
+
+const std::vector<std::string>& cpu_matrix_required_metadata_fields();
+
 MatrixReportSummary write_cpu_matrix_case_report(
     const std::string& report_root, const std::string& case_id,
     std::uint64_t seed, DatasetView dataset, QueryView query,
@@ -200,5 +220,8 @@ MatrixReportSummary write_cpu_matrix_case_report(
     std::int32_t mathematical_distance_exponent);
 MatrixReportSummary verify_cpu_matrix_case_report(
     const std::string& metadata_path);
+MatrixReportSummary verify_cpu_matrix_case_report(
+    const std::string& metadata_path,
+    const MatrixReportExpectation& expectation);
 
 }  // namespace s6

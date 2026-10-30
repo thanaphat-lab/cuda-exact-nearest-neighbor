@@ -767,6 +767,7 @@ ValidationReport validate_cpu_search(DatasetView dataset, QueryView query,
 
     const bool demonstrated_failure =
         validator_nonfinite ||
+        report.evidence_identity_status == EvidenceStatus::failed ||
         report.graph_status == EvidenceStatus::failed ||
         report.domain_consistency_status == EvidenceStatus::failed ||
         report.arithmetic_environment_status == EvidenceStatus::failed ||

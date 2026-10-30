@@ -7,6 +7,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+if(NOT CMAKE_BUILD_TYPE STREQUAL "Release")
+    message(FATAL_ERROR "S6 acceptance evidence requires CMAKE_BUILD_TYPE=Release")
+endif()
+
 # S5.2 establishes infrastructure only. CPU/CUDA targets are added only after
 # their design and implementation milestones are approved.
 
@@ -67,7 +71,8 @@ execute_process(
 if(S6_BUILD_STATUS STREQUAL "")
     set(S6_WORKTREE_STATE "clean")
 else()
-    set(S6_WORKTREE_STATE "dirty")
+    message(FATAL_ERROR
+        "S6 acceptance evidence requires a clean working tree at configure time")
 endif()
 string(SHA256 S6_WORKTREE_FINGERPRINT "${S6_BUILD_STATUS}")
 set(S6_SOURCE_IDENTITY_CONTENT "")
@@ -90,6 +95,7 @@ file(SHA256
     S6_POLICY_SHA256
 )
 set(S6_REQUIRED_COMPILE_FLAGS "/O2|/Ob2|/DNDEBUG|-std:c++17|/W4|/WX|/fp:strict|/permissive-")
+set(S6_BUILD_CONFIGURATION "${CMAKE_BUILD_TYPE}")
 get_filename_component(S6_COMPILER_DIRECTORY ${CMAKE_CXX_COMPILER} DIRECTORY)
 set(S6_DUMPBIN "${S6_COMPILER_DIRECTORY}/dumpbin.exe")
 file(TO_CMAKE_PATH "${CMAKE_CURRENT_SOURCE_DIR}" S6_CONFIGURED_SOURCE_ROOT)
@@ -187,6 +193,7 @@ if(BUILD_TESTING)
                 -DS6_COMPILER=${CMAKE_CXX_COMPILER}
                 -DS6_COMPILER_ID=${CMAKE_CXX_COMPILER_ID}
                 -DS6_COMPILER_VERSION=${CMAKE_CXX_COMPILER_VERSION}
+                -DS6_BUILD_CONFIGURATION=${S6_BUILD_CONFIGURATION}
                 -DS6_REVISION=${S6_BUILD_REVISION}
                 -DS6_WORKTREE_STATE=${S6_WORKTREE_STATE}
                 -DS6_REQUIRED_FLAGS=${S6_REQUIRED_COMPILE_FLAGS}

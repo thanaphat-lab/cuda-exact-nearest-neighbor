@@ -31,6 +31,9 @@
 namespace s6 {
 namespace {
 
+constexpr std::uint64_t kMaximumPolicyDimension =
+    (std::uint64_t{1} << 24) - 1;
+
 class EvidenceUnavailable final : public std::runtime_error {
   public:
     using std::runtime_error::runtime_error;
@@ -254,7 +257,12 @@ std::map<std::string, std::string> parse_manifest(const std::string& text) {
         if (equals == std::string::npos || equals == 0) {
             continue;
         }
-        fields.emplace(line.substr(0, equals), line.substr(equals + 1));
+        const auto inserted = fields.emplace(line.substr(0, equals),
+                                             line.substr(equals + 1));
+        if (!inserted.second) {
+            throw std::runtime_error("duplicate manifest field: " +
+                                     line.substr(0, equals));
+        }
     }
     return fields;
 }
@@ -276,6 +284,15 @@ const std::string& require_field(const std::map<std::string, std::string>& field
                                  const std::string& name) {
     const auto found = fields.find(name);
     if (found == fields.end() || found->second.empty()) {
+        throw std::runtime_error("manifest field missing: " + name);
+    }
+    return found->second;
+}
+
+const std::string& require_present_field(
+    const std::map<std::string, std::string>& fields, const std::string& name) {
+    const auto found = fields.find(name);
+    if (found == fields.end()) {
         throw std::runtime_error("manifest field missing: " + name);
     }
     return found->second;
@@ -1151,6 +1168,10 @@ CpuBuildEvidence verify_cpu_build_evidence(const std::string& manifest_path) {
         if (require_field(fields, "target") != expected.target) {
             throw std::runtime_error("manifest target is not the running executable");
         }
+        if (std::string(build_identity::kWorkingTreeState) != "clean" ||
+            require_field(fields, "working_tree_state") != "clean") {
+            throw std::runtime_error("acceptance build identity is not clean");
+        }
         const std::vector<std::pair<std::string, std::string>> identities = {
             {"revision", build_identity::kRevision},
             {"working_tree_state", build_identity::kWorkingTreeState},
@@ -1158,6 +1179,7 @@ CpuBuildEvidence verify_cpu_build_evidence(const std::string& manifest_path) {
             {"source_manifest_sha256", build_identity::kSourceManifestSha256},
             {"compiler_id", build_identity::kCompilerId},
             {"compiler_version", build_identity::kCompilerVersion},
+            {"build_configuration", build_identity::kBuildConfiguration},
             {"required_compile_flags", build_identity::kRequiredCompileFlags},
             {"policy_sha256", build_identity::kPolicySha256},
             {"baseline_header_sha256", build_identity::kBaselineHeaderSha256},
@@ -1171,7 +1193,8 @@ CpuBuildEvidence verify_cpu_build_evidence(const std::string& manifest_path) {
             }
         }
         const auto runtime_source = inspect_runtime_source_identity();
-        if (runtime_source.revision != build_identity::kRevision ||
+        if (runtime_source.working_tree_state != "clean" ||
+            runtime_source.revision != build_identity::kRevision ||
             runtime_source.working_tree_state != build_identity::kWorkingTreeState ||
             runtime_source.working_tree_fingerprint !=
                 build_identity::kWorkingTreeFingerprint ||
@@ -1326,6 +1349,8 @@ CpuBuildEvidence verify_cpu_build_evidence(const std::string& manifest_path) {
         result.source_identity_ = runtime_source.combined;
         result.compiler_id_ = require_field(fields, "compiler_id");
         result.compiler_version_ = require_field(fields, "compiler_version");
+        result.build_configuration_ =
+            require_field(fields, "build_configuration");
         result.required_compile_flags_ = require_field(fields, "required_compile_flags");
     } catch (const EvidenceUnavailable& error) {
         result.identity_status_ = EvidenceStatus::blocked;
@@ -1471,6 +1496,137 @@ const char* invocation_token(InvocationStatus status) {
     return "not-executed";
 }
 
+const char* input_outcome_token(InputOutcome outcome) {
+    switch (outcome) {
+        case InputOutcome::valid:
+            return "valid";
+        case InputOutcome::invalid_nonfinite:
+            return "invalid-nonfinite";
+        case InputOutcome::invalid_N_zero:
+            return "invalid-N-zero";
+        case InputOutcome::invalid_D_zero:
+            return "invalid-D-zero";
+        case InputOutcome::not_applicable:
+            return "not-applicable";
+    }
+    return "not-applicable";
+}
+
+const char* domain_status_token(DomainStatus status) {
+    switch (status) {
+        case DomainStatus::core_eligible:
+            return "core-eligible";
+        case DomainStatus::valid_outside_approved_domain:
+            return "valid-outside-approved-domain";
+        case DomainStatus::unknown:
+            return "unknown";
+        case DomainStatus::not_applicable:
+            return "not-applicable";
+    }
+    return "unknown";
+}
+
+const char* provenance_token(EvidenceProvenance provenance) {
+    switch (provenance) {
+        case EvidenceProvenance::internally_observed:
+            return "internally-observed";
+        case EvidenceProvenance::verified_build_artifact:
+            return "verified-build-artifact";
+        case EvidenceProvenance::production_instrumentation:
+            return "production-instrumentation";
+        case EvidenceProvenance::external_attestation:
+            return "external-attestation";
+        case EvidenceProvenance::unavailable:
+            return "unavailable";
+    }
+    return "unavailable";
+}
+
+const char* contender_provenance_token(ContenderProvenance provenance) {
+    switch (provenance) {
+        case ContenderProvenance::exact_resolved:
+            return "exact";
+        case ContenderProvenance::conservative_outward:
+            return "conservative-outward";
+        case ContenderProvenance::not_applicable:
+            return "not-applicable";
+    }
+    return "not-applicable";
+}
+
+std::uint64_t parse_u64(const std::string& value, const std::string& field_name) {
+    if (value.empty() ||
+        !std::all_of(value.begin(), value.end(), [](unsigned char character) {
+            return std::isdigit(character) != 0;
+        })) {
+        throw std::runtime_error("invalid unsigned integer field: " + field_name);
+    }
+    try {
+        return std::stoull(value);
+    } catch (const std::exception&) {
+        throw std::runtime_error("invalid unsigned integer field: " + field_name);
+    }
+}
+
+std::vector<std::uint64_t> parse_indices(const std::string& value,
+                                         const std::string& field_name,
+                                         std::uint64_t candidate_count) {
+    std::vector<std::uint64_t> result;
+    if (value.empty()) {
+        return result;
+    }
+    std::istringstream values(value);
+    std::string token;
+    while (std::getline(values, token, ',')) {
+        const auto index = parse_u64(token, field_name);
+        if (index >= candidate_count ||
+            (!result.empty() && index <= result.back())) {
+            throw std::runtime_error("invalid candidate index list: " + field_name);
+        }
+        result.push_back(index);
+    }
+    return result;
+}
+
+bool is_sha256(const std::string& value) {
+    return value.size() == 64U &&
+           std::all_of(value.begin(), value.end(), [](unsigned char character) {
+               return std::isdigit(character) != 0 ||
+                      (character >= 'a' && character <= 'f');
+           });
+}
+
+const std::vector<std::string>& matrix_required_fields() {
+    static const std::vector<std::string> fields = {
+        "schema", "case_id", "revision", "working_tree_state",
+        "working_tree_fingerprint", "source_manifest_sha256", "source_identity",
+        "build_identity", "compiler_id", "compiler_version", "build_configuration",
+        "effective_flags", "implementation_variant", "workload_kind", "generator_id",
+        "seed", "N", "D", "dataset_sha256", "query_sha256", "workload_sha256",
+        "input_contract_outcome", "domain_status", "production_invocation",
+        "production_index", "production_distance_bits", "reference_index",
+        "evidence_identity_status", "graph_status", "graph_provenance",
+        "production_float32_graph", "validator_float32_graph",
+        "reference_float64_graph", "validator_float64_graph", "float32_environment",
+        "float64_environment", "arithmetic_status", "candidate_coverage_status",
+        "candidate_coverage_provenance", "production_candidate_coverage_status",
+        "production_candidate_coverage_provenance", "production_match_status",
+        "reference_match_status", "float32_lexicographic_status",
+        "float64_index_agrees", "ranking_provenance", "graph_policy",
+        "environment_policy", "bound_policy", "ranking_policy", "verdict_policy",
+        "gamma32_lower_bits", "gamma32_upper_bits", "gamma64_lower_bits",
+        "gamma64_upper_bits", "e32_lower_bits", "e32_upper_bits", "e64_lower_bits",
+        "e64_upper_bits", "additive_lower_bits", "additive_upper_bits",
+        "relative_lower_bits", "relative_upper_bits", "ud001_status", "ud002_status",
+        "contender_provenance", "boundary_status", "exact_contenders",
+        "conservative_contenders", "boundary_uncertain_indices",
+        "exact_membership_resolved", "exact_ambiguity", "fixture_status",
+        "oracle_status", "tie_status", "reduction_status", "fixture_ids",
+        "decision_trace", "nn_verdict", "candidate_encoding", "candidate_record_size",
+        "candidate_count", "candidate_bytes", "candidate_sha256", "candidate_path"};
+    return fields;
+}
+
 std::string join_indices(const std::vector<std::uint64_t>& values) {
     std::ostringstream output;
     for (std::size_t i = 0; i < values.size(); ++i) {
@@ -1557,6 +1713,10 @@ std::string hash_raw_floats(const float* data, std::size_t count) {
 }
 
 }  // namespace
+
+const std::vector<std::string>& cpu_matrix_required_metadata_fields() {
+    return matrix_required_fields();
+}
 
 bool write_cpu_fixture_evidence(const std::string& path,
                                 const CpuBuildEvidence& build_evidence,
@@ -1743,6 +1903,9 @@ MatrixReportSummary write_cpu_matrix_case_report(
             throw std::runtime_error("cannot create matrix metadata report");
         }
         const auto environment = inspect_arithmetic_environment();
+        const auto exact_contenders = report.ranking.exact_membership_resolved
+                                          ? join_indices(report.ranking.exact_contenders)
+                                          : std::string("unknown");
         metadata << "schema=" << kCpuMatrixEvidenceSchema << '\n'
                  << "case_id=" << case_id << '\n'
                  << "revision=" << build_evidence.revision() << '\n'
@@ -1755,7 +1918,11 @@ MatrixReportSummary write_cpu_matrix_case_report(
                  << "build_identity=" << build_evidence.identity() << '\n'
                  << "compiler_id=" << build_evidence.compiler_id() << '\n'
                  << "compiler_version=" << build_evidence.compiler_version() << '\n'
+                 << "build_configuration=" << build_evidence.build_configuration() << '\n'
                  << "effective_flags=" << build_evidence.required_compile_flags() << '\n'
+                 << "implementation_variant=cpu-float32-baseline\n"
+                 << "workload_kind=single-query-primary\n"
+                 << "generator_id=s6-cpu-matrix-dyadic-v1\n"
                  << "seed=" << seed << '\n'
                  << "N=" << dataset.candidate_count << '\n'
                  << "D=" << dataset.dimension << '\n'
@@ -1764,6 +1931,9 @@ MatrixReportSummary write_cpu_matrix_case_report(
                  << "query_sha256=" << hash_raw_floats(query.data, query.element_count)
                  << '\n'
                  << "workload_sha256=" << evidenced.evidence.workload_identity() << '\n'
+                 << "input_contract_outcome="
+                 << input_outcome_token(report.input_outcome) << '\n'
+                 << "domain_status=" << domain_status_token(report.domain_status) << '\n'
                  << "production_invocation="
                  << invocation_token(evidenced.production.invocation_status) << '\n'
                  << "production_index="
@@ -1781,6 +1951,11 @@ MatrixReportSummary write_cpu_matrix_case_report(
                  << (reference.argmin_index ? std::to_string(*reference.argmin_index)
                                             : "not-applicable")
                  << '\n'
+                 << "evidence_identity_status="
+                 << evidence_status_token(report.evidence_identity_status) << '\n'
+                 << "graph_status=" << evidence_status_token(report.graph_status) << '\n'
+                 << "graph_provenance=" << provenance_token(report.graph_provenance)
+                 << '\n'
                  << "production_float32_graph="
                  << evidence_status_token(report.numerical_paths.production_float32_graph)
                  << '\n'
@@ -1797,6 +1972,28 @@ MatrixReportSummary write_cpu_matrix_case_report(
                  << (environment.conforming_float32() ? "passed" : "failed") << '\n'
                  << "float64_environment="
                  << (environment.conforming_float64() ? "passed" : "failed") << '\n'
+                 << "arithmetic_status="
+                 << evidence_status_token(report.arithmetic_environment_status) << '\n'
+                 << "candidate_coverage_status="
+                 << evidence_status_token(report.candidate_coverage_status) << '\n'
+                 << "candidate_coverage_provenance="
+                 << provenance_token(report.candidate_coverage_provenance) << '\n'
+                 << "production_candidate_coverage_status="
+                 << evidence_status_token(report.production_candidate_coverage_status)
+                 << '\n'
+                 << "production_candidate_coverage_provenance="
+                 << provenance_token(report.production_candidate_coverage_provenance)
+                 << '\n'
+                 << "production_match_status="
+                 << evidence_status_token(report.production_match_status) << '\n'
+                 << "reference_match_status="
+                 << evidence_status_token(report.reference_match_status) << '\n'
+                 << "float32_lexicographic_status="
+                 << evidence_status_token(report.production_match_status) << '\n'
+                 << "float64_index_agrees="
+                 << (report.float64_index_agrees ? "true" : "false") << '\n'
+                 << "ranking_provenance=" << provenance_token(report.ranking_provenance)
+                 << '\n'
                  << "graph_policy=" << kGraphPolicy << '\n'
                  << "environment_policy=" << kEnvironmentPolicy << '\n'
                  << "bound_policy=" << kBoundPolicy << '\n'
@@ -1828,8 +2025,13 @@ MatrixReportSummary write_cpu_matrix_case_report(
                  << double_bits(report.numerical_policy.relative.upper) << '\n'
                  << "ud001_status=" << evidence_status_token(report.ud001_status) << '\n'
                  << "ud002_status=" << evidence_status_token(report.ud002_status) << '\n'
-                 << "exact_contenders="
-                 << join_indices(report.ranking.exact_contenders) << '\n'
+                 << "contender_provenance="
+                 << contender_provenance_token(report.contender_provenance) << '\n'
+                 << "boundary_status="
+                 << (report.ranking.exact_membership_resolved ? "resolved"
+                                                             : "boundary-uncertain")
+                 << '\n'
+                 << "exact_contenders=" << exact_contenders << '\n'
                  << "conservative_contenders="
                  << join_indices(report.ranking.conservative_contenders) << '\n'
                  << "boundary_uncertain_indices="
@@ -1860,7 +2062,21 @@ MatrixReportSummary write_cpu_matrix_case_report(
         if (!metadata) {
             throw std::runtime_error("matrix metadata report write failed");
         }
-        summary = verify_cpu_matrix_case_report(summary.metadata_path);
+        MatrixReportExpectation expectation;
+        expectation.case_id = case_id;
+        expectation.seed = seed;
+        expectation.dataset = dataset;
+        expectation.query = query;
+        expectation.build_evidence = &build_evidence;
+        expectation.evidenced = &evidenced;
+        expectation.reference = &reference;
+        expectation.validation_report = &report;
+        expectation.mandatory_gate_evidence = &gates;
+        expectation.mathematical_distance_numerators =
+            &mathematical_distance_numerators;
+        expectation.mathematical_distance_exponent =
+            mathematical_distance_exponent;
+        summary = verify_cpu_matrix_case_report(summary.metadata_path, expectation);
     } catch (const std::exception& error) {
         summary.status = EvidenceStatus::blocked;
         summary.detail = error.what();
@@ -1868,14 +2084,49 @@ MatrixReportSummary write_cpu_matrix_case_report(
     return summary;
 }
 
-MatrixReportSummary verify_cpu_matrix_case_report(
-    const std::string& metadata_path) {
+namespace {
+
+bool same_interval_bits(const Interval& interval, std::uint64_t lower_bits,
+                        std::uint64_t upper_bits) noexcept {
+    return double_bits(interval.lower) == lower_bits &&
+           double_bits(interval.upper) == upper_bits;
+}
+
+MatrixReportSummary verify_cpu_matrix_case_report_impl(
+    const std::string& metadata_path,
+    const MatrixReportExpectation* expectation) {
     MatrixReportSummary summary;
     summary.metadata_path = metadata_path;
     try {
         const auto fields = parse_manifest(read_text(metadata_path));
+        for (const auto& name : matrix_required_fields()) {
+            require_present_field(fields, name);
+        }
         if (require_field(fields, "schema") != kCpuMatrixEvidenceSchema) {
             throw std::runtime_error("unsupported matrix evidence schema");
+        }
+        for (const auto& name : matrix_required_fields()) {
+            if (name != "boundary_uncertain_indices" &&
+                require_present_field(fields, name).empty()) {
+                throw std::runtime_error("matrix metadata field is empty: " + name);
+            }
+        }
+        if (require_field(fields, "working_tree_state") != "clean" ||
+            require_field(fields, "build_configuration") != "Release" ||
+            require_field(fields, "implementation_variant") !=
+                "cpu-float32-baseline" ||
+            require_field(fields, "workload_kind") != "single-query-primary" ||
+            require_field(fields, "generator_id") != "s6-cpu-matrix-dyadic-v1") {
+            throw std::runtime_error("matrix build/workload identity is not acceptance eligible");
+        }
+        for (const auto* hash_field : {"working_tree_fingerprint",
+                                       "source_manifest_sha256", "dataset_sha256",
+                                       "query_sha256", "workload_sha256",
+                                       "candidate_sha256"}) {
+            if (!is_sha256(require_field(fields, hash_field))) {
+                throw std::runtime_error(std::string("invalid SHA-256 field: ") +
+                                         hash_field);
+            }
         }
         if (require_field(fields, "graph_policy") != kGraphPolicy ||
             require_field(fields, "environment_policy") != kEnvironmentPolicy ||
@@ -1901,34 +2152,59 @@ MatrixReportSummary verify_cpu_matrix_case_report(
                 throw std::runtime_error("matrix numerical policy interval is invalid");
             }
         }
-        require_field(fields, "source_identity");
-        require_field(fields, "fixture_ids");
-        require_field(fields, "decision_trace");
         const auto verdict = require_field(fields, "nn_verdict");
         const bool accepted = verdict == "accepted-unambiguous" ||
                               verdict == "accepted-ambiguous";
-        if (accepted &&
-            (require_field(fields, "production_float32_graph") != "passed" ||
+        if (!accepted) {
+            throw std::runtime_error("matrix report is not an accepted correctness result");
+        }
+        if (require_field(fields, "input_contract_outcome") != "valid" ||
+            require_field(fields, "domain_status") != "core-eligible" ||
+            require_field(fields, "production_invocation") != "completed" ||
+            require_field(fields, "evidence_identity_status") != "passed" ||
+            require_field(fields, "graph_status") != "passed" ||
+            require_field(fields, "graph_provenance") != "verified-build-artifact" ||
+            require_field(fields, "production_float32_graph") != "passed" ||
              require_field(fields, "validator_float32_graph") != "passed" ||
              require_field(fields, "reference_float64_graph") != "passed" ||
              require_field(fields, "validator_float64_graph") != "passed" ||
              require_field(fields, "float32_environment") != "passed" ||
              require_field(fields, "float64_environment") != "passed" ||
-             require_field(fields, "ud001_status") != "passed" ||
-             require_field(fields, "ud002_status") != "passed" ||
-             require_field(fields, "fixture_status") != "passed" ||
-             require_field(fields, "oracle_status") != "passed" ||
-             require_field(fields, "tie_status") != "passed" ||
-             require_field(fields, "reduction_status") != "passed")) {
+            require_field(fields, "arithmetic_status") != "passed" ||
+            require_field(fields, "candidate_coverage_status") != "passed" ||
+            require_field(fields, "candidate_coverage_provenance") !=
+                "internally-observed" ||
+            require_field(fields, "production_candidate_coverage_status") != "passed" ||
+            require_field(fields, "production_candidate_coverage_provenance") !=
+                "production-instrumentation" ||
+            require_field(fields, "production_match_status") != "passed" ||
+            require_field(fields, "reference_match_status") != "passed" ||
+            require_field(fields, "float32_lexicographic_status") != "passed" ||
+            require_field(fields, "float64_index_agrees") != "true" ||
+            require_field(fields, "ranking_provenance") != "internally-observed" ||
+            require_field(fields, "ud001_status") != "passed" ||
+            require_field(fields, "ud002_status") != "passed" ||
+            require_field(fields, "fixture_status") != "passed" ||
+            require_field(fields, "oracle_status") != "passed" ||
+            require_field(fields, "tie_status") != "passed" ||
+            require_field(fields, "reduction_status") != "passed") {
             throw std::runtime_error("accepted matrix report has unsatisfied mandatory gate");
         }
-        summary.candidate_count =
-            std::stoull(require_field(fields, "candidate_count"));
-        summary.candidate_bytes =
-            std::stoull(require_field(fields, "candidate_bytes"));
+        const auto candidate_count = parse_u64(require_field(fields, "N"), "N");
+        const auto dimension = parse_u64(require_field(fields, "D"), "D");
+        if (candidate_count == 0 || dimension == 0 ||
+            dimension > kMaximumPolicyDimension) {
+            throw std::runtime_error("matrix report workload is outside the approved domain");
+        }
+        summary.candidate_count = parse_u64(
+            require_field(fields, "candidate_count"), "candidate_count");
+        summary.candidate_bytes = parse_u64(
+            require_field(fields, "candidate_bytes"), "candidate_bytes");
         summary.candidate_sha256 = require_field(fields, "candidate_sha256");
         summary.candidate_path = require_field(fields, "candidate_path");
-        if (std::stoull(require_field(fields, "candidate_record_size")) !=
+        if (summary.candidate_count != candidate_count ||
+            parse_u64(require_field(fields, "candidate_record_size"),
+                      "candidate_record_size") !=
                 sizeof(CandidateReportRecord) ||
             summary.candidate_count >
                 (std::numeric_limits<std::uint64_t>::max() -
@@ -1938,6 +2214,18 @@ MatrixReportSummary verify_cpu_matrix_case_report(
                 sizeof(CandidateReportHeader) +
                     summary.candidate_count * sizeof(CandidateReportRecord)) {
             throw std::runtime_error("matrix candidate report cardinality mismatch");
+        }
+        const auto metadata = std::filesystem::weakly_canonical(metadata_path);
+        const auto expected_metadata = std::filesystem::weakly_canonical(
+            metadata.parent_path() / (require_field(fields, "case_id") +
+                                      ".metadata.txt"));
+        const auto expected_candidate = std::filesystem::weakly_canonical(
+            metadata.parent_path() / (require_field(fields, "case_id") +
+                                      ".candidates.bin"));
+        if (metadata != expected_metadata ||
+            std::filesystem::weakly_canonical(summary.candidate_path) !=
+                expected_candidate) {
+            throw std::runtime_error("matrix report path/case identity mismatch");
         }
         if (!std::filesystem::exists(summary.candidate_path) ||
             std::filesystem::file_size(summary.candidate_path) !=
@@ -1959,6 +2247,8 @@ MatrixReportSummary verify_cpu_matrix_case_report(
         }
         std::vector<CandidateReportRecord> records;
         records.reserve(static_cast<std::size_t>(summary.candidate_count));
+        std::vector<double> distances64;
+        distances64.reserve(static_cast<std::size_t>(summary.candidate_count));
         const auto valid_flag = [](std::uint8_t value) { return value <= 1U; };
         const auto valid_interval = [](std::uint64_t lower_bits,
                                        std::uint64_t upper_bits) {
@@ -2006,13 +2296,34 @@ MatrixReportSummary verify_cpu_matrix_case_report(
             if (accepted && record.ud001_status != 1U) {
                 throw std::runtime_error("accepted matrix candidate failed UD-001");
             }
+            const auto recomputed_bound = evaluate_ud001(
+                dimension, float_from_bits(record.float32_bits),
+                double_from_bits(record.float64_bits),
+                record.exact_zero_required != 0U);
+            if (status_byte(recomputed_bound.status) != record.ud001_status ||
+                recomputed_bound.exact_zero_satisfied !=
+                    (record.exact_zero_satisfied != 0U) ||
+                !same_interval_bits(recomputed_bound.observed_error,
+                                    record.observed_error_lower_bits,
+                                    record.observed_error_upper_bits) ||
+                !same_interval_bits(recomputed_bound.allowed_bound,
+                                    record.allowed_bound_lower_bits,
+                                    record.allowed_bound_upper_bits)) {
+                throw std::runtime_error("matrix candidate UD-001 trace is inconsistent");
+            }
             records.push_back(record);
+            distances64.push_back(double_from_bits(record.float64_bits));
         }
         char extra = 0;
         if (input.read(&extra, 1)) {
             throw std::runtime_error("matrix candidate report has trailing records");
         }
         if (!records.empty()) {
+            const auto recomputed_ranking = evaluate_ud002(dimension, distances64);
+            if (recomputed_ranking.status != EvidenceStatus::passed ||
+                recomputed_ranking.candidates.size() != records.size()) {
+                throw std::runtime_error("matrix candidate ranking could not be recomputed");
+            }
             const auto minimum_float32 = std::min_element(
                 records.begin(), records.end(), [](const auto& lhs, const auto& rhs) {
                     return float_from_bits(lhs.float32_bits) <
@@ -2027,16 +2338,31 @@ MatrixReportSummary verify_cpu_matrix_case_report(
                 records.begin(), records.end(), [](const auto& lhs, const auto& rhs) {
                     return lhs.mathematical_numerator < rhs.mathematical_numerator;
                 });
-            const auto minimum_upper = std::min_element(
-                records.begin(), records.end(), [](const auto& lhs, const auto& rhs) {
-                    return double_from_bits(lhs.upper_endpoint_upper_bits) <
-                           double_from_bits(rhs.upper_endpoint_upper_bits);
-                });
-            for (const auto& record : records) {
-                const bool conservative =
-                    double_from_bits(record.lower_endpoint_lower_bits) <=
-                    double_from_bits(minimum_upper->upper_endpoint_upper_bits);
-                if (record.conservative_member != static_cast<std::uint8_t>(conservative) ||
+            for (std::size_t index = 0; index < records.size(); ++index) {
+                const auto& record = records[index];
+                const auto& ranking = recomputed_ranking.candidates[index];
+                const auto in_values = [index](const std::vector<std::uint64_t>& values) {
+                    return std::find(values.begin(), values.end(),
+                                     static_cast<std::uint64_t>(index)) != values.end();
+                };
+                if (!same_interval_bits(ranking.radius, record.radius_lower_bits,
+                                        record.radius_upper_bits) ||
+                    !same_interval_bits(ranking.lower_endpoint,
+                                        record.lower_endpoint_lower_bits,
+                                        record.lower_endpoint_upper_bits) ||
+                    !same_interval_bits(ranking.upper_endpoint,
+                                        record.upper_endpoint_lower_bits,
+                                        record.upper_endpoint_upper_bits) ||
+                    record.confirmed_contender !=
+                        static_cast<std::uint8_t>(ranking.confirmed_contender) ||
+                    record.confirmed_non_contender !=
+                        static_cast<std::uint8_t>(ranking.confirmed_non_contender) ||
+                    record.boundary_uncertain !=
+                        static_cast<std::uint8_t>(ranking.boundary_uncertain) ||
+                    record.conservative_member != static_cast<std::uint8_t>(
+                        in_values(recomputed_ranking.conservative_contenders)) ||
+                    record.exact_member != static_cast<std::uint8_t>(
+                        in_values(recomputed_ranking.exact_contenders)) ||
                     record.float32_tie != static_cast<std::uint8_t>(
                         float_from_bits(record.float32_bits) ==
                         float_from_bits(minimum_float32->float32_bits)) ||
@@ -2050,14 +2376,384 @@ MatrixReportSummary verify_cpu_matrix_case_report(
                         "matrix candidate contender or tie trace is inconsistent");
                 }
             }
+
+            const bool exact_resolved = recomputed_ranking.exact_membership_resolved;
+            const auto exact_field = require_field(fields, "exact_contenders");
+            const auto exact_contenders = exact_resolved
+                                              ? parse_indices(exact_field, "exact_contenders",
+                                                              candidate_count)
+                                              : std::vector<std::uint64_t>{};
+            const auto conservative_contenders = parse_indices(
+                require_field(fields, "conservative_contenders"),
+                "conservative_contenders", candidate_count);
+            const auto boundary_indices = parse_indices(
+                require_present_field(fields, "boundary_uncertain_indices"),
+                "boundary_uncertain_indices", candidate_count);
+            if ((exact_resolved && exact_field == "unknown") ||
+                (!exact_resolved && exact_field != "unknown") ||
+                exact_contenders != recomputed_ranking.exact_contenders ||
+                conservative_contenders !=
+                    recomputed_ranking.conservative_contenders ||
+                boundary_indices != recomputed_ranking.boundary_uncertain_indices ||
+                require_field(fields, "exact_membership_resolved") !=
+                    (exact_resolved ? "true" : "false")) {
+                throw std::runtime_error("matrix contender metadata is inconsistent");
+            }
+
+            const auto production_index = parse_u64(
+                require_field(fields, "production_index"), "production_index");
+            const auto reference_index = parse_u64(
+                require_field(fields, "reference_index"), "reference_index");
+            const auto production_distance_bits = parse_u64(
+                require_field(fields, "production_distance_bits"),
+                "production_distance_bits");
+            const auto minimum_float32_index = static_cast<std::uint64_t>(
+                std::distance(records.begin(), minimum_float32));
+            const auto minimum_float64_index = static_cast<std::uint64_t>(
+                std::distance(records.begin(), minimum_float64));
+            if (production_index != minimum_float32_index ||
+                reference_index != minimum_float64_index ||
+                production_distance_bits > std::numeric_limits<std::uint32_t>::max() ||
+                static_cast<std::uint32_t>(production_distance_bits) !=
+                    records[static_cast<std::size_t>(production_index)].float32_bits) {
+                throw std::runtime_error("matrix production/reference result is inconsistent");
+            }
+
+            const auto provenance = require_field(fields, "contender_provenance");
+            const auto boundary_status = require_field(fields, "boundary_status");
+            const auto ambiguity = require_field(fields, "exact_ambiguity");
+            const auto trace = require_field(fields, "decision_trace");
+            const auto contains = [production_index](
+                                      const std::vector<std::uint64_t>& values) {
+                return std::find(values.begin(), values.end(), production_index) !=
+                       values.end();
+            };
+            if (exact_resolved) {
+                const bool ambiguous = exact_contenders.size() > 1U;
+                if (provenance != "exact" || boundary_status != "resolved" ||
+                    !boundary_indices.empty() ||
+                    ambiguity != (ambiguous ? "true" : "false") ||
+                    !contains(exact_contenders) ||
+                    (ambiguous &&
+                     (verdict != "accepted-ambiguous" ||
+                      trace != "precedence 8: exact multi-candidate contender set")) ||
+                    (!ambiguous &&
+                     (exact_contenders.size() != 1U ||
+                      verdict != "accepted-unambiguous" ||
+                      reference_index != production_index ||
+                      trace != "precedence 7: exact singleton and Float64 agreement"))) {
+                    throw std::runtime_error("matrix exact contender verdict is inconsistent");
+                }
+            } else if (provenance != "conservative-outward" ||
+                       boundary_status != "boundary-uncertain" ||
+                       ambiguity != "unknown" || boundary_indices.empty() ||
+                       !contains(conservative_contenders) ||
+                       verdict != "accepted-ambiguous" ||
+                       trace !=
+                           "precedence 9: conservative outward set; exact ambiguity unknown") {
+                throw std::runtime_error(
+                    "matrix conservative contender verdict is inconsistent");
+            }
+
+            if (expectation != nullptr) {
+                if (expectation->build_evidence == nullptr ||
+                    expectation->evidenced == nullptr ||
+                    expectation->reference == nullptr ||
+                    expectation->validation_report == nullptr ||
+                    expectation->mandatory_gate_evidence == nullptr ||
+                    expectation->mathematical_distance_numerators == nullptr) {
+                    throw std::runtime_error("matrix verification expectation is incomplete");
+                }
+                const auto& build = *expectation->build_evidence;
+                const auto& evidenced = *expectation->evidenced;
+                const auto& reference = *expectation->reference;
+                const auto& report = *expectation->validation_report;
+                const auto& gates = *expectation->mandatory_gate_evidence;
+                const auto& mathematical =
+                    *expectation->mathematical_distance_numerators;
+                if (build.identity_status() != EvidenceStatus::passed ||
+                    build.working_tree_state() != "clean" ||
+                    build.build_configuration() != "Release" ||
+                    expectation->dataset.candidate_count != candidate_count ||
+                    expectation->dataset.dimension != dimension ||
+                    expectation->query.dimension != dimension ||
+                    expectation->dataset.data == nullptr ||
+                    expectation->query.data == nullptr ||
+                    dimension > std::numeric_limits<std::size_t>::max() /
+                                    candidate_count ||
+                    expectation->dataset.element_count !=
+                        static_cast<std::size_t>(candidate_count * dimension) ||
+                    expectation->query.element_count !=
+                        static_cast<std::size_t>(dimension) ||
+                    mathematical.size() != records.size() ||
+                    report.independently_observed_candidate_count != candidate_count ||
+                    report.independently_computed_float32_distances.size() !=
+                        records.size() ||
+                    report.independently_computed_float64_distances.size() !=
+                        records.size() ||
+                    report.bound_evidence.size() != records.size() ||
+                    report.ranking.candidates.size() != records.size() ||
+                    reference.distances.size() != records.size() ||
+                    reference.invocation_status != InvocationStatus::completed ||
+                    reference.input_outcome != InputOutcome::valid ||
+                    reference.domain_status != DomainStatus::core_eligible ||
+                    gates.source_identity != build.source_identity() ||
+                    evidenced.evidence.source_identity() != build.source_identity() ||
+                    !evidenced.evidence.matches(expectation->dataset,
+                                                 expectation->query,
+                                                 evidenced.production)) {
+                    throw std::runtime_error(
+                        "matrix report does not match expected build/workload identity");
+                }
+                const auto environment = inspect_arithmetic_environment();
+                const auto expected_exact_contenders =
+                    report.ranking.exact_membership_resolved
+                        ? join_indices(report.ranking.exact_contenders)
+                        : std::string("unknown");
+                const std::map<std::string, std::string> expected_fields = {
+                    {"case_id", expectation->case_id},
+                    {"revision", build.revision()},
+                    {"working_tree_state", build.working_tree_state()},
+                    {"working_tree_fingerprint", build.working_tree_fingerprint()},
+                    {"source_manifest_sha256", build.source_manifest_sha256()},
+                    {"source_identity", build.source_identity()},
+                    {"build_identity", build.identity()},
+                    {"compiler_id", build.compiler_id()},
+                    {"compiler_version", build.compiler_version()},
+                    {"build_configuration", build.build_configuration()},
+                    {"effective_flags", build.required_compile_flags()},
+                    {"implementation_variant", "cpu-float32-baseline"},
+                    {"workload_kind", "single-query-primary"},
+                    {"generator_id", "s6-cpu-matrix-dyadic-v1"},
+                    {"seed", std::to_string(expectation->seed)},
+                    {"N", std::to_string(expectation->dataset.candidate_count)},
+                    {"D", std::to_string(expectation->dataset.dimension)},
+                    {"dataset_sha256",
+                     hash_raw_floats(expectation->dataset.data,
+                                     expectation->dataset.element_count)},
+                    {"query_sha256",
+                     hash_raw_floats(expectation->query.data,
+                                     expectation->query.element_count)},
+                    {"workload_sha256", evidenced.evidence.workload_identity()},
+                    {"input_contract_outcome", input_outcome_token(report.input_outcome)},
+                    {"domain_status", domain_status_token(report.domain_status)},
+                    {"production_invocation",
+                     invocation_token(evidenced.production.invocation_status)},
+                    {"production_index",
+                     evidenced.production.result
+                         ? std::to_string(evidenced.production.result->index)
+                         : "not-applicable"},
+                    {"production_distance_bits",
+                     evidenced.production.result
+                         ? std::to_string(float_bits(
+                               evidenced.production.result->squared_distance))
+                         : "not-applicable"},
+                    {"reference_index",
+                     reference.argmin_index ? std::to_string(*reference.argmin_index)
+                                            : "not-applicable"},
+                    {"evidence_identity_status",
+                     evidence_status_token(report.evidence_identity_status)},
+                    {"graph_status", evidence_status_token(report.graph_status)},
+                    {"graph_provenance", provenance_token(report.graph_provenance)},
+                    {"production_float32_graph",
+                     evidence_status_token(report.numerical_paths.production_float32_graph)},
+                    {"validator_float32_graph",
+                     evidence_status_token(report.numerical_paths.validator_float32_graph)},
+                    {"reference_float64_graph",
+                     evidence_status_token(report.numerical_paths.reference_float64_graph)},
+                    {"validator_float64_graph",
+                     evidence_status_token(report.numerical_paths.validator_float64_graph)},
+                    {"float32_environment",
+                     environment.conforming_float32() ? "passed" : "failed"},
+                    {"float64_environment",
+                     environment.conforming_float64() ? "passed" : "failed"},
+                    {"arithmetic_status",
+                     evidence_status_token(report.arithmetic_environment_status)},
+                    {"candidate_coverage_status",
+                     evidence_status_token(report.candidate_coverage_status)},
+                    {"candidate_coverage_provenance",
+                     provenance_token(report.candidate_coverage_provenance)},
+                    {"production_candidate_coverage_status",
+                     evidence_status_token(report.production_candidate_coverage_status)},
+                    {"production_candidate_coverage_provenance",
+                     provenance_token(report.production_candidate_coverage_provenance)},
+                    {"production_match_status",
+                     evidence_status_token(report.production_match_status)},
+                    {"reference_match_status",
+                     evidence_status_token(report.reference_match_status)},
+                    {"float32_lexicographic_status",
+                     evidence_status_token(report.production_match_status)},
+                    {"float64_index_agrees",
+                     report.float64_index_agrees ? "true" : "false"},
+                    {"ranking_provenance", provenance_token(report.ranking_provenance)},
+                    {"graph_policy", kGraphPolicy},
+                    {"environment_policy", kEnvironmentPolicy},
+                    {"bound_policy", kBoundPolicy},
+                    {"ranking_policy", kRankingPolicy},
+                    {"verdict_policy", kVerdictPolicy},
+                    {"gamma32_lower_bits",
+                     std::to_string(double_bits(report.numerical_policy.gamma32.lower))},
+                    {"gamma32_upper_bits",
+                     std::to_string(double_bits(report.numerical_policy.gamma32.upper))},
+                    {"gamma64_lower_bits",
+                     std::to_string(double_bits(report.numerical_policy.gamma64.lower))},
+                    {"gamma64_upper_bits",
+                     std::to_string(double_bits(report.numerical_policy.gamma64.upper))},
+                    {"e32_lower_bits",
+                     std::to_string(double_bits(report.numerical_policy.e32.lower))},
+                    {"e32_upper_bits",
+                     std::to_string(double_bits(report.numerical_policy.e32.upper))},
+                    {"e64_lower_bits",
+                     std::to_string(double_bits(report.numerical_policy.e64.lower))},
+                    {"e64_upper_bits",
+                     std::to_string(double_bits(report.numerical_policy.e64.upper))},
+                    {"additive_lower_bits",
+                     std::to_string(double_bits(report.numerical_policy.additive.lower))},
+                    {"additive_upper_bits",
+                     std::to_string(double_bits(report.numerical_policy.additive.upper))},
+                    {"relative_lower_bits",
+                     std::to_string(double_bits(report.numerical_policy.relative.lower))},
+                    {"relative_upper_bits",
+                     std::to_string(double_bits(report.numerical_policy.relative.upper))},
+                    {"ud001_status", evidence_status_token(report.ud001_status)},
+                    {"ud002_status", evidence_status_token(report.ud002_status)},
+                    {"contender_provenance",
+                     contender_provenance_token(report.contender_provenance)},
+                    {"boundary_status",
+                     report.ranking.exact_membership_resolved ? "resolved"
+                                                             : "boundary-uncertain"},
+                    {"exact_contenders", expected_exact_contenders},
+                    {"conservative_contenders",
+                     join_indices(report.ranking.conservative_contenders)},
+                    {"boundary_uncertain_indices",
+                     join_indices(report.ranking.boundary_uncertain_indices)},
+                    {"exact_membership_resolved",
+                     report.ranking.exact_membership_resolved ? "true" : "false"},
+                    {"exact_ambiguity",
+                     report.exact_ambiguity_known
+                         ? (report.exact_ambiguity ? "true" : "false")
+                         : "unknown"},
+                    {"fixture_status", evidence_status_token(gates.fixture_status)},
+                    {"oracle_status", evidence_status_token(gates.oracle_status)},
+                    {"tie_status", evidence_status_token(gates.tie_status)},
+                    {"reduction_status", evidence_status_token(gates.reduction_status)},
+                    {"fixture_ids", gates.fixture_ids},
+                    {"decision_trace", report.decision_trace},
+                    {"nn_verdict", verdict_token(report.nn_verdict)},
+                    {"candidate_encoding", "little-endian-packed-v1"},
+                    {"candidate_record_size",
+                     std::to_string(sizeof(CandidateReportRecord))},
+                    {"candidate_count",
+                     std::to_string(expectation->dataset.candidate_count)},
+                    {"candidate_bytes", std::to_string(summary.candidate_bytes)},
+                    {"candidate_sha256", summary.candidate_sha256},
+                    {"candidate_path",
+                     std::filesystem::weakly_canonical(summary.candidate_path).string()}};
+                for (const auto& expected_field : expected_fields) {
+                    if (require_present_field(fields, expected_field.first) !=
+                        expected_field.second) {
+                        throw std::runtime_error(
+                            "matrix report field disagrees with expected evidence: " +
+                            expected_field.first);
+                    }
+                }
+                const auto dimension_size = static_cast<std::size_t>(dimension);
+                for (std::size_t index = 0; index < records.size(); ++index) {
+                    const auto& bound = report.bound_evidence[index];
+                    const auto& ranking = report.ranking.candidates[index];
+                    const auto in_expected = [index](
+                                                 const std::vector<std::uint64_t>& values) {
+                        return std::find(values.begin(), values.end(),
+                                         static_cast<std::uint64_t>(index)) !=
+                               values.end();
+                    };
+                    bool exact_zero_expected = true;
+                    const auto offset = index * dimension_size;
+                    for (std::size_t coordinate = 0; coordinate < dimension_size;
+                         ++coordinate) {
+                        if (expectation->dataset.data[offset + coordinate] !=
+                            expectation->query.data[coordinate]) {
+                            exact_zero_expected = false;
+                            break;
+                        }
+                    }
+                    if (records[index].float32_bits !=
+                            float_bits(
+                                report.independently_computed_float32_distances[index]) ||
+                        records[index].float64_bits !=
+                            double_bits(
+                                report.independently_computed_float64_distances[index]) ||
+                        records[index].float64_bits !=
+                            double_bits(reference.distances[index]) ||
+                        !same_interval_bits(bound.observed_error,
+                                            records[index].observed_error_lower_bits,
+                                            records[index].observed_error_upper_bits) ||
+                        !same_interval_bits(bound.allowed_bound,
+                                            records[index].allowed_bound_lower_bits,
+                                            records[index].allowed_bound_upper_bits) ||
+                        status_byte(bound.status) != records[index].ud001_status ||
+                        records[index].exact_zero_required !=
+                            static_cast<std::uint8_t>(exact_zero_expected) ||
+                        records[index].exact_zero_required !=
+                            static_cast<std::uint8_t>(bound.exact_zero_required) ||
+                        records[index].exact_zero_satisfied !=
+                            static_cast<std::uint8_t>(bound.exact_zero_satisfied) ||
+                        !same_interval_bits(ranking.radius,
+                                            records[index].radius_lower_bits,
+                                            records[index].radius_upper_bits) ||
+                        !same_interval_bits(ranking.lower_endpoint,
+                                            records[index].lower_endpoint_lower_bits,
+                                            records[index].lower_endpoint_upper_bits) ||
+                        !same_interval_bits(ranking.upper_endpoint,
+                                            records[index].upper_endpoint_lower_bits,
+                                            records[index].upper_endpoint_upper_bits) ||
+                        records[index].confirmed_contender !=
+                            static_cast<std::uint8_t>(ranking.confirmed_contender) ||
+                        records[index].confirmed_non_contender !=
+                            static_cast<std::uint8_t>(ranking.confirmed_non_contender) ||
+                        records[index].boundary_uncertain !=
+                            static_cast<std::uint8_t>(ranking.boundary_uncertain) ||
+                        records[index].conservative_member !=
+                            static_cast<std::uint8_t>(in_expected(
+                                report.ranking.conservative_contenders)) ||
+                        records[index].exact_member !=
+                            static_cast<std::uint8_t>(
+                                in_expected(report.ranking.exact_contenders)) ||
+                        records[index].mathematical_numerator != mathematical[index] ||
+                        records[index].mathematical_exponent !=
+                            expectation->mathematical_distance_exponent) {
+                        throw std::runtime_error(
+                            "matrix candidate report does not match expected workload");
+                    }
+                }
+            }
         }
-        summary.status = EvidenceStatus::passed;
-        summary.detail = "complete candidate report verified";
+        if (expectation == nullptr) {
+            summary.status = EvidenceStatus::blocked;
+            summary.detail =
+                "report is internally valid but expected build/workload identity is unavailable";
+        } else {
+            summary.status = EvidenceStatus::passed;
+            summary.detail = "complete build/workload-bound candidate report verified";
+        }
     } catch (const std::exception& error) {
         summary.status = EvidenceStatus::failed;
         summary.detail = error.what();
     }
     return summary;
+}
+
+}  // namespace
+
+MatrixReportSummary verify_cpu_matrix_case_report(
+    const std::string& metadata_path) {
+    return verify_cpu_matrix_case_report_impl(metadata_path, nullptr);
+}
+
+MatrixReportSummary verify_cpu_matrix_case_report(
+    const std::string& metadata_path,
+    const MatrixReportExpectation& expectation) {
+    return verify_cpu_matrix_case_report_impl(metadata_path, &expectation);
 }
 
 }  // namespace s6
