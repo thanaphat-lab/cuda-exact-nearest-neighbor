@@ -1,0 +1,36 @@
+#pragma once
+
+namespace s6::build_identity {
+
+inline constexpr const char* kRevision = "@S6_BUILD_REVISION@";
+inline constexpr const char* kWorkingTreeState = "@S6_WORKTREE_STATE@";
+inline constexpr const char* kWorkingTreeFingerprint = "@S6_WORKTREE_FINGERPRINT@";
+inline constexpr const char* kSourceManifestSha256 = "@S6_SOURCE_MANIFEST_SHA256@";
+inline constexpr const char* kCompilerId = "@CMAKE_CXX_COMPILER_ID@";
+inline constexpr const char* kCompilerVersion = "@CMAKE_CXX_COMPILER_VERSION@";
+inline constexpr const char* kBuildConfiguration = "@S6_BUILD_CONFIGURATION@";
+inline constexpr const char* kRequiredCompileFlags = "@S6_REQUIRED_COMPILE_FLAGS@";
+inline constexpr const char* kSourceRoot = R"s6(@S6_CONFIGURED_SOURCE_ROOT@)s6";
+inline constexpr const char* kBuildRoot = R"s6(@S6_CONFIGURED_BUILD_ROOT@)s6";
+inline constexpr const char* kCompilerPath = R"s6(@S6_CONFIGURED_COMPILER_PATH@)s6";
+inline constexpr const char* kGitPath = R"s6(@S6_CONFIGURED_GIT_PATH@)s6";
+inline constexpr const char* kBaselineObjectRelativePath =
+    "CMakeFiles/s6_cpu_baseline.dir/src/cpu_baseline.cpp.obj";
+inline constexpr const char* kBaselineLibraryName = "s6_cpu_baseline.lib";
+inline constexpr const char* kCompileCommandsName = "compile_commands.json";
+inline constexpr const char* kBaselineHeaderSha256 = "@S6_BASELINE_HEADER_SHA256@";
+inline constexpr const char* kEvidenceHeaderSha256 = "@S6_EVIDENCE_HEADER_SHA256@";
+inline constexpr const char* kBaselineSourceSha256 = "@S6_BASELINE_SOURCE_SHA256@";
+inline constexpr const char* kEvidenceSourceSha256 = "@S6_EVIDENCE_SOURCE_SHA256@";
+inline constexpr const char* kCmakeSha256 = "@S6_CMAKE_SHA256@";
+inline constexpr const char* kPolicySha256 = "@S6_POLICY_SHA256@";
+
+struct EvidenceInput {
+    const char* relative_path;
+    const char* sha256;
+};
+
+inline constexpr EvidenceInput kEvidenceInputs[] = {
+@S6_EVIDENCE_INPUT_ENTRIES@};
+
+}  // namespace s6::build_identity
