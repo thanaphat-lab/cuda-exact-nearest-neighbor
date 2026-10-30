@@ -210,18 +210,38 @@ void test_manifest_rejection(const std::filesystem::path& manifest_path) {
                 missing.graph_status() == s6::EvidenceStatus::blocked,
             "missing build evidence was not blocked");
 
+    std::vector<float> dataset = {0.0F, 2.0F};
+    std::vector<float> query = {0.0F};
+    const s6::DatasetView dataset_view{dataset.data(), 2, 1, dataset.size()};
+    const s6::QueryView query_view{query.data(), 1, query.size()};
+    const auto missing_evidenced =
+        s6::cpu_search_float32_evidenced(dataset_view, query_view, missing);
+    const auto reference = s6::compute_float64_reference(dataset_view, query_view);
+    s6::ValidationOptions missing_options;
+    missing_options.production_evidence = &missing_evidenced.evidence;
+    const auto missing_report = s6::validate_cpu_search(
+        dataset_view, query_view, missing_evidenced.production, reference,
+        missing_options);
+    require(missing_report.evidence_identity_status == s6::EvidenceStatus::blocked &&
+                missing_report.nn_verdict == s6::NnVerdict::blocked_unverified,
+            "missing build identity did not block numerical acceptance");
+
+    auto defective_production = missing_evidenced.production;
+    defective_production.result->index = 1U;
+    const auto defective_report = s6::validate_cpu_search(
+        dataset_view, query_view, defective_production, reference,
+        missing_options);
+    require(defective_report.production_match_status == s6::EvidenceStatus::failed &&
+                defective_report.nn_verdict == s6::NnVerdict::failed,
+            "demonstrated numerical defect did not override missing identity evidence");
+
     const auto dirty_manifest = directory / "dirty-acceptance.manifest.txt";
     write_text(dirty_manifest,
                replace_field(original, "working_tree_state", "dirty"));
     const auto dirty_build =
         s6::verify_cpu_build_evidence(dirty_manifest.string());
-    std::vector<float> dataset = {0.0F, 2.0F};
-    std::vector<float> query = {0.0F};
-    const s6::DatasetView dataset_view{dataset.data(), 2, 1, dataset.size()};
-    const s6::QueryView query_view{query.data(), 1, query.size()};
     const auto evidenced =
         s6::cpu_search_float32_evidenced(dataset_view, query_view, dirty_build);
-    const auto reference = s6::compute_float64_reference(dataset_view, query_view);
     s6::ValidationOptions options;
     options.production_evidence = &evidenced.evidence;
     const auto report = s6::validate_cpu_search(

@@ -524,6 +524,15 @@ ValidationReport validate_cpu_search(DatasetView dataset, QueryView query,
             ? DomainStatus::core_eligible
             : DomainStatus::valid_outside_approved_domain;
     if (options.production_evidence != nullptr &&
+        options.production_evidence->identity_status() == EvidenceStatus::blocked) {
+        report.evidence_identity_status = EvidenceStatus::blocked;
+        report.evidence_identity = options.production_evidence->identity();
+        report.graph_status = EvidenceStatus::blocked;
+        report.graph_provenance = EvidenceProvenance::unavailable;
+        report.production_candidate_coverage_status = EvidenceStatus::blocked;
+        report.production_candidate_coverage_provenance =
+            EvidenceProvenance::unavailable;
+    } else if (options.production_evidence != nullptr &&
         options.production_evidence->matches(dataset, query, production)) {
         report.evidence_identity_status = EvidenceStatus::passed;
         report.evidence_identity = options.production_evidence->identity();
