@@ -1,14 +1,16 @@
 # Skill inventory
 
-| Skill | Responsibility | Primary artifact | Mutation default |
-|---|---|---|---|
-| `cuda-dev-workflow` | State, gates, routing, handoff | Workflow status and completion report | Read-only coordination |
-| `requirement-analysis` | Requirements and conflicts | Requirements analysis | Read-only |
-| `solution-design` | Approved implementation approach | Design decision record | Read-only |
-| `github-flow` | Git and GitHub workflow | Repository action report | Read-only; explicit approval for mutations |
-| `verification` | Correctness/build/test evidence | Verification report | Read-only except disposable test output |
-| `change-review` | Diff and artifact review | Findings-first review | Read-only |
-| `docs-knowledge` | Documentation discovery and sync | Documentation record | Read-only; edits by explicit request |
-| `cuda-kernel-engineering` | Authorized CUDA kernel changes | Change record | Explicitly authorized files only |
-| `cuda-performance` | Profiling and benchmarking | Performance evidence | Read-only except disposable measurement output |
-| `cuda-experiment-reporter` | Evidence synthesis | Revision-bound experiment report | Read-only; report edits by explicit request |
+The ten skills remain available as focused guidance. They do not imply ten agents, ten phases, or ten approvals.
+
+| Skill | Focus | Lean use |
+|---|---|---|
+| `cuda-dev-workflow` | Scope, continuous loop, evidence, handoff | Primary coordinator for change tasks |
+| `cuda-kernel-engineering` | CPU/CUDA implementation discipline | Consult while Codex edits and debugs |
+| `verification` | Build/test/correctness evidence | Consult in the same Codex loop |
+| `cuda-performance` | Correctness-gated profiling and benchmarking | Use only when performance is in scope |
+| `cuda-experiment-reporter` | Reproducible evidence synthesis | Use when a durable experiment report is requested |
+| `requirement-analysis` | Contract and acceptance analysis | Use for ambiguity or bounded analysis |
+| `solution-design` | Material design choices and risks | Use when existing approved design does not already decide the approach |
+| `change-review` | Read-only findings-first review | ChatGPT review for material risk or explicit review requests |
+| `docs-knowledge` | Documentation discovery and synchronization | Use for documentation outcomes |
+| `github-flow` | Read-only Git state and Owner handoff guidance | Never grants Codex/ChatGPT mutation authority |

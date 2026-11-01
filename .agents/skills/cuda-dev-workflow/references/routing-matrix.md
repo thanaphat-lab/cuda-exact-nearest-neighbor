@@ -1,31 +1,24 @@
 # Routing matrix
 
-Route by requested outcome, not incidental keywords. A narrow workflow completes through its own explicit state path and does not inherit CUDA implementation stages.
+Route by outcome. Skills are guidance within one task, not approvals or required agent handoffs.
 
-| Request outcome | Primary skill | State path | Must not silently do |
+| Outcome | Guidance | Lean path | Boundary |
 |---|---|---|---|
-| Requirements-only analysis | `$requirement-analysis` | `intake -> requirements_analyzed -> complete` | Resolve an unapproved contract or continue into design |
-| Design-only work | `$solution-design` | `intake -> design_approved -> complete` | Implement or redefine specification contracts |
-| Documentation-only change | `$docs-knowledge` | `intake -> documentation_completed -> complete` | Enter implementation stages or edit without authorization |
-| Review-only request | `$change-review` | `intake -> review_completed -> complete` | Modify reviewed files or enter implementation stages |
-| Git/GitHub-only work | `$github-flow` | `intake -> github_work_completed -> complete` | Initialize a repo or mutate local/remote state without the applicable approval |
-| Create or change CUDA kernels | `$cuda-kernel-engineering` | Approved design through implementation and verification | Expand beyond approved V0-V4 scope |
-| Run correctness, build, or test checks | `$verification` | `implementation_completed -> verification_completed` | Treat missing required GPU as pass |
-| Profile or benchmark CUDA behavior | `$cuda-performance` | `verification_completed -> performance_benchmarked` | Benchmark before correctness acceptance or without required hardware |
-| Report a supported, rejected, or inconclusive hypothesis | `$cuda-experiment-reporter` | `performance_benchmarked -> experiment_reported` | Treat a rejected hypothesis as workflow failure or invent missing evidence |
-| Review verified work when benchmarking is out of scope | `$change-review` | `verification_completed -> review_completed` | Imply performance was measured |
-| Coordinate several lifecycle stages | `$cuda-dev-workflow` | Use [workflow-state.json](workflow-state.json) | Skip gates or collapse blocked into passed |
+| Scoped code or CUDA change | `$cuda-dev-workflow` with `$cuda-kernel-engineering` and `$verification` guidance | `intake -> working -> validated -> ready_for_owner` | Codex iterates implementation/build/test/debug without renewed approval |
+| Material correctness/design risk | `$change-review` | `validated -> review_required -> ready_for_owner`, or back to `working` for findings | ChatGPT review is read-only and conditional |
+| Requirements or contract analysis | `$requirement-analysis` | `intake -> complete` | Never resolve an unapproved contract |
+| Design analysis | `$solution-design` | `intake -> complete` | Review material decisions; routine in-design work needs no new design artifact |
+| Documentation change | `$docs-knowledge` | `intake -> working -> validated -> ready_for_owner` | The scoped request authorizes the edit; preserve approved meaning |
+| Read-only review or audit | Relevant specialist | `intake -> complete` | No mutations |
+| Performance work | `$cuda-performance` and optionally `$cuda-experiment-reporter` | Within `working`, after correctness; then `validated` | No performance acceptance before correctness |
+| Git, GitHub, or merge work | `$github-flow` | Owner-only, outside the Codex state machine | Codex/ChatGPT may inspect but never mutate |
 
-## Performance branches
+## Material review triggers
 
-- Benchmarking in scope: correctness accepted, required hardware available, benchmark executed, then record `supported`, `rejected`, or `inconclusive` before experiment reporting.
-- Benchmarking out of scope: record `performance_benchmark_out_of_scope` and continue from verification to review without a performance claim.
-- Required benchmark hardware unavailable: enter `blocked`, preserve the verification evidence, and resume from `verification_completed` when the hardware condition is resolved.
+Require ChatGPT review when work changes numerical behavior, an approved algorithm or design boundary, acceptance logic, a public interface, evidence interpretation, or another contract-sensitive behavior. Review is not required solely because files were edited, tests failed and were fixed, or more than one specialist's guidance was consulted.
 
-## Overlap rules
+## Blocked versus handoff
 
-- Requirements define what must hold; design chooses how to satisfy it without redefining the specification.
-- Kernel engineering implements only an approved design; performance evaluates rather than invents it.
-- Verification establishes correctness status; change review assesses the change and evidence.
-- Documentation records approved truth; it does not decide unresolved engineering policy.
-- Experiment reporting packages supported, rejected, and inconclusive outcomes; it does not create benchmark evidence.
+- Missing or conflicting contracts, required unavailable tooling/hardware, scope expansion, environment mutation, and external dependencies can block the affected work.
+- A failed check normally returns to `working` for an in-scope fix.
+- Completed local work waiting for Owner Git/PR actions is `ready_for_owner`, not `blocked`.

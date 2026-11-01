@@ -39,7 +39,7 @@ Build instructions are not yet available. The current [CMake project](CMakeLists
 
 ## Agent and skill system
 
-[AGENTS.md](AGENTS.md) defines repository operating rules. Multi-stage work is coordinated through the [`cuda-dev-workflow`](.agents/skills/cuda-dev-workflow/SKILL.md) skill, which routes bounded work to the nine repository specialists. Skills govern workflow and evidence discipline; they do not redefine the project specification.
+[AGENTS.md](AGENTS.md) defines the lean operating model: the Owner handles Git/PR/merge mutations, Codex owns the scoped local implementation/build/test/debug loop, and ChatGPT reviews material correctness or design risks. [`cuda-dev-workflow`](.agents/skills/cuda-dev-workflow/SKILL.md) coordinates that loop; specialist skills provide focused guidance rather than mandatory handoffs. Skills do not redefine the project specification.
 
 ## Reproducibility principles
 

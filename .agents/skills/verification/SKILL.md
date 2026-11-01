@@ -27,9 +27,11 @@ Discover commands from repository configuration or authoritative instructions. N
 
 Correctness must be accepted before performance can be accepted for the relevant revision and configuration.
 
-## Mutations
+## Development-loop behavior
 
-Verification is read-only except for ordinary disposable test artifacts produced by approved repository commands. Fixing source, tests, configuration, dependencies, or infrastructure requires a separate explicit change request and the appropriate specialist route.
+For a scoped change task, verification and debugging are part of one Codex loop. If a build or test fails, Codex may fix source, tests, or directly related configuration and rerun checks without a new approval when the fix remains within the requested scope and approved contracts. Dependency installation, environment or repository-infrastructure changes, destructive actions, scope expansion, and canonical contract changes still require an Owner decision. All Git/GitHub mutations remain Owner-only.
+
+For a verification-only request, keep repository sources read-only except for disposable artifacts produced by authoritative commands.
 
 ## Output
 

@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
@@ -121,12 +122,14 @@ function validateTraceability() {
 }
 
 function validateGovernance() {
+  const agentInstructions = read("AGENTS.md");
   const specification = read("docs/specifications/FinalProjectSpecification-v1.0.md");
   const acceptance = read("docs/requirements/AcceptanceCriteria.md");
   const decisions = read("docs/governance/DecisionRegister.md");
   const traceability = read("docs/requirements/RequirementsTraceability.md");
   const sourceOfTruth = read("docs/governance/SourceOfTruth.md");
   const developmentPolicy = read("docs/governance/DevelopmentAndMergePolicy.md");
+  const workflowState = JSON.parse(read(".agents/skills/cuda-dev-workflow/references/workflow-state.json"));
   const definedRequirements = ids(specification, /\bREQ-[A-Z]-\d{3}\b/g);
   const definedGates = ids(acceptance, /\bAC-\d{3}\b/g);
   const definedDecisions = ids(decisions, /\b(?:DR|UD)-\d{3}\b/g);
@@ -172,9 +175,42 @@ function validateGovernance() {
     "branch protection",
     "rulesets",
     "Emergency hotfix",
-    "Codex authorization boundaries",
+    "Lean agent authorization boundaries",
   ]) {
     if (!developmentPolicy.toLowerCase().includes(phrase.toLowerCase())) errors.push(`DevelopmentAndMergePolicy.md omits required policy: ${phrase}`);
+  }
+
+  if (!/Owner[^\n]{0,120}exclusively[^\n]{0,160}Git and GitHub mutations/i.test(developmentPolicy)) {
+    errors.push("DevelopmentAndMergePolicy.md does not reserve Git/GitHub mutations to the Owner");
+  }
+  if (!/Codex[^\n]{0,200}(build|implementation)[^\n]{0,200}(test|debug)[^\n]{0,200}(without|do not need)[^\n]{0,120}(repeated|renewed|new) approval/i.test(developmentPolicy)) {
+    errors.push("DevelopmentAndMergePolicy.md does not authorize the continuous scoped Codex loop");
+  }
+  if (!/ChatGPT[^\n]{0,160}read-only review[^\n]{0,160}material correctness or design risk/i.test(developmentPolicy)) {
+    errors.push("DevelopmentAndMergePolicy.md does not retain material ChatGPT review");
+  }
+  if (!/Owner[^\n]{0,100}exclusively[^\n]{0,200}Git and GitHub mutations/i.test(agentInstructions)) {
+    errors.push("AGENTS.md does not reserve Git/GitHub mutations to the Owner");
+  }
+  if (workflowState.development_policy?.git_and_github_mutation_actor !== "owner") {
+    errors.push("workflow-state.json does not name Owner as the Git/GitHub mutation actor");
+  }
+  for (const actor of ["codex", "chatgpt"]) {
+    const forbidden = workflowState.roles?.[actor]?.forbidden ?? [];
+    if (!forbidden.includes("git_mutations") || !forbidden.includes("github_mutations")) {
+      errors.push(`workflow-state.json does not prohibit ${actor} Git/GitHub mutations`);
+    }
+  }
+  if (workflowState.performance_policy?.requires_correctness_acceptance !== true) {
+    errors.push("workflow-state.json weakens correctness-before-performance");
+  }
+
+  const numericalCarrier = fs.readFileSync(path.join(root, "docs/specifications/S6-CONSOLIDATED-NUMERICAL-POLICY-v1.0.md"));
+  const carrierSha = createHash("sha256").update(numericalCarrier).digest("hex");
+  const approvedCarrierSha = "503aa6b2c97567d814a9316fb0f2f9890d5472aea2bcf1f928ac505c29d1aa39";
+  if (carrierSha !== approvedCarrierSha) errors.push(`S6 numerical policy carrier hash changed: ${carrierSha}`);
+  if (!sourceOfTruth.includes("S6ApprovedImplementationDesign-v1.0.md") || !sourceOfTruth.includes("S6DesignApprovalRecord.md")) {
+    errors.push("SourceOfTruth.md omits the approved S6 design or its approval record");
   }
 
   errors.length ? fail("governance-reference-consistency", errors.join("; ")) : pass("governance-reference-consistency", `${definedDecisions.size} decisions checked`);

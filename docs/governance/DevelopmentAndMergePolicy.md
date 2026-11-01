@@ -14,20 +14,22 @@ The repository uses three distinct control layers:
 - **Automated CI checks:** the checks implemented by the [Governance workflow](../../.github/workflows/governance.yml). A passing run is required where this policy says applicable, but CI does not replace review.
 - **Server-enforced controls:** GitHub repository settings, branch protection, and rulesets. The private repository's current plan does not make branch protection or rulesets available, so `main` remains unprotected and the documented controls require human compliance.
 
-## 2. Branches and normal change flow
+## 2. Roles and normal change flow
 
-1. Create work from the current approved `main` revision.
-2. Use `feature/<topic>` for product or implementation work, `fix/<topic>` for corrections, and `docs/<topic>` for documentation or governance work. Keep names lowercase and descriptive.
-3. Normal direct pushes to `main` are prohibited.
-4. Push the focused branch and open a pull request with `main` as the base.
-5. Keep the pull request limited to its stated scope and identify the governing requirements and decisions.
-6. Obtain explicit review from a human who accepts responsibility for the merge decision. Author checklists, automation, bot comments, or agent reviews are evidence only and are not substitutes for human approval.
-7. Require all applicable CI checks to pass on the pull request revision that will be merged.
-8. Merge only with GitHub's squash option. Merge commits and rebase merges are disabled. Automatic deletion of merged branches is disabled; branch cleanup is a separate, deliberate action.
+The Owner exclusively performs Git and GitHub mutations: creating or changing branches and worktrees, staging, committing, pushing, opening or updating pull requests, approving, merging, tagging, and deleting refs. Codex and ChatGPT may use read-only Git commands to inspect state and diffs but must hand all mutations back to the Owner.
+
+1. The Owner prepares a focused worktree from the current approved `main` revision. Use `feature/<topic>` for product or implementation work, `fix/<topic>` for corrections, and `docs/<topic>` for documentation or governance work.
+2. The Owner gives Codex a bounded change request. That request authorizes the repository-local edit, build, test, and debug loop within scope; individual file edits, build attempts, test reruns, and in-scope fixes do not need repeated approval.
+3. Codex inspects the applicable contracts, implements the smallest coherent change, runs authoritative checks, fixes in-scope failures, and reports exact evidence. It stops for scope expansion, contract changes, dependency or environment changes, destructive actions, or any Git/GitHub mutation.
+4. ChatGPT performs read-only review when a change presents material correctness or design risk. Material risks include changes to numerical behavior, approved algorithm/design boundaries, acceptance logic, public interfaces, or evidence interpretation. Routine changes already covered by the approved design do not require a separate ChatGPT handoff.
+5. The Owner reviews the resulting diff, evidence, risks, and any ChatGPT findings; stages and commits only the intended files; pushes the focused branch; and opens a pull request against `main`.
+6. Normal direct pushes to `main` are prohibited. All applicable CI checks must pass on the exact pull-request revision to be merged.
+7. A human who accepts responsibility for the merge decision must explicitly approve. Agent review and automation are evidence, not substitutes for that decision.
+8. The Owner merges only with GitHub's squash option. Merge commits and rebase merges remain disabled, and branch cleanup remains a separate deliberate action.
 
 ## 3. Review responsibilities
 
-The author must provide a clear purpose, exact changed-file list, risk assessment, linked requirements or decisions, and reproducible validation evidence. The author must distinguish executed checks from planned, skipped, failed, or blocked checks.
+Codex must provide the Owner a clear purpose, exact changed-file list, risk assessment, linked requirements or decisions, and reproducible validation evidence. It must distinguish executed checks from planned, skipped, failed, or blocked checks. The Owner is responsible for the final commit and pull-request presentation.
 
 The human reviewer must:
 
@@ -68,11 +70,13 @@ The repository owner is the decision owner for an emergency hotfix exception. Di
 
 The change record must state the emergency, scope, approver, commands or actions performed, validation evidence, and any controls bypassed. As soon as practical, the owner must require a retrospective human review and a follow-up pull request or governance record that reconciles documentation, tests, and branch state. The exception does not authorize force pushes, secret exposure, contract changes, or unrelated work.
 
-## 8. Codex authorization boundaries
+## 8. Lean agent authorization boundaries
 
-Codex and other agents may perform read-only inspection within the requested scope. Repository-local edits and Git mutations require explicit task-specific authorization. Pushes, pull requests, repository-setting changes, approvals, merges, branch deletion, releases, and other external mutations require explicit authorization for the exact action.
+An Owner-requested change in an Owner-prepared worktree authorizes Codex to make the in-scope repository edits and to run checked-in build, test, validation, benchmark, and debug commands needed for that task. This authorization persists through ordinary failure/fix/rerun iterations; it does not need to be renewed at each workflow stage.
 
-Agents must stop when a required gate, authority, tool, or external dependency is unavailable; preserve unrelated work; stage only reviewed paths; and report executed evidence accurately. Authorization for creating or reviewing a pull request is not authorization to approve, merge, delete its branch, modify `main`, or expand into CPU/CUDA implementation.
+Codex must preserve unrelated work and stop for a material scope expansion, canonical contract change, dependency installation, environment or repository-infrastructure change, destructive action, unavailable required gate, or missing external dependency. ChatGPT review is read-only. Neither Codex nor ChatGPT may stage, commit, stash, rebase, switch or create branches/worktrees, tag, push, create or update pull requests, approve, merge, delete refs, publish releases, or change repository settings. Those mutations belong exclusively to the Owner.
+
+The Owner's Git responsibility does not weaken technical gates: applicable CI, human review, squash-only integration, correctness-before-performance, and canonical S6/S7 contracts remain mandatory.
 
 ## 9. Manual-control limitation
 
