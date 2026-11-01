@@ -1,4 +1,5 @@
 #include "s6/cuda_v0.hpp"
+#include "s6/cpu_build_identity.hpp"
 
 #include <cmath>
 #include <array>
@@ -311,6 +312,8 @@ void test_invalid_and_failure_status(std::ofstream& evidence) {
         {overflow_query.data(), 1U, overflow_query.size()});
     require(overflow.production.invocation_status ==
                 s6::InvocationStatus::backend_failure &&
+                overflow.production.domain_status ==
+                    s6::DomainStatus::valid_outside_approved_domain &&
                 !overflow.production.result.has_value() &&
                 overflow.evidence.mapping_status == s6::EvidenceStatus::passed &&
                 overflow.evidence.observed_mapping_count == 1U &&
@@ -332,7 +335,10 @@ void test_invalid_and_failure_status(std::ofstream& evidence) {
                 "backend failure mapping failed");
     }
     evidence << "invalid_resource_backend=passed"
-                " real_nonfinite_mapping_presence=passed\n";
+                " real_nonfinite_mapping_presence=passed"
+                " valid_outside_domain=passed"
+                " valid_outside_domain_status=valid-outside-approved-domain"
+                " valid_outside_domain_verdict=blocked/unverified\n";
 }
 
 void test_reduction_fixtures(std::ofstream& evidence) {
@@ -419,11 +425,48 @@ void test_high_magnitude_and_exact_dyadic_oracle(std::ofstream& evidence) {
                 !ranking.exact_contenders.empty() &&
                 ranking.exact_contenders[0] == 0U,
             "exact-dyadic interval classifier failed");
+
+    const auto exact_boundary_ranking = s6::evaluate_ud002(1U, {0.0, 4.0, 9.0});
+    require(exact_boundary_ranking.status == s6::EvidenceStatus::passed &&
+                exact_boundary_ranking.exact_membership_resolved &&
+                exact_boundary_ranking.candidates[0].confirmed_contender &&
+                exact_boundary_ranking.candidates[1].confirmed_non_contender &&
+                exact_boundary_ranking.candidates[2].confirmed_non_contender,
+            "confirmed interval inclusion/exclusion fixture failed");
+    constexpr double exact_boundary_lower = 1.0;
+    constexpr double exact_boundary_upper_minimum = 1.0;
+    require(exact_boundary_lower <= exact_boundary_upper_minimum,
+            "inclusive exact interval boundary was excluded");
+
+    const double u32 = std::ldexp(1.0, -24);
+    const double u64 = std::ldexp(1.0, -53);
+    const double gamma32 = u32 / (1.0 - u32);
+    const double gamma64 = u64 / (1.0 - u64);
+    const double e32 = (1.0 + u32) * (1.0 + u32) * (1.0 + gamma32) - 1.0;
+    const double e64 = (1.0 + u64) * (1.0 + u64) * (1.0 + gamma64) - 1.0;
+    const double relative = (e32 + e64) / (1.0 - e64);
+    const double additive = std::ldexp(1.0, -150) * (1.0 + gamma32);
+    const double boundary = (1.0 + relative + 2.0 * additive) / (1.0 - relative);
+    bool retained_boundary_uncertainty = false;
+    for (int step = -32; step <= 32 && !retained_boundary_uncertainty; ++step) {
+        double candidate = boundary;
+        for (int move = 0; move < std::abs(step); ++move) {
+            candidate = std::nextafter(
+                candidate, step < 0 ? -std::numeric_limits<double>::infinity()
+                                    : std::numeric_limits<double>::infinity());
+        }
+        const auto boundary_ranking = s6::evaluate_ud002(1U, {1.0, candidate});
+        retained_boundary_uncertainty =
+            boundary_ranking.status == s6::EvidenceStatus::passed &&
+            !boundary_ranking.boundary_uncertain_indices.empty() &&
+            !boundary_ranking.conservative_contenders.empty();
+    }
+    require(retained_boundary_uncertainty,
+            "outward interval boundary uncertainty was not retained");
     evidence << "finite_high_magnitude=passed exact_dyadic_oracle=passed"
-                " interval_classifier=passed interval_boundary_fixture=inapplicable"
-                " interval_boundary_rationale=exact-dyadic-errors-are-zero-so-no-boundary-uncertainty"
-                " valid_outside_domain=blocked/inapplicable"
-                " rationale=D>=2^24-requires-long-single-thread-WDDM-risk-and-system-change-prohibited\n";
+                " interval_classifier=passed interval_boundary_fixture=passed"
+                " inclusive_boundary=passed confirmed_inclusion=passed"
+                " confirmed_exclusion=passed boundary_uncertain_retention=passed\n";
 }
 
 void test_nondefault_stream(std::ofstream& evidence) {
@@ -453,7 +496,18 @@ int main(int argc, char** argv) {
         std::ofstream evidence(evidence_path, std::ios::trunc);
         require(evidence.good(), "could not open functional evidence output");
         evidence << "schema=S7-CUDA-V0-FUNCTIONAL-EVIDENCE-v1.0\n";
-        evidence << "evidence_class=local-uncommitted-not-acceptance\n";
+        evidence << "evidence_class="
+                 << (std::strcmp(s6::build_identity::kWorkingTreeState, "clean") == 0
+                         ? "clean-candidate"
+                         : "local-uncommitted-not-acceptance")
+                 << '\n'
+                 << "revision=" << s6::build_identity::kRevision << '\n'
+                 << "working_tree_state=" << s6::build_identity::kWorkingTreeState
+                 << '\n'
+                 << "working_tree_fingerprint="
+                 << s6::build_identity::kWorkingTreeFingerprint << '\n'
+                 << "source_manifest_sha256="
+                 << s6::build_identity::kSourceManifestSha256 << '\n';
         test_device_and_abi(evidence);
         test_exact_tie_and_mapping(evidence);
         test_signed_zero_and_underflow(evidence);

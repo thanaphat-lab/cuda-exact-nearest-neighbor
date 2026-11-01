@@ -1,4 +1,5 @@
 #include "s6/cuda_v0.hpp"
+#include "s6/cpu_build_identity.hpp"
 
 #include <array>
 #include <cmath>
@@ -142,7 +143,11 @@ int main(int argc, char** argv) {
         std::ofstream evidence(evidence_path, std::ios::trunc);
         require(evidence.good(), "could not open matrix evidence output");
         evidence << "schema=S7-CUDA-V0-MATRIX-EVIDENCE-v1.0\n";
-        evidence << "evidence_class=local-uncommitted-not-acceptance\n";
+        evidence << "evidence_class="
+                 << (std::strcmp(s6::build_identity::kWorkingTreeState, "clean") == 0
+                         ? "clean-candidate"
+                         : "local-uncommitted-not-acceptance")
+                 << '\n';
         constexpr std::array<std::uint64_t, 4> candidate_counts = {
             1024U, 16384U, 262144U, 1048576U};
         constexpr std::array<std::uint64_t, 3> dimensions = {8U, 32U, 128U};

@@ -22,6 +22,7 @@ set(required_paths
     "${S7_SOURCE_ROOT}/src/cuda_v0.cu"
     "${S7_SOURCE_ROOT}/tests/cuda_v0_tests.cpp"
     "${S7_SOURCE_ROOT}/tests/cuda_v0_matrix_tests.cpp"
+    "${S7_SOURCE_ROOT}/tests/cuda_v0_matrix_evidence_tests.cpp"
     "${S7_SOURCE_ROOT}/cmake/GenerateCudaV0Evidence.cmake"
     "${S7_SOURCE_ROOT}/cmake/FinalizeCudaV0Evidence.cmake"
     "${S7_SOURCE_ROOT}/docs/specifications/S6-CONSOLIDATED-NUMERICAL-POLICY-v1.0.md"
@@ -158,6 +159,13 @@ else()
     set(evidence_class "local-uncommitted-not-acceptance")
 endif()
 
+file(SHA256 "${S7_EXECUTABLE}" functional_executable_sha256)
+file(SHA256 "${S7_MATRIX_EXECUTABLE}" matrix_executable_sha256)
+file(SHA256 "${S7_LIBRARY}" library_sha256)
+file(SHA256 "${sass_path}" sass_sha256)
+file(SHA256 "${S7_SOURCE_ROOT}/src/cuda_v0.cu" cuda_source_sha256)
+file(SHA256 "${S7_SOURCE_ROOT}/include/s6/cuda_v0.hpp" cuda_header_sha256)
+
 file(WRITE "${S7_MANIFEST}"
 "schema=S7-CUDA-V0-BINARY-EVIDENCE-v1.0\n"
 "evidence_class=${evidence_class}\n"
@@ -165,6 +173,12 @@ file(WRITE "${S7_MANIFEST}"
 "working_tree_state=${S7_WORKING_TREE_STATE}\n"
 "working_tree_fingerprint=${S7_WORKING_TREE_FINGERPRINT}\n"
 "source_manifest_sha256=${S7_SOURCE_MANIFEST_SHA256}\n"
+"functional_executable_sha256=${functional_executable_sha256}\n"
+"matrix_executable_sha256=${matrix_executable_sha256}\n"
+"library_sha256=${library_sha256}\n"
+"sass_sha256=${sass_sha256}\n"
+"cuda_source_sha256=${cuda_source_sha256}\n"
+"cuda_header_sha256=${cuda_header_sha256}\n"
 "nvcc_version=${S7_NVCC_VERSION}\n"
 "cuda_architectures=${S7_CUDA_ARCHITECTURES}\n"
 "compile_policy=ftz-false,fmad-true,prec-div-true,prec-sqrt-true,no-fast-math\n"
