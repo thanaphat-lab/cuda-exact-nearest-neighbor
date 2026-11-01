@@ -3,6 +3,7 @@ execute_process(
         -DS6_IDENTITY_FILE=${S6_IDENTITY_FILE}
         -DS6_SOURCE_ROOT=${S6_SOURCE_ROOT}
         -DS6_GIT=${S6_GIT}
+        -DS6_ALLOW_DIRTY_LOCAL_BUILD=${S6_ALLOW_DIRTY_LOCAL_BUILD}
         -P "${S6_SOURCE_ROOT}/cmake/VerifySourceIdentity.cmake"
     RESULT_VARIABLE identity_result
 )

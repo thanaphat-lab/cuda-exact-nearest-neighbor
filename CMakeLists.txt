@@ -1,11 +1,25 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(cuda_exact_nearest_neighbor LANGUAGES CXX)
+if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES OR
+   CMAKE_CUDA_ARCHITECTURES STREQUAL "")
+    message(FATAL_ERROR
+        "Set CMAKE_CUDA_ARCHITECTURES explicitly from the observed target GPU; "
+        "the project does not approve a guessed hardware default")
+endif()
+
+project(cuda_exact_nearest_neighbor LANGUAGES CXX CUDA)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CUDA_STANDARD 17)
+set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+set(CMAKE_CUDA_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+option(S7_ALLOW_DIRTY_LOCAL_BUILD
+    "Allow an explicitly labeled dirty local S7 build that cannot pass clean acceptance evidence"
+    OFF)
 
 if(NOT CMAKE_BUILD_TYPE STREQUAL "Release")
     message(FATAL_ERROR "S6 acceptance evidence requires CMAKE_BUILD_TYPE=Release")
@@ -16,6 +30,7 @@ endif()
 
 include(CTest)
 find_package(Git REQUIRED)
+find_package(CUDAToolkit REQUIRED)
 
 add_library(s6_cpu_baseline STATIC
     src/cpu_baseline.cpp
@@ -47,6 +62,13 @@ set(S6_EVIDENCE_INPUTS
     tests/cpu_baseline_tests.cpp
     tests/cpu_evidence_tests.cpp
     tests/cpu_matrix_tests.cpp
+    cmake/GenerateCudaV0Evidence.cmake
+    cmake/FinalizeCudaV0Evidence.cmake
+    include/s6/cuda_v0.hpp
+    src/cuda_v0.cu
+    tests/cuda_v0_tests.cpp
+    tests/cuda_v0_matrix_tests.cpp
+    tests/cuda_v0_matrix_evidence_tests.cpp
     docs/specifications/S6-CONSOLIDATED-NUMERICAL-POLICY-v1.0.md
 )
 foreach(relative_path IN LISTS S6_EVIDENCE_INPUTS)
@@ -70,9 +92,16 @@ execute_process(
 )
 if(S6_BUILD_STATUS STREQUAL "")
     set(S6_WORKTREE_STATE "clean")
+elseif(S7_ALLOW_DIRTY_LOCAL_BUILD)
+    set(S6_WORKTREE_STATE "dirty-authorized-local")
+    message(WARNING
+        "S7 dirty local build enabled. Generated evidence is local-uncommitted "
+        "and cannot satisfy clean acceptance gates.")
 else()
     message(FATAL_ERROR
-        "S6 acceptance evidence requires a clean working tree at configure time")
+        "S6 acceptance evidence requires a clean working tree at configure time. "
+        "S7 authorized local work may opt in with -DS7_ALLOW_DIRTY_LOCAL_BUILD=ON; "
+        "such evidence remains explicitly non-acceptance.")
 endif()
 string(SHA256 S6_WORKTREE_FINGERPRINT "${S6_BUILD_STATUS}")
 set(S6_SOURCE_IDENTITY_CONTENT "")
@@ -125,10 +154,36 @@ add_custom_target(s6_verify_source_identity ALL
         -DS6_IDENTITY_FILE=${S6_SOURCE_IDENTITY_FILE}
         -DS6_SOURCE_ROOT=${CMAKE_CURRENT_SOURCE_DIR}
         -DS6_GIT=${GIT_EXECUTABLE}
+        -DS6_ALLOW_DIRTY_LOCAL_BUILD=${S7_ALLOW_DIRTY_LOCAL_BUILD}
         -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifySourceIdentity.cmake
     VERBATIM
 )
 add_dependencies(s6_cpu_baseline s6_verify_source_identity)
+
+add_library(s7_cuda_v0 STATIC
+    src/cuda_v0.cu
+)
+add_dependencies(s7_cuda_v0 s6_verify_source_identity)
+target_include_directories(s7_cuda_v0 PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(s7_cuda_v0 PUBLIC CUDA::cudart)
+target_compile_options(s7_cuda_v0 PRIVATE
+    $<$<COMPILE_LANGUAGE:CUDA>:
+        --ftz=false
+        --fmad=true
+        --prec-div=true
+        --prec-sqrt=true
+        --generate-line-info
+        -Xcompiler=/W4
+        -Xcompiler=/WX
+        -Xcompiler=/wd4211
+        -Xcompiler=/fp:strict
+        -Xcompiler=/permissive->
+)
+set_target_properties(s7_cuda_v0 PROPERTIES
+    CUDA_ARCHITECTURES "${CMAKE_CUDA_ARCHITECTURES}"
+)
 
 add_library(s6_cpu_evidence STATIC
     src/cpu_evidence.cpp
@@ -199,6 +254,7 @@ if(BUILD_TESTING)
                 -DS6_REQUIRED_FLAGS=${S6_REQUIRED_COMPILE_FLAGS}
                 -DS6_IDENTITY_FILE=${S6_SOURCE_IDENTITY_FILE}
                 -DS6_GIT=${GIT_EXECUTABLE}
+                -DS6_ALLOW_DIRTY_LOCAL_BUILD=${S7_ALLOW_DIRTY_LOCAL_BUILD}
                 -DS6_MANIFEST=${manifest}
                 -DS6_PREFIX=${prefix}
                 -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/GenerateCpuEvidence.cmake
@@ -239,6 +295,68 @@ if(BUILD_TESTING)
     add_test(NAME s6.cpu.required_matrix
         COMMAND s6_cpu_matrix_tests ${s6_cpu_matrix_tests_EVIDENCE_MANIFEST}
             ${S6_FIXTURE_EVIDENCE} ${S6_MATRIX_REPORT_ROOT})
+
+    add_executable(s7_cuda_v0_tests tests/cuda_v0_tests.cpp)
+    target_link_libraries(s7_cuda_v0_tests PRIVATE s7_cuda_v0 s6_cpu_evidence)
+    target_compile_options(s7_cuda_v0_tests PRIVATE /W4 /WX /fp:strict /permissive-)
+    add_dependencies(s7_cuda_v0_tests s6_verify_source_identity)
+
+    add_executable(s7_cuda_v0_matrix_tests tests/cuda_v0_matrix_evidence_tests.cpp)
+    target_link_libraries(s7_cuda_v0_matrix_tests PRIVATE s7_cuda_v0 s6_cpu_evidence)
+    target_compile_options(s7_cuda_v0_matrix_tests PRIVATE
+        /W4 /WX /fp:strict /permissive-)
+    add_dependencies(s7_cuda_v0_matrix_tests s6_verify_source_identity)
+
+    set(S7_CUDA_EVIDENCE_ROOT "${CMAKE_CURRENT_BINARY_DIR}/evidence/cuda-v0")
+    set(S7_CUDA_MATRIX_REPORT_ROOT
+        "${S7_CUDA_EVIDENCE_ROOT}/matrix-report")
+    set(S7_CUDA_EVIDENCE_MANIFEST
+        "${S7_CUDA_EVIDENCE_ROOT}/binary.manifest.txt")
+    add_test(NAME s7.cuda_v0.functional
+        COMMAND s7_cuda_v0_tests
+            ${S7_CUDA_EVIDENCE_ROOT}/functional.txt)
+    add_test(NAME s7.cuda_v0.required_matrix
+        COMMAND s7_cuda_v0_matrix_tests
+            ${S7_CUDA_EVIDENCE_ROOT}/matrix.txt
+            ${S7_CUDA_MATRIX_REPORT_ROOT}
+            ${S7_CUDA_EVIDENCE_MANIFEST}
+            ${S7_CUDA_EVIDENCE_ROOT}/functional.txt)
+    set_tests_properties(s7.cuda_v0.functional s7.cuda_v0.required_matrix
+        PROPERTIES TIMEOUT 1800)
+    set_tests_properties(s7.cuda_v0.required_matrix PROPERTIES
+        DEPENDS s7.cuda_v0.functional)
+
+    find_program(S7_CUOBJDUMP cuobjdump
+        HINTS "${CUDAToolkit_BIN_DIR}" "${CUDAToolkit_ROOT}/bin"
+        REQUIRED)
+    add_custom_command(
+        OUTPUT ${S7_CUDA_EVIDENCE_MANIFEST}
+        COMMAND ${CMAKE_COMMAND}
+            -DS7_SOURCE_ROOT=${CMAKE_CURRENT_SOURCE_DIR}
+            -DS7_BUILD_ROOT=${CMAKE_CURRENT_BINARY_DIR}
+            -DS7_GIT=${GIT_EXECUTABLE}
+            -DS7_CUOBJDUMP=${S7_CUOBJDUMP}
+            -DS7_EXECUTABLE=$<TARGET_FILE:s7_cuda_v0_tests>
+            -DS7_MATRIX_EXECUTABLE=$<TARGET_FILE:s7_cuda_v0_matrix_tests>
+            -DS7_LIBRARY=$<TARGET_FILE:s7_cuda_v0>
+            -DS7_NVCC=${CMAKE_CUDA_COMPILER}
+            -DS7_NVCC_VERSION=${CMAKE_CUDA_COMPILER_VERSION}
+            -DS7_CUDA_ARCHITECTURES=${CMAKE_CUDA_ARCHITECTURES}
+            -DS7_WORKING_TREE_STATE=${S6_WORKTREE_STATE}
+            -DS7_WORKING_TREE_FINGERPRINT=${S6_WORKTREE_FINGERPRINT}
+            -DS7_SOURCE_MANIFEST_SHA256=${S6_SOURCE_MANIFEST_SHA256}
+            -DS7_OUTPUT_ROOT=${S7_CUDA_EVIDENCE_ROOT}
+            -DS7_MANIFEST=${S7_CUDA_EVIDENCE_MANIFEST}
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/GenerateCudaV0Evidence.cmake
+        DEPENDS s7_cuda_v0_tests s7_cuda_v0_matrix_tests s7_cuda_v0
+            ${CMAKE_CURRENT_SOURCE_DIR}/cmake/GenerateCudaV0Evidence.cmake
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/cuda_v0.cu
+            ${CMAKE_CURRENT_SOURCE_DIR}/include/s6/cuda_v0.hpp
+            ${CMAKE_CURRENT_BINARY_DIR}/compile_commands.json
+        VERBATIM)
+    add_custom_target(s7_cuda_v0_evidence ALL
+        DEPENDS ${S7_CUDA_EVIDENCE_MANIFEST})
+    add_dependencies(s7_cuda_v0_evidence s6_verify_source_identity)
     set_tests_properties(s6.cpu.fixtures PROPERTIES
         FIXTURES_SETUP S6_CPU_FIXTURES)
     set_tests_properties(s6.cpu.required_matrix PROPERTIES
