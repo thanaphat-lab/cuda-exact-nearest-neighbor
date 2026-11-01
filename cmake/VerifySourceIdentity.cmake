@@ -10,8 +10,11 @@ endforeach()
 if(NOT identity_schema STREQUAL "S6-SOURCE-IDENTITY-v1.0")
     message(FATAL_ERROR "Unsupported source identity schema")
 endif()
-if(NOT identity_working_tree_state STREQUAL "clean")
-    message(FATAL_ERROR "Configured source identity is not clean")
+if(NOT identity_working_tree_state STREQUAL "clean" AND
+   NOT (S6_ALLOW_DIRTY_LOCAL_BUILD AND
+        identity_working_tree_state STREQUAL "dirty-authorized-local"))
+    message(FATAL_ERROR
+        "Configured source identity is neither clean nor an explicitly authorized dirty local build")
 endif()
 
 execute_process(
@@ -30,11 +33,13 @@ execute_process(
 )
 if(current_status STREQUAL "")
     set(current_state "clean")
+elseif(S6_ALLOW_DIRTY_LOCAL_BUILD)
+    set(current_state "dirty-authorized-local")
 else()
     set(current_state "dirty")
 endif()
 string(SHA256 current_fingerprint "${current_status}")
-if(NOT current_state STREQUAL "clean")
+if(NOT current_state STREQUAL "clean" AND NOT S6_ALLOW_DIRTY_LOCAL_BUILD)
     message(FATAL_ERROR "Current source identity is dirty; evidence is unavailable")
 endif()
 if(NOT current_revision STREQUAL identity_revision OR
