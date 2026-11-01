@@ -212,5 +212,3 @@ file(WRITE "${S7_MANIFEST}"
 "binary_graph_structure_status=passed\n"
 "graph_verdict=blocked-pending-independent-runtime-correlation-and-complete-acceptance-review\n"
 "${artifact_lines}")
-
-

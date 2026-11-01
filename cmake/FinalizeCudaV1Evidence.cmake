@@ -351,5 +351,3 @@ file(WRITE "${S7_MANIFEST}"
 "command.racecheck=${S7_RACECHECK_COMMAND}\n"
 "command.finalize=${finalize_command}\n"
 "${artifact_lines}")
-
-

@@ -725,5 +725,3 @@ std::vector<float> cuda_v1_transform_aos_to_soa_for_testing(DatasetView dataset)
 
 }  // namespace detail
 }  // namespace s6
-
-
