@@ -12,14 +12,14 @@ The sources below have different responsibilities rather than one interchangeabl
 | `approved_project_specification` | Canonical project behavior and acceptance policy, including approved numerical and optimization contracts | What the project must do | Be changed implicitly by code, configuration, design notes, or task execution |
 | `approved_design_decisions` | Implementation choices that satisfy the approved specification | How approved requirements will be implemented | Override or weaken the approved project specification |
 | `repository_configuration` | Current executable build, test, benchmark, and tooling mechanics | Which checked-in commands and settings are actually available | Convert observed implementation state into a new requirement or silently resolve specification drift |
-| `current_user_authorization` | Current task scope and permission for local or external mutations | Which otherwise-valid actions may be performed now | Redefine project contracts merely by authorizing work |
+| `current_user_authorization` | Current task scope and permission for non-Git local work | Which repository-local edits and checked-in build/test/debug actions Codex may perform now | Authorize Codex/ChatGPT Git or GitHub mutations, or redefine project contracts |
 
 Safety and higher-priority agent instructions always govern what actions may be taken. Within project semantics, only the approved project specification defines the approved numerical, optimization, and acceptance contracts. Approved design decisions may specialize implementation choices only when consistent with that specification.
 
 ## Resolution rules
 
 1. Identify the source responsible for each question; do not let a lower-level workflow document answer a project-contract question.
-2. Use repository instructions for operational constraints, the approved specification for project contracts, approved design decisions for consistent implementation choices, repository configuration for executable mechanics, and the current request for authorization.
+2. Use repository instructions for operational constraints, the approved specification for project contracts, approved design decisions for consistent implementation choices, repository configuration for executable mechanics, and the current request for the bounded non-Git local work scope. Git/GitHub mutations remain Owner-only.
 3. Treat observed code or configuration that disagrees with the approved specification as implementation drift, not as an automatic specification update.
 4. Report every material cross-source conflict with the conflicting evidence and affected workflow gate. Enter `blocked` when the conflict prevents a valid in-scope decision.
 5. Resume only after an authorized owner resolves the conflict in the responsible source. Do not silently choose the more convenient source.

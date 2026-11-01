@@ -1,32 +1,21 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "initial_state": "intake",
-  "terminal_states": ["complete", "blocked"],
-  "states": [
-    "intake",
-    "requirements_analyzed",
-    "design_approved",
-    "implementation_authorized",
-    "implementation_completed",
-    "verification_completed",
-    "performance_benchmarked",
-    "experiment_reported",
-    "review_completed",
-    "documentation_completed",
-    "github_work_completed",
-    "complete",
-    "blocked"
-  ],
-  "full_workflow_order": [
-    "requirement-analysis",
-    "solution-design",
-    "cuda-kernel-engineering",
-    "verification",
-    "cuda-performance",
-    "cuda-experiment-reporter",
-    "change-review",
-    "docs-knowledge"
-  ],
+  "terminal_states": ["ready_for_owner", "complete", "blocked"],
+  "states": ["intake", "working", "validated", "review_required", "ready_for_owner", "complete", "blocked"],
+  "roles": {
+    "owner": {
+      "owns": ["worktree_preparation", "git_mutations", "github_mutations", "merge_decision"]
+    },
+    "codex": {
+      "owns": ["scoped_implementation", "build", "test", "debug_iteration", "evidence_handoff"],
+      "forbidden": ["git_mutations", "github_mutations", "contract_changes_without_owner_decision", "scope_expansion_without_owner_decision"]
+    },
+    "chatgpt": {
+      "owns": ["material_correctness_review", "material_design_review"],
+      "forbidden": ["repository_edits", "git_mutations", "github_mutations"]
+    }
+  },
   "source_authority": {
     "material_conflict_action": "blocked",
     "responsibilities": [
@@ -34,47 +23,37 @@
       {"id":"approved_project_specification","responsibility":"numerical_optimization_and_acceptance_contracts","defines_approved_project_contracts":true,"may_redefine_approved_contracts":false},
       {"id":"approved_design_decisions","responsibility":"implementation_choices_consistent_with_specification","defines_approved_project_contracts":false,"may_redefine_approved_contracts":false},
       {"id":"repository_configuration","responsibility":"executable_build_test_and_benchmark_mechanics","defines_approved_project_contracts":false,"may_redefine_approved_contracts":false},
-      {"id":"current_user_authorization","responsibility":"task_scope_and_permission_for_mutations","defines_approved_project_contracts":false,"may_redefine_approved_contracts":false}
+      {"id":"current_user_authorization","responsibility":"task_scope_and_permission_for_non_git_local_work","defines_approved_project_contracts":false,"may_redefine_approved_contracts":false}
     ]
+  },
+  "development_policy": {
+    "scoped_change_request_authorizes": ["repository_local_edits", "build", "test", "validation", "debug_iteration"],
+    "repeat_approval_not_required_for": ["in_scope_edit", "build_retry", "test_rerun", "in_scope_failure_fix"],
+    "new_owner_decision_required_for": ["scope_expansion", "canonical_contract_change", "dependency_installation", "environment_change", "destructive_action"],
+    "git_and_github_mutation_actor": "owner",
+    "material_review_actor": "chatgpt"
   },
   "performance_policy": {
     "requires_correctness_acceptance": true,
     "hypothesis_outcomes": ["supported", "rejected", "inconclusive"],
     "rejected_hypothesis_is_valid_experiment_outcome": true,
-    "unavailable_required_hardware_status": "blocked",
-    "out_of_scope_bypass_token": "performance_benchmark_out_of_scope"
+    "unavailable_required_hardware_status": "blocked"
   },
   "transitions": [
-    {"id":"analyze-requirements","from":"intake","to":"requirements_analyzed","route":"requirement-analysis","requires":["canonical_contract_search","requirements_evidence"],"produces":["requirements_analysis"]},
-    {"id":"approve-design","from":"requirements_analyzed","to":"design_approved","route":"solution-design","requires":["resolved_required_contracts","explicit_design_approval"],"produces":["approved_design_record"]},
-    {"id":"approve-design-only-scope","from":"intake","to":"design_approved","route":"solution-design","requires":["design_only_scope","resolved_required_contracts","design_evidence","explicit_design_approval"],"produces":["approved_design_record"]},
-    {"id":"authorize-implementation","from":"design_approved","to":"implementation_authorized","route":"cuda-dev-workflow","requires":["explicit_local_mutation_authorization"],"produces":["authorization_record"]},
-    {"id":"complete-implementation","from":"implementation_authorized","to":"implementation_completed","route":"cuda-kernel-engineering","requires":["approved_design_record","authorization_record"],"produces":["change_record"]},
-    {"id":"complete-verification","from":"implementation_completed","to":"verification_completed","route":"verification","requires":["change_record","executed_verification_evidence","gpu_checks_passed_or_not_required","correctness_accepted"],"produces":["verification_report"]},
-    {"id":"complete-performance-benchmark","from":"verification_completed","to":"performance_benchmarked","route":"cuda-performance","requires":["correctness_accepted","performance_benchmark_in_scope","required_benchmark_hardware_available","revision_bound_evidence","executed_benchmark_evidence","performance_hypothesis_outcome_recorded"],"produces":["performance_evidence","performance_hypothesis_outcome"]},
-    {"id":"report-supported-hypothesis","from":"performance_benchmarked","to":"experiment_reported","route":"cuda-experiment-reporter","condition":{"performance_hypothesis_outcome":"supported"},"requires":["performance_evidence","revision_bound_evidence","correctness_accepted"],"produces":["experiment_report"]},
-    {"id":"report-rejected-hypothesis","from":"performance_benchmarked","to":"experiment_reported","route":"cuda-experiment-reporter","condition":{"performance_hypothesis_outcome":"rejected"},"requires":["performance_evidence","revision_bound_evidence","correctness_accepted"],"produces":["experiment_report"]},
-    {"id":"report-inconclusive-hypothesis","from":"performance_benchmarked","to":"experiment_reported","route":"cuda-experiment-reporter","condition":{"performance_hypothesis_outcome":"inconclusive"},"requires":["performance_evidence","revision_bound_evidence","correctness_accepted"],"produces":["experiment_report"]},
-    {"id":"review-experiment","from":"experiment_reported","to":"review_completed","route":"change-review","requires":["experiment_report","review_evidence"],"produces":["review_report"]},
-    {"id":"review-without-performance","from":"verification_completed","to":"review_completed","route":"change-review","requires":["performance_benchmark_out_of_scope","verification_report","review_evidence"],"produces":["review_report"]},
-    {"id":"document-reviewed-work","from":"review_completed","to":"documentation_completed","route":"docs-knowledge","requires":["review_report","documentation_scope_resolved"],"produces":["documentation_record"]},
-    {"id":"complete-full-workflow","from":"documentation_completed","to":"complete","route":"cuda-dev-workflow","requires":["full_workflow_scope","handoff_complete"],"produces":["completion_report"]},
-    {"id":"complete-requirements-only","from":"requirements_analyzed","to":"complete","route":"cuda-dev-workflow","requires":["requirements_only_scope","handoff_complete"],"produces":["completion_report"]},
-    {"id":"complete-design-only","from":"design_approved","to":"complete","route":"cuda-dev-workflow","requires":["design_only_scope","handoff_complete"],"produces":["completion_report"]},
-    {"id":"complete-documentation-only-work","from":"intake","to":"documentation_completed","route":"docs-knowledge","requires":["documentation_only_scope","documentation_authorization_satisfied","documentation_evidence"],"produces":["documentation_record"]},
-    {"id":"close-documentation-only-work","from":"documentation_completed","to":"complete","route":"cuda-dev-workflow","requires":["documentation_only_scope","handoff_complete"],"produces":["completion_report"]},
-    {"id":"complete-review-only-work","from":"intake","to":"review_completed","route":"change-review","requires":["review_only_scope","review_evidence","no_mutations_performed"],"produces":["review_report"]},
-    {"id":"close-review-only-work","from":"review_completed","to":"complete","route":"cuda-dev-workflow","requires":["review_only_scope","handoff_complete"],"produces":["completion_report"]},
-    {"id":"complete-github-only-work","from":"intake","to":"github_work_completed","route":"github-flow","requires":["github_only_scope","git_github_authorization_satisfied","repository_action_evidence"],"produces":["repository_action_report"]},
-    {"id":"close-github-only-work","from":"github_work_completed","to":"complete","route":"cuda-dev-workflow","requires":["github_only_scope","handoff_complete"],"produces":["completion_report"]}
-  ],
-  "blocked_transitions": [
-    {"id":"required-benchmark-hardware-unavailable","from":"verification_completed","to":"blocked","route":"cuda-performance","requires":["performance_benchmark_in_scope","required_benchmark_hardware_unavailable"],"produces":["blocked_report"],"resume_to":"verification_completed"}
+    {"id":"start-scoped-work","from":"intake","to":"working","actor":"codex","route":"cuda-dev-workflow","requires":["owner_prepared_worktree","scoped_change_request","applicable_contracts_resolved"],"produces":["scope_record"]},
+    {"id":"iterate-in-scope","from":"working","to":"working","actor":"codex","route":"cuda-kernel-engineering","requires":["scope_record","in_scope_change_or_failure"],"produces":["updated_change_and_check_evidence"]},
+    {"id":"validate-work","from":"working","to":"validated","actor":"codex","route":"verification","requires":["executed_relevant_checks","per_check_status_recorded","correctness_status_recorded"],"produces":["verification_evidence"]},
+    {"id":"fix-validation-failure","from":"validated","to":"working","actor":"codex","route":"cuda-dev-workflow","condition":{"validation_outcome":"failed_fix_within_scope"},"requires":["failure_evidence","in_scope_fix_available"],"produces":["debug_iteration_record"]},
+    {"id":"request-material-review","from":"validated","to":"review_required","actor":"chatgpt","route":"change-review","condition":{"material_correctness_or_design_risk":true},"requires":["verification_evidence","review_scope"],"produces":["review_findings"]},
+    {"id":"address-review-findings","from":"review_required","to":"working","actor":"codex","route":"cuda-dev-workflow","condition":{"review_outcome":"changes_requested_within_scope"},"requires":["review_findings","in_scope_fix_available"],"produces":["review_fix_record"]},
+    {"id":"handoff-reviewed-work","from":"review_required","to":"ready_for_owner","actor":"codex","route":"cuda-dev-workflow","condition":{"material_findings_resolved":true},"requires":["review_findings","verification_evidence","required_checks_acceptable","owner_handoff"],"produces":["completion_report"]},
+    {"id":"handoff-routine-work","from":"validated","to":"ready_for_owner","actor":"codex","route":"cuda-dev-workflow","condition":{"material_correctness_or_design_risk":false},"requires":["verification_evidence","required_checks_acceptable","owner_handoff"],"produces":["completion_report"]},
+    {"id":"complete-read-only-work","from":"intake","to":"complete","actor":"codex_or_chatgpt","route":"cuda-dev-workflow","requires":["read_only_scope","evidence_report"],"produces":["completion_report"]}
   ],
   "blocked_transition": {
     "from": "any_nonterminal_state",
     "to": "blocked",
-    "requires_any": ["missing_or_conflicting_contract", "missing_authorization", "required_tool_unavailable", "required_gpu_unavailable", "required_benchmark_hardware_unavailable", "external_dependency_unavailable"],
+    "requires_any": ["missing_or_conflicting_contract", "scope_expansion_required", "canonical_contract_change_required", "dependency_or_environment_change_required", "destructive_action_required", "required_tool_unavailable", "required_gpu_unavailable", "required_benchmark_hardware_unavailable", "external_dependency_unavailable"],
     "produces": ["blocked_report"]
   },
   "resume_rule": {"requires":["blocking_condition_rechecked","blocking_condition_resolved"],"to":"recorded_resume_state"}
