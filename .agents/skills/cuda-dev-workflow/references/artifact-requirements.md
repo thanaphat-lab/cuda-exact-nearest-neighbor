@@ -1,29 +1,29 @@
 # Artifact requirements
 
-Artifacts may be files or clearly labeled response sections. Use existing repository formats when present.
+Keep one compact evidence packet for a scoped change; do not manufacture a separate artifact for every skill consulted.
 
-| Stage | Required artifact | Minimum evidence |
-|---|---|---|
-| Intake | Scope and state record | Request, repository state, instructions, contract locations, authorization boundary |
-| Requirements | Requirements analysis | Source citations, invariants, acceptance criteria, conflicts, unresolved decisions |
-| Design | Design decision record | Requirements mapping, alternatives, selected scope, risks, approval status |
-| Authorization | Approval record | Exact authorized mutation scope and excluded actions |
-| Implementation | Change record | Changed files, design mapping, deviations, unimplemented scope |
-| Verification | Verification report | Exact commands, environment, GPU status, per-check outcome, retained evidence |
-| Review | Review report | Reviewed diff or artifact, findings, contract references, residual risks |
-| Documentation | Documentation record | Sources synchronized, changed files, unresolved knowledge gaps |
-| Performance | Performance evidence | Correctness prerequisite, revision, environment, workload, required-hardware status, methodology, raw or traceable results, hypothesis outcome |
-| Experiment reporting | Experiment report | Revision-bound inputs, commands, results, `supported`/`rejected`/`inconclusive` outcome, comparison limits, failures and blocks |
-| Completion | Handoff | Passed, failed, blocked, skipped, risks, next-milestone readiness |
+## Owner handoff packet
+
+| Section | Minimum evidence |
+|---|---|
+| Scope | Owner request, worktree/branch observed read-only, in-scope and excluded work, applicable contracts |
+| Change | Exact files changed, behavior/design mapping, preserved invariants, deviations or unimplemented scope |
+| Checks | Exact commands, environment/configuration needed to interpret them, and per-check `passed`/`failed`/`skipped`/`blocked` status |
+| Correctness | Relevant CPU Float32, GPU Float32, Float64-reference, argmin, distance-error, and ambiguity evidence kept distinct |
+| Performance, when in scope | Prior correctness status, revision/worktree identity, hardware/workload/method, traceable results, and `supported`/`rejected`/`inconclusive` hypothesis outcome |
+| Review, when material | ChatGPT findings, dispositions, unresolved material risks, and evidence rerun after fixes |
+| Handoff | Residual risks, failures/blocks, files for Owner review, and Owner-only Git/PR/CI actions remaining |
+
+Read-only requirements, design, documentation, or review tasks may return only the relevant sections.
 
 ## Evidence rules
 
 - `passed` requires executed evidence meeting an approved criterion.
 - `failed` requires executed evidence violating a criterion or a concrete review finding.
-- `blocked` means the check could not be validly executed or judged.
+- `blocked` means the check could not be validly executed or judged; state the smallest unblock action.
 - `skipped` requires an explicit out-of-scope reason and never equals `passed`.
-- GPU-required validation without an available compatible GPU is `blocked`.
-- Required benchmark hardware unavailable while benchmarking is in scope is `blocked`; benchmarking out of scope is recorded and bypasses the performance stage without implying a pass.
+- A failed build/test normally returns to the in-scope Codex debug loop; it is not a new approval gate.
+- GPU-required validation without a compatible GPU and required benchmarking without required hardware are blocked only for the affected gate.
 - Performance acceptance requires prior correctness evidence for the same relevant revision and configuration.
-- A rejected performance hypothesis is a valid experiment outcome when backed by executed evidence; it is not a failed or blocked workflow by itself.
-- Planned commands and expected results must be labeled as plans, never execution evidence.
+- A rejected performance hypothesis is a valid experiment outcome when backed by executed evidence.
+- Planned commands and expected results are plans, never execution evidence.
