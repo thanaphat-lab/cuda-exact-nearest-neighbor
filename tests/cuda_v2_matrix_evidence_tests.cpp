@@ -2,6 +2,7 @@
 #include "s6/cuda_v1.hpp"
 #include "s6/cuda_v0.hpp"
 #include "s6/cpu_build_identity.hpp"
+#include "s7_tuning_freeze.hpp"
 
 #include <algorithm>
 #include <array>
@@ -129,7 +130,8 @@ struct CandidateEvidence {
 static_assert(sizeof(CandidateEvidence) == 24U, "V2 candidate evidence ABI");
 
 void run_case(std::uint64_t n, std::uint64_t d, std::ofstream& evidence,
-              const std::filesystem::path& report_root) {
+              const std::filesystem::path& report_root,
+              std::uint32_t block_size) {
     std::vector<float> query(static_cast<std::size_t>(d));
     for (std::uint64_t j = 0; j < d; ++j) {
         const auto centered = static_cast<int>((j + (kSeed & 15U)) % 17U) - 8;
@@ -155,7 +157,8 @@ void run_case(std::uint64_t n, std::uint64_t d, std::ofstream& evidence,
 
     const s6::DatasetView dataset_view{dataset.data(), n, d, dataset.size()};
     const s6::QueryView query_view{query.data(), d, query.size()};
-    const auto v2 = s6::cuda_v2_search_float32_evidenced(dataset_view, query_view);
+    const auto v2 = s6::cuda_v2_search_float32_evidenced(
+        dataset_view, query_view, {0, nullptr, block_size});
     const auto cpu = s6::cpu_search_float32(dataset_view, query_view);
     const auto v0 = s6::cuda_v0_search_float32_evidenced(dataset_view, query_view);
     const auto v1 = s6::cuda_v1_search_float32_evidenced(dataset_view, query_view);
@@ -261,7 +264,7 @@ void run_case(std::uint64_t n, std::uint64_t d, std::ofstream& evidence,
              << "seed=" << kSeed << '\n'
              << "candidate_count=" << n << '\n'
              << "dimension=" << d << '\n'
-             << "block_size=256\n"
+             << "block_size=" << block_size << '\n'
              << "candidate_record_size=" << sizeof(CandidateEvidence) << '\n'
              << "candidate_bytes="
              << candidate_records.size() * sizeof(CandidateEvidence) << '\n'
@@ -300,7 +303,7 @@ void run_case(std::uint64_t n, std::uint64_t d, std::ofstream& evidence,
     metadata.close();
 
     evidence << "case=N" << n << "-D" << d << " seed=" << kSeed
-             << " block_size=256 mapping=passed overwrite=passed"
+             << " block_size=" << block_size << " mapping=passed overwrite=passed"
              << " independent_f32=passed independent_f64=passed"
              << " cpu_v2=passed v0_v2=passed v1_v2=passed"
              << " ud001=passed ud002=passed candidate_retention=passed"
@@ -315,12 +318,15 @@ void run_case(std::uint64_t n, std::uint64_t d, std::ofstream& evidence,
 
 int main(int argc, char** argv) {
     try {
-        require(argc == 5,
-                "matrix output, report root, binary evidence, and functional evidence are required");
+        require(argc == 5 || argc == 6,
+                "matrix output, report root, binary evidence, functional evidence, and optional tuning freeze are required");
         verify_binary_correlation(argv[3]);
         verify_functional_correlation(argv[4]);
         const std::filesystem::path evidence_path = argv[1];
         const std::filesystem::path report_root = argv[2];
+        s7_test::TuningFreeze freeze;
+        const bool use_freeze = argc == 6;
+        if (use_freeze) freeze = s7_test::TuningFreeze::load(argv[5], "v2");
         std::filesystem::create_directories(evidence_path.parent_path());
         std::ofstream evidence(evidence_path, std::ios::trunc);
         require(evidence.good(), "could not open V2 matrix evidence");
@@ -343,7 +349,8 @@ int main(int argc, char** argv) {
         constexpr std::array<std::uint64_t, 3> dimensions = {8U, 32U, 128U};
         for (const auto n : candidate_counts) {
             for (const auto d : dimensions) {
-                run_case(n, d, evidence, report_root);
+                run_case(n, d, evidence, report_root,
+                         use_freeze ? freeze.at(n, d) : 256U);
             }
         }
         evidence << "matrix_functional_numerical_comparisons=passed cases=12\n"
