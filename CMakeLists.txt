@@ -81,6 +81,12 @@ set(S6_EVIDENCE_INPUTS
     src/cuda_v2.cu
     tests/cuda_v2_tests.cpp
     tests/cuda_v2_matrix_evidence_tests.cpp
+    cmake/GenerateCudaV3Evidence.cmake
+    cmake/FinalizeCudaV3Evidence.cmake
+    include/s6/cuda_v3.hpp
+    src/cuda_v3.cu
+    tests/cuda_v3_tests.cpp
+    tests/cuda_v3_matrix_evidence_tests.cpp
     docs/specifications/S6-CONSOLIDATED-NUMERICAL-POLICY-v1.0.md
 )
 foreach(relative_path IN LISTS S6_EVIDENCE_INPUTS)
@@ -244,6 +250,31 @@ target_compile_options(s7_cuda_v2 PRIVATE
         -Xcompiler=/permissive->
 )
 set_target_properties(s7_cuda_v2 PROPERTIES
+    CUDA_ARCHITECTURES "${CMAKE_CUDA_ARCHITECTURES}"
+)
+
+add_library(s7_cuda_v3 STATIC
+    src/cuda_v3.cu
+)
+add_dependencies(s7_cuda_v3 s6_verify_source_identity)
+target_include_directories(s7_cuda_v3 PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(s7_cuda_v3 PUBLIC CUDA::cudart)
+target_compile_options(s7_cuda_v3 PRIVATE
+    $<$<COMPILE_LANGUAGE:CUDA>:
+        --ftz=false
+        --fmad=true
+        --prec-div=true
+        --prec-sqrt=true
+        --generate-line-info
+        -Xcompiler=/W4
+        -Xcompiler=/WX
+        -Xcompiler=/wd4211
+        -Xcompiler=/fp:strict
+        -Xcompiler=/permissive->
+)
+set_target_properties(s7_cuda_v3 PROPERTIES
     CUDA_ARCHITECTURES "${CMAKE_CUDA_ARCHITECTURES}"
 )
 
@@ -551,6 +582,72 @@ if(BUILD_TESTING)
     add_custom_target(s7_cuda_v2_evidence ALL
         DEPENDS ${S7_CUDA_V2_EVIDENCE_MANIFEST})
     add_dependencies(s7_cuda_v2_evidence s6_verify_source_identity)
+
+    add_executable(s7_cuda_v3_tests tests/cuda_v3_tests.cpp)
+    target_link_libraries(s7_cuda_v3_tests PRIVATE
+        s7_cuda_v3 s7_cuda_v2 s7_cuda_v1 s7_cuda_v0 s6_cpu_evidence)
+    target_compile_options(s7_cuda_v3_tests PRIVATE /W4 /WX /fp:strict /permissive-)
+    add_dependencies(s7_cuda_v3_tests s6_verify_source_identity)
+
+    add_executable(s7_cuda_v3_matrix_tests
+        tests/cuda_v3_matrix_evidence_tests.cpp)
+    target_link_libraries(s7_cuda_v3_matrix_tests PRIVATE
+        s7_cuda_v3 s7_cuda_v2 s7_cuda_v1 s7_cuda_v0 s6_cpu_evidence)
+    target_compile_options(s7_cuda_v3_matrix_tests PRIVATE
+        /W4 /WX /fp:strict /permissive-)
+    add_dependencies(s7_cuda_v3_matrix_tests s6_verify_source_identity)
+
+    set(S7_CUDA_V3_EVIDENCE_ROOT
+        "${CMAKE_CURRENT_BINARY_DIR}/evidence/cuda-v3")
+    set(S7_CUDA_V3_MATRIX_REPORT_ROOT
+        "${S7_CUDA_V3_EVIDENCE_ROOT}/matrix-report")
+    set(S7_CUDA_V3_EVIDENCE_MANIFEST
+        "${S7_CUDA_V3_EVIDENCE_ROOT}/binary.manifest.txt")
+    add_test(NAME s7.cuda_v3.functional
+        COMMAND s7_cuda_v3_tests
+            ${S7_CUDA_V3_EVIDENCE_ROOT}/functional.txt)
+    add_test(NAME s7.cuda_v3.required_matrix
+        COMMAND s7_cuda_v3_matrix_tests
+            ${S7_CUDA_V3_EVIDENCE_ROOT}/matrix.txt
+            ${S7_CUDA_V3_MATRIX_REPORT_ROOT}
+            ${S7_CUDA_V3_EVIDENCE_MANIFEST}
+            ${S7_CUDA_V3_EVIDENCE_ROOT}/functional.txt)
+    set_tests_properties(s7.cuda_v3.functional s7.cuda_v3.required_matrix
+        PROPERTIES TIMEOUT 2400)
+    set_tests_properties(s7.cuda_v3.required_matrix PROPERTIES
+        DEPENDS s7.cuda_v3.functional)
+
+    add_custom_command(
+        OUTPUT ${S7_CUDA_V3_EVIDENCE_MANIFEST}
+        COMMAND ${CMAKE_COMMAND}
+            -DS7_SOURCE_ROOT=${CMAKE_CURRENT_SOURCE_DIR}
+            -DS7_BUILD_ROOT=${CMAKE_CURRENT_BINARY_DIR}
+            -DS7_GIT=${GIT_EXECUTABLE}
+            -DS7_CUOBJDUMP=${S7_CUOBJDUMP}
+            -DS7_EXECUTABLE=$<TARGET_FILE:s7_cuda_v3_tests>
+            -DS7_MATRIX_EXECUTABLE=$<TARGET_FILE:s7_cuda_v3_matrix_tests>
+            -DS7_LIBRARY=$<TARGET_FILE:s7_cuda_v3>
+            -DS7_NVCC=${CMAKE_CUDA_COMPILER}
+            -DS7_NVCC_VERSION=${CMAKE_CUDA_COMPILER_VERSION}
+            -DS7_CUDA_ARCHITECTURES=${CMAKE_CUDA_ARCHITECTURES}
+            -DS7_WORKING_TREE_STATE=${S6_WORKTREE_STATE}
+            -DS7_WORKING_TREE_FINGERPRINT=${S6_WORKTREE_FINGERPRINT}
+            -DS7_SOURCE_MANIFEST_SHA256=${S6_SOURCE_MANIFEST_SHA256}
+            -DS7_OUTPUT_ROOT=${S7_CUDA_V3_EVIDENCE_ROOT}
+            -DS7_MANIFEST=${S7_CUDA_V3_EVIDENCE_MANIFEST}
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/GenerateCudaV3Evidence.cmake
+        DEPENDS s7_cuda_v3_tests s7_cuda_v3_matrix_tests s7_cuda_v3
+            ${CMAKE_CURRENT_SOURCE_DIR}/cmake/GenerateCudaV3Evidence.cmake
+            ${CMAKE_CURRENT_SOURCE_DIR}/cmake/FinalizeCudaV3Evidence.cmake
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/cuda_v3.cu
+            ${CMAKE_CURRENT_SOURCE_DIR}/include/s6/cuda_v3.hpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/cuda_v3_tests.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/cuda_v3_matrix_evidence_tests.cpp
+            ${CMAKE_CURRENT_BINARY_DIR}/compile_commands.json
+        VERBATIM)
+    add_custom_target(s7_cuda_v3_evidence ALL
+        DEPENDS ${S7_CUDA_V3_EVIDENCE_MANIFEST})
+    add_dependencies(s7_cuda_v3_evidence s6_verify_source_identity)
     set_tests_properties(s6.cpu.fixtures PROPERTIES
         FIXTURES_SETUP S6_CPU_FIXTURES)
     set_tests_properties(s6.cpu.required_matrix PROPERTIES
