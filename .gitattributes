@@ -34,3 +34,7 @@ CMakeLists.txt text eol=lf
 *.zip binary
 *.gz binary
 *.7z binary
+
+# Preserve accepted evidence byte-for-byte for manifest verification.
+docs/experiments/S7-ACCEPT-20261103-01/evidence/** -text
+docs/experiments/S7-ACCEPT-20261103-01/evidence/** whitespace=cr-at-eol

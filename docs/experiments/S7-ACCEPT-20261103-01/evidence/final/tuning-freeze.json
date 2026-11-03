@@ -1,0 +1,32 @@
+{
+  "schema_version": "S7-TUNING-FREEZE-v1",
+  "candidates": [128,256,512],
+  "selection_metric": "BND-KERNEL median",
+  "exact_tie_rule": "smaller block size",
+  "mapping": [
+    {"variant":"v2","N":1024,"D":8,"block_size":128,"tuning_median_ns":0},
+    {"variant":"v3","N":1024,"D":8,"block_size":128,"tuning_median_ns":0},
+    {"variant":"v2","N":1024,"D":32,"block_size":128,"tuning_median_ns":0},
+    {"variant":"v3","N":1024,"D":32,"block_size":128,"tuning_median_ns":0},
+    {"variant":"v2","N":1024,"D":128,"block_size":256,"tuning_median_ns":0},
+    {"variant":"v3","N":1024,"D":128,"block_size":128,"tuning_median_ns":0},
+    {"variant":"v2","N":16384,"D":8,"block_size":128,"tuning_median_ns":0},
+    {"variant":"v3","N":16384,"D":8,"block_size":256,"tuning_median_ns":0},
+    {"variant":"v2","N":16384,"D":32,"block_size":256,"tuning_median_ns":0},
+    {"variant":"v3","N":16384,"D":32,"block_size":256,"tuning_median_ns":0},
+    {"variant":"v2","N":16384,"D":128,"block_size":128,"tuning_median_ns":0},
+    {"variant":"v3","N":16384,"D":128,"block_size":512,"tuning_median_ns":0},
+    {"variant":"v2","N":262144,"D":8,"block_size":512,"tuning_median_ns":0},
+    {"variant":"v3","N":262144,"D":8,"block_size":512,"tuning_median_ns":0},
+    {"variant":"v2","N":262144,"D":32,"block_size":128,"tuning_median_ns":0},
+    {"variant":"v3","N":262144,"D":32,"block_size":512,"tuning_median_ns":0},
+    {"variant":"v2","N":262144,"D":128,"block_size":512,"tuning_median_ns":0},
+    {"variant":"v3","N":262144,"D":128,"block_size":128,"tuning_median_ns":0},
+    {"variant":"v2","N":1048576,"D":8,"block_size":256,"tuning_median_ns":0},
+    {"variant":"v3","N":1048576,"D":8,"block_size":128,"tuning_median_ns":0},
+    {"variant":"v2","N":1048576,"D":32,"block_size":128,"tuning_median_ns":0},
+    {"variant":"v3","N":1048576,"D":32,"block_size":128,"tuning_median_ns":0},
+    {"variant":"v2","N":1048576,"D":128,"block_size":256,"tuning_median_ns":0},
+    {"variant":"v3","N":1048576,"D":128,"block_size":128,"tuning_median_ns":0}
+  ]
+}

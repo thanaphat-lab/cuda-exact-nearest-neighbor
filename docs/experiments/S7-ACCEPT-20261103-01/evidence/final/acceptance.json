@@ -1,0 +1,29 @@
+{
+  "schema_version": "S7-PERFORMANCE-ACCEPTANCE-v1",
+  "experiment_id": "S7-ACCEPT-20261103-01",
+  "revision": "e6bf8f39d7807cc0eecf68956e92a599332ef4ff",
+  "working_tree_state": "clean",
+  "ac014": "passed",
+  "ac015": "passed",
+  "performance_acceptance": "accepted",
+  "hypothesis_outcomes": [
+    {
+      "id": "H1",
+      "outcome": "rejected"
+    },
+    {
+      "id": "H2",
+      "outcome": "rejected"
+    },
+    {
+      "id": "H3",
+      "outcome": "supported"
+    },
+    {
+      "id": "H4",
+      "outcome": "rejected"
+    }
+  ],
+  "limitations": [],
+  "samples_discarded_for_environment": 0
+}

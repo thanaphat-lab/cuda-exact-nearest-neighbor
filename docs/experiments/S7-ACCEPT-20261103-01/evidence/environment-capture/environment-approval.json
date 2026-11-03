@@ -1,0 +1,9 @@
+{
+  "schema_version": "S7-ENVIRONMENT-APPROVAL-v1",
+  "experiment_id": "S7-ACCEPT-20261103-01",
+  "expected_gpu_uuid": "GPU-6119f54a-ff96-d0a6-df23-0b48a8bd991f",
+  "approved_gpu_process_names": [],
+  "owner_environment_ready": true,
+  "power_clock_settings_unchanged": true,
+  "notes": "บันทึกว่าใช้ RTX 3060 Laptop, WDDM และมีการตรวจ GPU Process ก่อนทดลอง"
+}

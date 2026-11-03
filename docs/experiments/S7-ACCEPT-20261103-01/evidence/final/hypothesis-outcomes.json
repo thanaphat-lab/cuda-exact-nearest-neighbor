@@ -1,0 +1,443 @@
+{
+  "schema_version": "S7-HYPOTHESIS-OUTCOMES-v1",
+  "status": "classified",
+  "environment_confounders": [],
+  "rows": [
+    {
+      "id": "H1",
+      "statement": "V3 raw end-to-end latency is lower than CPU Float32 raw end-to-end latency for every required case",
+      "reference_variant": "cpu",
+      "reference_boundary": "CPU-E2E-RAW",
+      "candidate_variant": "v3",
+      "candidate_boundary": "BND-E2E-RAW",
+      "scope": "all-12-required-cases",
+      "outcome": "rejected",
+      "environment_override": false,
+      "cases": [
+        {
+          "N": 1024,
+          "D": 128,
+          "ratio": 0.7227148330596607,
+          "ci_low": 0.6671720200710897,
+          "ci_high": 0.8044183065671416,
+          "outcome": "rejected"
+        },
+        {
+          "N": 1024,
+          "D": 32,
+          "ratio": 0.14341806158297168,
+          "ci_low": 0.13105931400416904,
+          "ci_high": 0.1486619567544423,
+          "outcome": "rejected"
+        },
+        {
+          "N": 1024,
+          "D": 8,
+          "ratio": 0.16019540133075044,
+          "ci_low": 0.15513507981989358,
+          "ci_high": 0.16328138343296325,
+          "outcome": "rejected"
+        },
+        {
+          "N": 1048576,
+          "D": 128,
+          "ratio": 0.2825204218623599,
+          "ci_low": 0.26384739279450925,
+          "ci_high": 0.3334692118961645,
+          "outcome": "rejected"
+        },
+        {
+          "N": 1048576,
+          "D": 32,
+          "ratio": 0.30640175861647817,
+          "ci_low": 0.2899689693153716,
+          "ci_high": 0.3244641631866165,
+          "outcome": "rejected"
+        },
+        {
+          "N": 1048576,
+          "D": 8,
+          "ratio": 0.4911328489920709,
+          "ci_low": 0.4569659849925017,
+          "ci_high": 0.5158776895644113,
+          "outcome": "rejected"
+        },
+        {
+          "N": 16384,
+          "D": 128,
+          "ratio": 0.583951825499687,
+          "ci_low": 0.5249300725349298,
+          "ci_high": 0.6471620680810524,
+          "outcome": "rejected"
+        },
+        {
+          "N": 16384,
+          "D": 32,
+          "ratio": 0.25480887919684003,
+          "ci_low": 0.22402221480856407,
+          "ci_high": 0.2879352706938914,
+          "outcome": "rejected"
+        },
+        {
+          "N": 16384,
+          "D": 8,
+          "ratio": 0.7991129926418707,
+          "ci_low": 0.754414521061458,
+          "ci_high": 0.8277078858545566,
+          "outcome": "rejected"
+        },
+        {
+          "N": 262144,
+          "D": 128,
+          "ratio": 0.3718803625315758,
+          "ci_low": 0.347949659297645,
+          "ci_high": 0.41920994203160633,
+          "outcome": "rejected"
+        },
+        {
+          "N": 262144,
+          "D": 32,
+          "ratio": 0.3080597014925373,
+          "ci_low": 0.27368700454262046,
+          "ci_high": 0.3486772541961285,
+          "outcome": "rejected"
+        },
+        {
+          "N": 262144,
+          "D": 8,
+          "ratio": 0.5321570821949373,
+          "ci_low": 0.4504176993688486,
+          "ci_high": 0.5953735499441425,
+          "outcome": "rejected"
+        }
+      ]
+    },
+    {
+      "id": "H2",
+      "statement": "V1 kernel latency is lower than V0 kernel latency for every required case",
+      "reference_variant": "v0",
+      "reference_boundary": "BND-KERNEL",
+      "candidate_variant": "v1",
+      "candidate_boundary": "BND-KERNEL",
+      "scope": "all-12-required-cases",
+      "outcome": "rejected",
+      "environment_override": false,
+      "cases": [
+        {
+          "N": 1024,
+          "D": 128,
+          "ratio": 1.008695652173913,
+          "ci_low": 1.0004043671653862,
+          "ci_high": 1.0263157894736843,
+          "outcome": "supported"
+        },
+        {
+          "N": 1024,
+          "D": 32,
+          "ratio": 1.009248923616648,
+          "ci_low": 1,
+          "ci_high": 1.0206185567010309,
+          "outcome": "inconclusive"
+        },
+        {
+          "N": 1024,
+          "D": 8,
+          "ratio": 1.1208637128435222,
+          "ci_low": 1.0884955752212389,
+          "ci_high": 1.1591906042167823,
+          "outcome": "supported"
+        },
+        {
+          "N": 1048576,
+          "D": 128,
+          "ratio": 1.0447326257392158,
+          "ci_low": 0.98804515744349,
+          "ci_high": 1.0904375815537697,
+          "outcome": "inconclusive"
+        },
+        {
+          "N": 1048576,
+          "D": 32,
+          "ratio": 0.9423903237555391,
+          "ci_low": 0.9149385178837415,
+          "ci_high": 0.9454735625079891,
+          "outcome": "rejected"
+        },
+        {
+          "N": 1048576,
+          "D": 8,
+          "ratio": 0.9211593870111273,
+          "ci_low": 0.9199617798680427,
+          "ci_high": 0.9258792116626611,
+          "outcome": "rejected"
+        },
+        {
+          "N": 16384,
+          "D": 128,
+          "ratio": 0.45868302130406713,
+          "ci_low": 0.4437953899589517,
+          "ci_high": 0.46228710462287104,
+          "outcome": "rejected"
+        },
+        {
+          "N": 16384,
+          "D": 32,
+          "ratio": 1.0058881256133465,
+          "ci_low": 0.9988086510263929,
+          "ci_high": 1.024777006937562,
+          "outcome": "inconclusive"
+        },
+        {
+          "N": 16384,
+          "D": 8,
+          "ratio": 1.1743545111691325,
+          "ci_low": 1.1592387376535775,
+          "ci_high": 1.1875,
+          "outcome": "supported"
+        },
+        {
+          "N": 262144,
+          "D": 128,
+          "ratio": 0.8978273577539806,
+          "ci_low": 0.7633087388888226,
+          "ci_high": 0.9648247436845706,
+          "outcome": "rejected"
+        },
+        {
+          "N": 262144,
+          "D": 32,
+          "ratio": 0.6600510122748287,
+          "ci_low": 0.6514416012886276,
+          "ci_high": 0.6627869897959183,
+          "outcome": "rejected"
+        },
+        {
+          "N": 262144,
+          "D": 8,
+          "ratio": 0.9678924842902262,
+          "ci_low": 0.9633438997147669,
+          "ci_high": 0.9711385198075554,
+          "outcome": "rejected"
+        }
+      ]
+    },
+    {
+      "id": "H3",
+      "statement": "V2 kernel latency is lower than V1 kernel latency for every required case",
+      "reference_variant": "v1",
+      "reference_boundary": "BND-KERNEL",
+      "candidate_variant": "v2",
+      "candidate_boundary": "BND-KERNEL",
+      "scope": "all-12-required-cases",
+      "outcome": "supported",
+      "environment_override": false,
+      "cases": [
+        {
+          "N": 1024,
+          "D": 128,
+          "ratio": 2.233009708737864,
+          "ci_low": 2.1923076923076925,
+          "ci_high": 2.2729779411764706,
+          "outcome": "supported"
+        },
+        {
+          "N": 1024,
+          "D": 32,
+          "ratio": 2.6129166666666666,
+          "ci_low": 2.4871794871794872,
+          "ci_high": 2.6486486486486487,
+          "outcome": "supported"
+        },
+        {
+          "N": 1024,
+          "D": 8,
+          "ratio": 4.2860576923076925,
+          "ci_low": 4.089699074074074,
+          "ci_high": 4.346153846153846,
+          "outcome": "supported"
+        },
+        {
+          "N": 1048576,
+          "D": 128,
+          "ratio": 65.5896622407184,
+          "ci_low": 63.82576289767424,
+          "ci_high": 66.92581108264496,
+          "outcome": "supported"
+        },
+        {
+          "N": 1048576,
+          "D": 32,
+          "ratio": 23.12781235514524,
+          "ci_low": 23.06834491811621,
+          "ci_high": 183.5529411764706,
+          "outcome": "supported"
+        },
+        {
+          "N": 1048576,
+          "D": 8,
+          "ratio": 84.28604140550382,
+          "ci_low": 84.01144678409632,
+          "ci_high": 84.53492542613637,
+          "outcome": "supported"
+        },
+        {
+          "N": 16384,
+          "D": 128,
+          "ratio": 10.224422442244224,
+          "ci_low": 10.073529411764707,
+          "ci_high": 10.486754966887418,
+          "outcome": "supported"
+        },
+        {
+          "N": 16384,
+          "D": 32,
+          "ratio": 29.970588235294116,
+          "ci_low": 28.422535211267604,
+          "ci_high": 31,
+          "outcome": "supported"
+        },
+        {
+          "N": 16384,
+          "D": 8,
+          "ratio": 33.42995689655172,
+          "ci_low": 32,
+          "ci_high": 34.74609375,
+          "outcome": "supported"
+        },
+        {
+          "N": 262144,
+          "D": 128,
+          "ratio": 51.34254592639437,
+          "ci_low": 6.017369969370347,
+          "ci_high": 60.80677485371016,
+          "outcome": "supported"
+        },
+        {
+          "N": 262144,
+          "D": 32,
+          "ratio": 29.354234908750584,
+          "ci_low": 13.981041333459654,
+          "ci_high": 29.63064001556626,
+          "outcome": "supported"
+        },
+        {
+          "N": 262144,
+          "D": 8,
+          "ratio": 68.86823104693141,
+          "ci_low": 68.24551796314964,
+          "ci_high": 113.31952662721893,
+          "outcome": "supported"
+        }
+      ]
+    },
+    {
+      "id": "H4",
+      "statement": "V3 kernel latency is lower than V2 kernel latency for every required case",
+      "reference_variant": "v2",
+      "reference_boundary": "BND-KERNEL",
+      "candidate_variant": "v3",
+      "candidate_boundary": "BND-KERNEL",
+      "scope": "all-12-required-cases",
+      "outcome": "rejected",
+      "environment_override": false,
+      "cases": [
+        {
+          "N": 1024,
+          "D": 128,
+          "ratio": 0.9903846153846154,
+          "ci_low": 0.9622641509433962,
+          "ci_high": 1.0196078431372548,
+          "outcome": "inconclusive"
+        },
+        {
+          "N": 1024,
+          "D": 32,
+          "ratio": 0.9375,
+          "ci_low": 0.8604651162790697,
+          "ci_high": 1.0263157894736843,
+          "outcome": "inconclusive"
+        },
+        {
+          "N": 1024,
+          "D": 8,
+          "ratio": 0.8813559322033898,
+          "ci_low": 0.8404040404040404,
+          "ci_high": 0.9340540540540541,
+          "outcome": "rejected"
+        },
+        {
+          "N": 1048576,
+          "D": 128,
+          "ratio": 0.9993777224642191,
+          "ci_low": 0.9975124378109452,
+          "ci_high": 1.0040612308653545,
+          "outcome": "inconclusive"
+        },
+        {
+          "N": 1048576,
+          "D": 32,
+          "ratio": 7.74904214559387,
+          "ci_low": 0.1259259259259259,
+          "ci_high": 7.832262428136625,
+          "outcome": "inconclusive"
+        },
+        {
+          "N": 1048576,
+          "D": 8,
+          "ratio": 0.9830985915492958,
+          "ci_low": 0.979381443298969,
+          "ci_high": 0.9872881355932204,
+          "outcome": "rejected"
+        },
+        {
+          "N": 16384,
+          "D": 128,
+          "ratio": 0.9837662337662337,
+          "ci_low": 0.9726247987117552,
+          "ci_high": 1,
+          "outcome": "inconclusive"
+        },
+        {
+          "N": 16384,
+          "D": 32,
+          "ratio": 0.7906976744186046,
+          "ci_low": 0.75,
+          "ci_high": 0.8452380952380952,
+          "outcome": "rejected"
+        },
+        {
+          "N": 16384,
+          "D": 8,
+          "ratio": 1.0357142857142858,
+          "ci_low": 1,
+          "ci_high": 1.1111111111111112,
+          "outcome": "inconclusive"
+        },
+        {
+          "N": 262144,
+          "D": 128,
+          "ratio": 0.9980295566502463,
+          "ci_low": 0.12434976467674015,
+          "ci_high": 8.01192842942346,
+          "outcome": "inconclusive"
+        },
+        {
+          "N": 262144,
+          "D": 32,
+          "ratio": 1.003286384976526,
+          "ci_low": 0.47734410049349485,
+          "ci_high": 2.112088041431261,
+          "outcome": "inconclusive"
+        },
+        {
+          "N": 262144,
+          "D": 8,
+          "ratio": 0.9486301369863014,
+          "ci_low": 0.5767918088737202,
+          "ci_high": 0.9637305699481865,
+          "outcome": "rejected"
+        }
+      ]
+    }
+  ]
+}
