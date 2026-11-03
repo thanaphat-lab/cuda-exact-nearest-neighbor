@@ -91,7 +91,10 @@ set(S6_EVIDENCE_INPUTS
     include/s6/benchmark_internal.hpp
     src/s7_benchmark_cuda_internal.cuh
     benchmarks/s7_benchmark.cpp
+    benchmarks/config/s7-accept-20261103-01.json
+    benchmarks/config/s7-environment-approval.template.json
     scripts/run-s7-benchmarks.ps1
+    scripts/capture-s7-telemetry.ps1
     scripts/analyze-s7-benchmarks.mjs
     docs/specifications/S6-CONSOLIDATED-NUMERICAL-POLICY-v1.0.md
 )
@@ -676,10 +679,31 @@ if(BUILD_TESTING)
         "${CMAKE_CURRENT_BINARY_DIR}/evidence/s7-benchmark-integrity")
     set(S7_BENCHMARK_DRY_RUN_ROOT
         "${CMAKE_CURRENT_BINARY_DIR}/evidence/s7-benchmark-dry-run")
+    set(S7_EXPERIMENT_CONFIG
+        "${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/config/s7-accept-20261103-01.json")
+    file(SHA256 "${S7_EXPERIMENT_CONFIG}" S7_EXPERIMENT_CONFIG_SHA256)
+    find_program(S7_NODE_EXECUTABLE node REQUIRED)
     add_test(NAME s7.benchmark.integrity
         COMMAND s7_benchmark --self-test ${S7_BENCHMARK_INTEGRITY_ROOT})
     add_test(NAME s7.benchmark.dry_run
-        COMMAND s7_benchmark --dry-run ${S7_BENCHMARK_DRY_RUN_ROOT})
+        COMMAND s7_benchmark --dry-run ${S7_BENCHMARK_DRY_RUN_ROOT}
+            --experiment-id S7-ACCEPT-20261103-01
+            --experiment-config ${S7_EXPERIMENT_CONFIG}
+            --config-sha256 ${S7_EXPERIMENT_CONFIG_SHA256}
+            --expected-revision ${S6_BUILD_REVISION}
+            --tuning-seed 11820040416388919760
+            --final-seed 589684135938649225
+            --captured-at 2026-11-03T00:00:00+07:00
+            --timezone SE-Asia-Standard-Time
+            --approved-design S6ApprovedImplementationDesign-v1.0
+            --generator-id S7-DETERMINISTIC-SYNTHETIC-v1
+            --cuda-architecture ${CMAKE_CUDA_ARCHITECTURES}
+            --build-flags Release-fast-math-disabled
+            --stream-policy default-stream-synchronous-one-process)
+    add_test(NAME s7.benchmark.acceptance_negative
+        COMMAND ${S7_NODE_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/scripts/analyze-s7-benchmarks.mjs
+            --self-test ${S7_BENCHMARK_INTEGRITY_ROOT}/negative-tests)
     add_test(NAME s7.cuda_v2.frozen_matrix
         COMMAND s7_cuda_v2_matrix_tests
             ${S7_BENCHMARK_INTEGRITY_ROOT}/cuda-v2-frozen-matrix.txt
@@ -694,7 +718,8 @@ if(BUILD_TESTING)
             ${S7_CUDA_V3_EVIDENCE_MANIFEST}
             ${S7_CUDA_V3_EVIDENCE_ROOT}/functional.txt
             ${S7_BENCHMARK_INTEGRITY_ROOT}/tuning-freeze.csv)
-    set_tests_properties(s7.benchmark.integrity PROPERTIES TIMEOUT 60)
+    set_tests_properties(s7.benchmark.integrity s7.benchmark.acceptance_negative
+        PROPERTIES TIMEOUT 60)
     set_tests_properties(s7.benchmark.dry_run PROPERTIES
         DEPENDS s7.benchmark.integrity TIMEOUT 300)
     set_tests_properties(s7.cuda_v2.frozen_matrix PROPERTIES

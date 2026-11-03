@@ -32,8 +32,6 @@ namespace {
 using Clock = std::chrono::steady_clock;
 namespace fs = std::filesystem;
 
-constexpr std::uint64_t kTuningSeed = 0x243f6a8885a308d3ULL;
-constexpr std::uint64_t kFinalSeed = 0x13198a2e03707344ULL;
 constexpr std::array<std::uint64_t, 4> kCandidateCounts = {
     1024U, 16384U, 262144U, 1048576U};
 constexpr std::array<std::uint64_t, 3> kDimensions = {8U, 32U, 128U};
@@ -91,10 +89,67 @@ struct FrozenConfiguration {
 
 enum class RunMode { dry_run, tuning, final };
 
+struct BenchmarkOptions {
+    std::string experiment_id;
+    fs::path experiment_config;
+    std::string config_sha256;
+    std::string expected_revision;
+    std::uint64_t tuning_seed = 0U;
+    std::uint64_t final_seed = 0U;
+    std::string captured_at;
+    std::string timezone;
+    std::string approved_design;
+    std::string generator_id;
+    std::string cuda_architecture;
+    std::string build_flags;
+    std::string stream_policy;
+};
+
 void require(bool condition, std::string_view message) {
     if (!condition) {
         throw std::runtime_error(std::string(message));
     }
+}
+
+BenchmarkOptions parse_options(int argc, char** argv, int first) {
+    BenchmarkOptions result;
+    const auto take = [&](int& index, std::string_view option) {
+        require(index + 1 < argc, std::string(option) + " requires a value");
+        return std::string(argv[++index]);
+    };
+    for (int i = first; i < argc; ++i) {
+        const std::string option = argv[i];
+        if (option == "--experiment-id") result.experiment_id = take(i, option);
+        else if (option == "--experiment-config") result.experiment_config = take(i, option);
+        else if (option == "--config-sha256") result.config_sha256 = take(i, option);
+        else if (option == "--expected-revision") result.expected_revision = take(i, option);
+        else if (option == "--tuning-seed") result.tuning_seed = std::stoull(take(i, option));
+        else if (option == "--final-seed") result.final_seed = std::stoull(take(i, option));
+        else if (option == "--captured-at") result.captured_at = take(i, option);
+        else if (option == "--timezone") result.timezone = take(i, option);
+        else if (option == "--approved-design") result.approved_design = take(i, option);
+        else if (option == "--generator-id") result.generator_id = take(i, option);
+        else if (option == "--cuda-architecture") result.cuda_architecture = take(i, option);
+        else if (option == "--build-flags") result.build_flags = take(i, option);
+        else if (option == "--stream-policy") result.stream_policy = take(i, option);
+        else throw std::runtime_error("unknown benchmark option: " + option);
+    }
+    require(!result.experiment_id.empty(), "missing --experiment-id");
+    require(!result.experiment_config.empty() && fs::exists(result.experiment_config),
+            "missing or unreadable --experiment-config");
+    require(result.config_sha256.size() == 64U, "invalid --config-sha256");
+    require(result.expected_revision == S7_BENCHMARK_REVISION,
+            "expected revision does not match compiled benchmark revision");
+    require(result.tuning_seed != result.final_seed,
+            "tuning and final seeds must differ");
+    require(!result.captured_at.empty() && !result.timezone.empty(),
+            "capture timestamp and timezone are mandatory");
+    require(!result.approved_design.empty() && !result.generator_id.empty(),
+            "approved design and generator identity are mandatory");
+    require(!result.cuda_architecture.empty() && !result.build_flags.empty() &&
+                !result.stream_policy.empty(),
+            "build and stream metadata are mandatory");
+    return result;
 }
 
 std::uint64_t elapsed_ns(Clock::time_point start, Clock::time_point end) {
@@ -295,7 +350,8 @@ std::vector<std::uint64_t> values_for(const std::vector<Sample>& samples,
 std::uint32_t tune_variant(std::vector<Sample>& samples, std::string_view variant,
                            const Workload& workload, std::uint64_t n,
                            std::uint64_t d, unsigned warmups,
-                           unsigned repetitions, std::string_view sample_role) {
+                           unsigned repetitions, std::string_view sample_role,
+                           std::uint64_t tuning_seed) {
     const auto cpu = s6::cpu_search_float32(workload.dataset_view(),
                                             workload.query_view());
     require(cpu.result.has_value(), "CPU tuning qualification failed");
@@ -310,7 +366,7 @@ std::uint32_t tune_variant(std::vector<Sample>& samples, std::string_view varian
                                     "tuning candidate");
             if (iteration >= warmups) {
                 const auto retained = iteration - warmups;
-                append_gpu_stages(samples, sample_role, variant, n, d, kTuningSeed,
+                append_gpu_stages(samples, sample_role, variant, n, d, tuning_seed,
                                   block_size, retained, outcome.stages);
             }
         }
@@ -330,7 +386,8 @@ std::uint32_t tune_variant(std::vector<Sample>& samples, std::string_view varian
 void run_final_case(std::vector<Sample>& samples, const Workload& workload,
                     std::uint64_t n, std::uint64_t d, unsigned warmups,
                     unsigned repetitions, std::uint32_t v2_block,
-                    std::uint32_t v3_block, std::string_view sample_role) {
+                    std::uint32_t v3_block, std::string_view sample_role,
+                    std::uint64_t final_seed) {
     const unsigned total = warmups + repetitions;
     std::optional<s6::SearchResult> expected;
     for (unsigned iteration = 0; iteration < total; ++iteration) {
@@ -342,7 +399,7 @@ void run_final_case(std::vector<Sample>& samples, const Workload& workload,
         expected = outcome.result;
         if (iteration >= warmups) {
             append_sample(samples, sample_role, "cpu", "CPU-E2E-RAW", n, d,
-                          kFinalSeed, 0U, iteration - warmups,
+                          final_seed, 0U, iteration - warmups,
                           elapsed_ns(start, stop), "steady_clock");
         }
     }
@@ -364,9 +421,9 @@ void run_final_case(std::vector<Sample>& samples, const Workload& workload,
             if (iteration >= warmups) {
                 const auto retained = iteration - warmups;
                 append_sample(samples, sample_role, variant, "BND-E2E-RAW", n, d,
-                              kFinalSeed, block_size, retained,
+                              final_seed, block_size, retained,
                               elapsed_ns(start, stop), "steady_clock");
-                append_gpu_stages(samples, sample_role, variant, n, d, kFinalSeed,
+                append_gpu_stages(samples, sample_role, variant, n, d, final_seed,
                                   block_size, retained, staged.stages);
             }
         }
@@ -464,13 +521,21 @@ void write_summary(const fs::path& csv_path, const fs::path& json_path,
 
 void write_manifest(const fs::path& output, RunMode mode, unsigned warmups,
                     unsigned repetitions, std::string_view correctness_reference,
-                    const s6::CudaV3DeviceInfo& device) {
+                    const s6::CudaV3DeviceInfo& device,
+                    const BenchmarkOptions& options) {
     std::ofstream out(output / "manifest.json", std::ios::binary);
     require(static_cast<bool>(out), "cannot create manifest.json");
     out << "{\n"
         << "  \"schema_version\": \"S7-BENCHMARK-MANIFEST-v1\",\n"
         << "  \"revision\": \"" << json_escape(S7_BENCHMARK_REVISION) << "\",\n"
         << "  \"working_tree_state\": \"" << json_escape(S7_BENCHMARK_TREE_STATE) << "\",\n"
+        << "  \"experiment_id\": \"" << json_escape(options.experiment_id) << "\",\n"
+        << "  \"experiment_config_sha256\": \"" << json_escape(options.config_sha256) << "\",\n"
+        << "  \"owner_expected_revision\": \"" << json_escape(options.expected_revision) << "\",\n"
+        << "  \"captured_at\": \"" << json_escape(options.captured_at) << "\",\n"
+        << "  \"timezone\": \"" << json_escape(options.timezone) << "\",\n"
+        << "  \"approved_design\": \"" << json_escape(options.approved_design) << "\",\n"
+        << "  \"generator_id\": \"" << json_escape(options.generator_id) << "\",\n"
         << "  \"sample_role\": \""
         << (mode == RunMode::dry_run ? "dry-run" :
             mode == RunMode::tuning ? "tuning" : "final") << "\",\n"
@@ -485,10 +550,13 @@ void write_manifest(const fs::path& output, RunMode mode, unsigned warmups,
                 : "blocked-provisional-dirty-worktree") << "\",\n"
         << "  \"warmups\": " << warmups << ",\n"
         << "  \"measured_repetitions\": " << repetitions << ",\n"
-        << "  \"tuning_seed\": \"" << kTuningSeed << "\",\n"
-        << "  \"final_seed\": \"" << kFinalSeed << "\",\n"
+        << "  \"tuning_seed\": \"" << options.tuning_seed << "\",\n"
+        << "  \"final_seed\": \"" << options.final_seed << "\",\n"
         << "  \"run_order\": \"N ascending, D ascending, tune V2 then V3, final CPU/V0/V1/V2/V3\",\n"
         << "  \"fast_math\": \"disabled-by-target-contract\",\n"
+        << "  \"cuda_architecture\": \"" << json_escape(options.cuda_architecture) << "\",\n"
+        << "  \"build_flags\": \"" << json_escape(options.build_flags) << "\",\n"
+        << "  \"stream_policy\": \"" << json_escape(options.stream_policy) << "\",\n"
         << "  \"prepared_query_public_scenario\": \"unsupported\",\n"
         << "  \"device_resident_public_scenario\": \"unsupported\",\n"
         << "  \"kernel_boundary\": \"benchmark-only CUDA events around the exact production kernel sequence\",\n"
@@ -501,7 +569,8 @@ void write_manifest(const fs::path& output, RunMode mode, unsigned warmups,
 }
 
 void write_environment(const fs::path& output,
-                       const s6::CudaV3DeviceInfo& device) {
+                       const s6::CudaV3DeviceInfo& device,
+                       const BenchmarkOptions& options) {
     const auto environment_value = [](const char* name) {
         char* buffer = nullptr;
         std::size_t length = 0U;
@@ -516,6 +585,9 @@ void write_environment(const fs::path& output,
     require(static_cast<bool>(out), "cannot create environment.json");
     out << "{\n"
         << "  \"schema_version\": \"S7-ENVIRONMENT-v1\",\n"
+        << "  \"experiment_id\": \"" << json_escape(options.experiment_id) << "\",\n"
+        << "  \"captured_at\": \"" << json_escape(options.captured_at) << "\",\n"
+        << "  \"timezone\": \"" << json_escape(options.timezone) << "\",\n"
         << "  \"operating_system\": \"Windows_NT\",\n"
         << "  \"os_build\": \"unknown\",\n"
         << "  \"computer_name\": \""
@@ -533,7 +605,10 @@ void write_environment(const fs::path& output,
         << "  \"cuda_toolkit_version\": " << CUDART_VERSION << ",\n"
         << "  \"host_compiler_msvc\": " << _MSC_VER << ",\n"
         << "  \"build_type\": \"Release\",\n"
+        << "  \"cuda_architecture\": \"" << json_escape(options.cuda_architecture) << "\",\n"
+        << "  \"build_flags\": \"" << json_escape(options.build_flags) << "\",\n"
         << "  \"fast_math\": \"disabled\",\n"
+        << "  \"stream_policy\": \"" << json_escape(options.stream_policy) << "\",\n"
         << "  \"host_allocation\": \"pageable std::vector\",\n"
         << "  \"wddm_or_tcc\": \"unknown\",\n"
         << "  \"pcie_link\": \"unknown\",\n"
@@ -675,7 +750,7 @@ int self_test(const fs::path& output) {
 
 int run_benchmark(RunMode mode, const fs::path& output,
                   std::string correctness_reference, fs::path freeze_path,
-                  int argc, char** argv) {
+                  const BenchmarkOptions& options, int argc, char** argv) {
     const bool dry_run = mode == RunMode::dry_run;
     const unsigned warmups = dry_run ? 1U : 10U;
     const unsigned repetitions = dry_run ? 3U : 100U;
@@ -690,12 +765,14 @@ int run_benchmark(RunMode mode, const fs::path& output,
     }
     fs::create_directories(output / "plots");
     write_commands(output, argc, argv);
+    fs::copy_file(options.experiment_config, output / "experiment-config.json",
+                  fs::copy_options::overwrite_existing);
     const auto device = s6::inspect_cuda_v3_device(0);
     require(device.status == s6::EvidenceStatus::passed,
             std::string("CUDA device unavailable: ") + device.detail);
     write_manifest(output, mode, warmups, repetitions,
-                   correctness_reference, device);
-    write_environment(output, device);
+                   correctness_reference, device, options);
+    write_environment(output, device, options);
 
     std::vector<Sample> samples;
     std::vector<FrozenConfiguration> frozen =
@@ -705,12 +782,14 @@ int run_benchmark(RunMode mode, const fs::path& output,
         std::uint32_t v2_block = 0U;
         std::uint32_t v3_block = 0U;
         if (mode != RunMode::final) {
-            auto tuning = make_workload(n, d, kTuningSeed);
+            auto tuning = make_workload(n, d, options.tuning_seed);
             const std::string_view tuning_role = dry_run ? "dry-run-tuning" : "tuning";
             v2_block = tune_variant(samples, "v2", tuning, n, d,
-                                    warmups, repetitions, tuning_role);
+                                    warmups, repetitions, tuning_role,
+                                    options.tuning_seed);
             v3_block = tune_variant(samples, "v3", tuning, n, d,
-                                    warmups, repetitions, tuning_role);
+                                    warmups, repetitions, tuning_role,
+                                    options.tuning_seed);
             const auto v2_values = values_for(samples, tuning_role, "v2", "BND-KERNEL",
                                               n, d, v2_block);
             const auto v3_values = values_for(samples, tuning_role, "v3", "BND-KERNEL",
@@ -722,10 +801,10 @@ int run_benchmark(RunMode mode, const fs::path& output,
             v3_block = frozen_block(frozen, "v3", n, d);
         }
         if (mode != RunMode::tuning) {
-            auto final = make_workload(n, d, kFinalSeed);
+            auto final = make_workload(n, d, options.final_seed);
             const std::string_view final_role = dry_run ? "dry-run-final" : "final";
             run_final_case(samples, final, n, d, warmups, repetitions,
-                           v2_block, v3_block, final_role);
+                           v2_block, v3_block, final_role, options.final_seed);
         }
     };
 
@@ -749,26 +828,32 @@ int run_benchmark(RunMode mode, const fs::path& output,
 
 int main(int argc, char** argv) {
     try {
-        require(argc >= 3, "usage: s7_benchmark --self-test|--dry-run|--tune|--run OUTPUT [CORRECTNESS_EVIDENCE FREEZE_CSV]");
+        require(argc >= 3, "usage: s7_benchmark --self-test OUTPUT or s7_benchmark --dry-run|--tune OUTPUT [--run adds CORRECTNESS_EVIDENCE FREEZE_CSV] OPTIONS");
         const std::string mode = argv[1];
         const fs::path output = argv[2];
         if (mode == "--self-test") {
             return self_test(output);
         }
         if (mode == "--dry-run") {
+            const auto options = parse_options(argc, argv, 3);
             return run_benchmark(RunMode::dry_run, output,
-                                 "not-applicable-dry-run", {}, argc, argv);
+                                 "not-applicable-dry-run", {}, options, argc, argv);
         }
         if (mode == "--tune") {
-            require(argc == 3, "--tune accepts only an output directory");
+            const auto options = parse_options(argc, argv, 3);
+            require(std::string_view(S7_BENCHMARK_TREE_STATE) == "clean",
+                    "tuning requires a clean compiled working-tree identity");
             return run_benchmark(RunMode::tuning, output,
-                                 "required-before-final", {}, argc, argv);
+                                 "required-before-final", {}, options, argc, argv);
         }
         if (mode == "--run") {
-            require(argc == 5,
-                    "--run requires correctness evidence and freeze CSV paths");
+            require(argc >= 6,
+                    "--run requires correctness evidence, freeze CSV and options");
+            const auto options = parse_options(argc, argv, 5);
+            require(std::string_view(S7_BENCHMARK_TREE_STATE) == "clean",
+                    "final measurement requires a clean compiled working-tree identity");
             return run_benchmark(RunMode::final, output, argv[3], argv[4],
-                                 argc, argv);
+                                 options, argc, argv);
         }
         throw std::runtime_error("unknown benchmark mode");
     } catch (const std::exception& error) {
