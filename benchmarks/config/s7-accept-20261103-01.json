@@ -1,0 +1,113 @@
+{
+  "schema_version": "S7-EXPERIMENT-CONFIG-v1",
+  "experiment_id": "S7-ACCEPT-20261103-01",
+  "predeclared_at": "2026-11-03T00:00:00+07:00",
+  "expected_revision_source": "owner-supplied runner argument",
+  "approved_design": "S6ApprovedImplementationDesign-v1.0",
+  "approved_numerical_policy": {
+    "id": "S6-CONSOLIDATED-NUMERICAL-POLICY-v1.0",
+    "sha256": "503aa6b2c97567d814a9316fb0f2f9890d5472aea2bcf1f928ac505c29d1aa39"
+  },
+  "workload": {
+    "class": "single-query-primary",
+    "generator_id": "S7-DETERMINISTIC-SYNTHETIC-v1",
+    "candidate_counts": [1024, 16384, 262144, 1048576],
+    "dimensions": [8, 32, 128],
+    "tuning_seed": "11820040416388919760",
+    "final_seed": "589684135938649225"
+  },
+  "sampling": {
+    "warmups": 10,
+    "measured_repetitions": 100,
+    "percentile_method": "linear_n_minus_1",
+    "uncertainty_method": "deterministic percentile bootstrap, 2000 resamples, 95% median interval",
+    "run_order": "N ascending, D ascending, tune V2 then V3, final CPU/V0/V1/V2/V3"
+  },
+  "timing_boundaries": {
+    "CPU-E2E-RAW": "CPU Float32 one-shot call from entry before validation through synchronous host result return",
+    "BND-E2E-RAW": "GPU raw one-shot production API including validation, per-call preprocessing and allocation, H2D, complete production kernels, D2H, synchronization and cleanup",
+    "BND-KERNEL": "complete production kernel sequence timed by CUDA events with inputs, outputs and workspace device-resident"
+  },
+  "block_tuning": {
+    "candidates": [128, 256, 512],
+    "selection_metric": "BND-KERNEL median",
+    "exact_tie_rule": "smaller block size",
+    "independent_tuning_and_final_seeds": true
+  },
+  "ratio_rule": {
+    "definition": "median(reference) / median(candidate)",
+    "interval": "[reference_ci_low/candidate_ci_high, reference_ci_high/candidate_ci_low]",
+    "per_case_supported": "ci_low > 1",
+    "per_case_rejected": "ci_high < 1",
+    "per_case_inconclusive": "ci_low <= 1 and ci_high >= 1",
+    "universal_supported": "all 12 cases supported",
+    "universal_rejected": "at least one case rejected",
+    "universal_inconclusive": "no case rejected and at least one case inconclusive"
+  },
+  "hypotheses": [
+    {
+      "id": "H1",
+      "statement": "V3 raw end-to-end latency is lower than CPU Float32 raw end-to-end latency for every required case",
+      "reference_variant": "cpu",
+      "reference_boundary": "CPU-E2E-RAW",
+      "candidate_variant": "v3",
+      "candidate_boundary": "BND-E2E-RAW",
+      "scope": "all-12-required-cases"
+    },
+    {
+      "id": "H2",
+      "statement": "V1 kernel latency is lower than V0 kernel latency for every required case",
+      "reference_variant": "v0",
+      "reference_boundary": "BND-KERNEL",
+      "candidate_variant": "v1",
+      "candidate_boundary": "BND-KERNEL",
+      "scope": "all-12-required-cases"
+    },
+    {
+      "id": "H3",
+      "statement": "V2 kernel latency is lower than V1 kernel latency for every required case",
+      "reference_variant": "v1",
+      "reference_boundary": "BND-KERNEL",
+      "candidate_variant": "v2",
+      "candidate_boundary": "BND-KERNEL",
+      "scope": "all-12-required-cases"
+    },
+    {
+      "id": "H4",
+      "statement": "V3 kernel latency is lower than V2 kernel latency for every required case",
+      "reference_variant": "v2",
+      "reference_boundary": "BND-KERNEL",
+      "candidate_variant": "v3",
+      "candidate_boundary": "BND-KERNEL",
+      "scope": "all-12-required-cases"
+    }
+  ],
+  "environment_policy": {
+    "gpu_identity_must_match_owner_approval": true,
+    "experiment_process_names": [
+      "s7_benchmark.exe",
+      "s7_cuda_v0_tests.exe",
+      "s7_cuda_v0_matrix_tests.exe",
+      "s7_cuda_v1_tests.exe",
+      "s7_cuda_v1_matrix_tests.exe",
+      "s7_cuda_v2_tests.exe",
+      "s7_cuda_v2_matrix_tests.exe",
+      "s7_cuda_v3_tests.exe",
+      "s7_cuda_v3_matrix_tests.exe"
+    ],
+    "unauthorized_gpu_process_action_before_measurement": "fail",
+    "unauthorized_gpu_process_action_during_measurement": "retain-samples-and-mark-hypotheses-inconclusive",
+    "environment_approval_source": "owner-supplied runner argument",
+    "telemetry_interval_ms": 1000,
+    "maximum_telemetry_gap_intervals": 3,
+    "telemetry_required": true,
+    "wddm_treatment": "recorded limitation, not automatic failure",
+    "hardware_thermal_slowdown_treatment": "retain-samples-and-mark-hypotheses-inconclusive",
+    "numeric_temperature_clock_power_thresholds": "none approved",
+    "clock_power_system_mutation": "prohibited"
+  },
+  "public_scenarios": {
+    "prepared_query": "unsupported",
+    "device_resident": "unsupported"
+  }
+}

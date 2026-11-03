@@ -1,0 +1,9 @@
+{
+  "schema_version": "S7-ENVIRONMENT-APPROVAL-v1",
+  "experiment_id": "S7-ACCEPT-20261103-01",
+  "expected_gpu_uuid": "OWNER_MUST_REPLACE",
+  "approved_gpu_process_names": [],
+  "owner_environment_ready": false,
+  "power_clock_settings_unchanged": false,
+  "notes": "Owner creates a run-local copy, records the exact unavoidable GPU process basenames, and sets both booleans true only after preparing the environment."
+}

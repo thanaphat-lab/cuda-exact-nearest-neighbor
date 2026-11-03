@@ -1,12 +1,12 @@
 # Correctness Plan
 
-Status: Planned; not executed\
+Status: Reusable verification plan; executed S7 evidence is reported separately\
 Acceptance gates: [AcceptanceCriteria.md](../requirements/AcceptanceCriteria.md)\
 Numerical policy: [S6-CONSOLIDATED-NUMERICAL-POLICY-v1.0.md](../specifications/S6-CONSOLIDATED-NUMERICAL-POLICY-v1.0.md)
 
 ## 1. Purpose
 
-This plan defines future correctness evidence for the Float32 CPU production baseline and CUDA V0–V3 against the Float64 reference. It preserves separate outcomes for argmin index, distance error, and numerical ambiguity. It contains no test results and specifies no executable command because no implementation or repository build configuration exists.
+This plan defines correctness evidence for the Float32 CPU production baseline and CUDA V0–V3 against the Float64 reference. It preserves separate outcomes for argmin index, distance error, and numerical ambiguity. The plan remains the reusable method and does not embed mutable results. Executed, revision-bound S7 results are reported in the [S7 final experiment report](../experiments/S7-ACCEPT-20261103-01/FinalExperimentReport.md) and its [evidence index](../experiments/S7-ACCEPT-20261103-01/EVIDENCE_INDEX.md).
 
 ## 2. Preconditions
 
@@ -177,7 +177,7 @@ Unknown or unresolved fields must say `unresolved`, `not captured`, or `not appl
 
 ## 8. Exit criteria
 
-Correctness is accepted only when the complete applicable functional, input, numerical, variant, and dataset matrix has executable revision-bound evidence and no required gate is failed or blocked. The S6 policy defines AC-006–AC-008 but supplies no runtime results. Until an implementation and its required evidence exist, executed correctness remains not executed and performance acceptance remains blocked.
+Correctness is accepted only when the complete applicable functional, input, numerical, variant, and dataset matrix has executable revision-bound evidence and no required gate is failed or blocked. The S6 policy defines AC-006–AC-008 but does not itself supply runtime results. Runtime status therefore belongs to a revision-bound experiment report rather than this reusable plan; for accepted experiment `S7-ACCEPT-20261103-01`, consult the linked report and evidence instead of inferring acceptance from this plan.
 
 Design approval is not executed evidence. A missing candidate, an unsafe V3
 mask/source, loss of full-width index information, conversion of a real

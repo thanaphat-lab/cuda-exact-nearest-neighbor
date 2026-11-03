@@ -1,4 +1,6 @@
 #include "s6/cuda_v2.hpp"
+#include "s6/benchmark_internal.hpp"
+#include "s7_benchmark_cuda_internal.cuh"
 
 #include <cuda_runtime.h>
 
@@ -364,9 +366,17 @@ void apply_final_record(CudaV2EvidencedOutcome& result,
 
 CudaV2EvidencedOutcome run_cuda_v2(
     DatasetView dataset, QueryView query, const CudaV2Options& options,
-    bool collect_evidence, detail::CudaV2InjectedFailure injected_failure) {
+    bool collect_evidence, detail::CudaV2InjectedFailure injected_failure,
+    detail::S7CudaStageTiming* benchmark_timing = nullptr) {
     CudaV2EvidencedOutcome result;
+    const auto validation_start = benchmark_timing != nullptr
+        ? detail::benchmark_internal::Clock::now()
+        : detail::benchmark_internal::Clock::time_point{};
     const auto input = inspect_input(dataset, query);
+    if (benchmark_timing != nullptr) {
+        benchmark_timing->validation_ns = detail::benchmark_internal::elapsed_ns(
+            validation_start, detail::benchmark_internal::Clock::now());
+    }
     result.production.invocation_status = input.invocation;
     result.production.input_outcome = input.input;
     result.production.domain_status = input.domain;
@@ -452,6 +462,9 @@ CudaV2EvidencedOutcome run_cuda_v2(
         return result;
     }
 
+    const auto conversion_start = benchmark_timing != nullptr
+        ? detail::benchmark_internal::Clock::now()
+        : detail::benchmark_internal::Clock::time_point{};
     std::vector<float> host_soa_dataset;
     std::string transform_detail;
     if (!transform_aos_to_soa(dataset, host_soa_dataset, transform_detail)) {
@@ -460,7 +473,14 @@ CudaV2EvidencedOutcome run_cuda_v2(
         result.production.backend_detail = std::move(transform_detail);
         return result;
     }
+    if (benchmark_timing != nullptr) {
+        benchmark_timing->conversion_ns = detail::benchmark_internal::elapsed_ns(
+            conversion_start, detail::benchmark_internal::Clock::now());
+    }
 
+    const auto allocation_start = benchmark_timing != nullptr
+        ? detail::benchmark_internal::Clock::now()
+        : detail::benchmark_internal::Clock::time_point{};
     DeviceAllocation<float> device_dataset;
     DeviceAllocation<float> device_query;
     DeviceAllocation<CudaV2ReductionRecord> device_pairs_a;
@@ -496,6 +516,11 @@ CudaV2EvidencedOutcome run_cuda_v2(
                     "cudaMalloc(diagnostic mapping)")))) {
         return result;
     }
+    if (benchmark_timing != nullptr) {
+        benchmark_timing->allocation_ns = detail::benchmark_internal::elapsed_ns(
+            allocation_start, detail::benchmark_internal::Clock::now());
+    }
+    detail::benchmark_internal::StageEvents stage_events(benchmark_timing);
 
     if (injected_failure == detail::CudaV2InjectedFailure::backend_copy) {
         result.production.invocation_status = InvocationStatus::backend_failure;
@@ -503,6 +528,7 @@ CudaV2EvidencedOutcome run_cuda_v2(
         result.production.backend_detail = "injected CUDA copy failure";
         return result;
     }
+    stage_events.record(0U, options.stream);
     error = cudaMemcpyAsync(device_dataset.get(), host_soa_dataset.data(),
                             input.dataset_bytes, cudaMemcpyHostToDevice,
                             options.stream);
@@ -510,6 +536,7 @@ CudaV2EvidencedOutcome run_cuda_v2(
         error = cudaMemcpyAsync(device_query.get(), query.data, input.query_bytes,
                                 cudaMemcpyHostToDevice, options.stream);
     }
+    stage_events.record(1U, options.stream);
     if (error == cudaSuccess && collect_evidence) {
         error = cudaMemsetAsync(device_distances.get(), 0xff, input.distance_bytes,
                                 options.stream);
@@ -527,6 +554,7 @@ CudaV2EvidencedOutcome run_cuda_v2(
         result.production.backend_detail = cuda_detail("CUDA input transfer", error);
         return result;
     }
+    stage_events.record(2U, options.stream);
 
     if (injected_failure == detail::CudaV2InjectedFailure::backend_launch) {
         result.production.invocation_status = InvocationStatus::backend_failure;
@@ -560,6 +588,7 @@ CudaV2EvidencedOutcome run_cuda_v2(
             cuda_detail("CUDA V2 kernel launch", error);
         return result;
     }
+    stage_events.record(3U, options.stream);
 
     CudaV2ReductionRecord host_record{};
     error = cudaMemcpyAsync(&host_record, current, sizeof(host_record),
@@ -592,13 +621,21 @@ CudaV2EvidencedOutcome run_cuda_v2(
         result.production.backend_detail = cuda_detail("CUDA output transfer", error);
         return result;
     }
+    stage_events.record(4U, options.stream);
     if (injected_failure == detail::CudaV2InjectedFailure::backend_synchronize) {
         result.production.invocation_status = InvocationStatus::backend_failure;
         result.production.domain_status = DomainStatus::unknown;
         result.production.backend_detail = "injected CUDA synchronization failure";
         return result;
     }
+    const auto synchronize_start = benchmark_timing != nullptr
+        ? detail::benchmark_internal::Clock::now()
+        : detail::benchmark_internal::Clock::time_point{};
     error = cudaStreamSynchronize(options.stream);
+    if (benchmark_timing != nullptr) {
+        benchmark_timing->synchronize_ns = detail::benchmark_internal::elapsed_ns(
+            synchronize_start, detail::benchmark_internal::Clock::now());
+    }
     if (error != cudaSuccess) {
         result.production.invocation_status = InvocationStatus::backend_failure;
         result.production.domain_status = DomainStatus::unknown;
@@ -606,6 +643,7 @@ CudaV2EvidencedOutcome run_cuda_v2(
             cuda_detail("cudaStreamSynchronize", error);
         return result;
     }
+    stage_events.finish();
 
     if (collect_evidence) {
         bool mapping_complete = true;
@@ -736,6 +774,15 @@ std::size_t cuda_v2_reduction_record_alignment() noexcept {
 }
 
 namespace detail {
+
+S7StagedOutcome cuda_v2_search_float32_staged_for_benchmark(
+    DatasetView dataset, QueryView query, const CudaV2Options& options) {
+    S7StagedOutcome result;
+    auto production = run_cuda_v2(dataset, query, options, false,
+                                  CudaV2InjectedFailure::none, &result.stages);
+    result.production = std::move(production.production);
+    return result;
+}
 
 CudaV2EvidencedOutcome cuda_v2_search_float32_for_testing(
     DatasetView dataset, QueryView query, const CudaV2Options& options,

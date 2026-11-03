@@ -1,0 +1,23 @@
+{
+  "schema_version": "S7-HOST-ENVIRONMENT-v2",
+  "experiment_id": "S7-ACCEPT-20261103-01",
+  "captured_at": "2026-11-03T17:11:06.5361275+07:00",
+  "timezone": "SE Asia Standard Time",
+  "operating_system": "Microsoft Windows 11 Home Single Language",
+  "os_version": "10.0.26300",
+  "os_build": "26300",
+  "machine_name": "DESKTOP-I7GBAM0",
+  "cpu": "11th Gen Intel(R) Core(TM) i7-11370H @ 3.30GHz",
+  "processor_count": 8,
+  "host_memory_bytes": "51215941632",
+  "gpu_name": "NVIDIA GeForce RTX 3060 Laptop GPU",
+  "gpu_uuid": "GPU-6119f54a-ff96-d0a6-df23-0b48a8bd991f",
+  "gpu_memory": "6144 MiB",
+  "driver_version": "617.14",
+  "wddm_or_tcc": "WDDM",
+  "pcie_current_generation": "4",
+  "pcie_current_width": "4x",
+  "power_limit": "85.00 W",
+  "preflight_temperature": "77 C",
+  "preflight_gpu_processes": []
+}

@@ -87,6 +87,15 @@ set(S6_EVIDENCE_INPUTS
     src/cuda_v3.cu
     tests/cuda_v3_tests.cpp
     tests/cuda_v3_matrix_evidence_tests.cpp
+    tests/s7_tuning_freeze.hpp
+    include/s6/benchmark_internal.hpp
+    src/s7_benchmark_cuda_internal.cuh
+    benchmarks/s7_benchmark.cpp
+    benchmarks/config/s7-accept-20261103-01.json
+    benchmarks/config/s7-environment-approval.template.json
+    scripts/run-s7-benchmarks.ps1
+    scripts/capture-s7-telemetry.ps1
+    scripts/analyze-s7-benchmarks.mjs
     docs/specifications/S6-CONSOLIDATED-NUMERICAL-POLICY-v1.0.md
 )
 foreach(relative_path IN LISTS S6_EVIDENCE_INPUTS)
@@ -293,6 +302,16 @@ if(MSVC)
 else()
     message(FATAL_ERROR "S6 CPU evidence closure currently requires the approved MSVC toolchain")
 endif()
+
+add_executable(s7_benchmark benchmarks/s7_benchmark.cpp)
+target_include_directories(s7_benchmark PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(s7_benchmark PRIVATE
+    s6_cpu_evidence s7_cuda_v0 s7_cuda_v1 s7_cuda_v2 s7_cuda_v3)
+target_compile_definitions(s7_benchmark PRIVATE
+    S7_BENCHMARK_REVISION="${S6_BUILD_REVISION}"
+    S7_BENCHMARK_TREE_STATE="${S6_WORKTREE_STATE}")
+target_compile_options(s7_benchmark PRIVATE /W4 /WX /fp:strict /permissive-)
+add_dependencies(s7_benchmark s6_verify_source_identity)
 
 if(BUILD_TESTING)
     add_executable(s6_cpu_tests tests/cpu_baseline_tests.cpp)
@@ -656,4 +675,61 @@ if(BUILD_TESTING)
         s6.cpu.required_matrix
         PROPERTIES TIMEOUT 900
     )
+    set(S7_BENCHMARK_INTEGRITY_ROOT
+        "${CMAKE_CURRENT_BINARY_DIR}/evidence/s7-benchmark-integrity")
+    set(S7_BENCHMARK_DRY_RUN_ROOT
+        "${CMAKE_CURRENT_BINARY_DIR}/evidence/s7-benchmark-dry-run")
+    set(S7_EXPERIMENT_CONFIG
+        "${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/config/s7-accept-20261103-01.json")
+    file(SHA256 "${S7_EXPERIMENT_CONFIG}" S7_EXPERIMENT_CONFIG_SHA256)
+    find_program(S7_NODE_EXECUTABLE node REQUIRED)
+    add_test(NAME s7.benchmark.integrity
+        COMMAND s7_benchmark --self-test ${S7_BENCHMARK_INTEGRITY_ROOT})
+    add_test(NAME s7.benchmark.dry_run
+        COMMAND s7_benchmark --dry-run ${S7_BENCHMARK_DRY_RUN_ROOT}
+            --experiment-id S7-ACCEPT-20261103-01
+            --experiment-config ${S7_EXPERIMENT_CONFIG}
+            --config-sha256 ${S7_EXPERIMENT_CONFIG_SHA256}
+            --expected-revision ${S6_BUILD_REVISION}
+            --tuning-seed 11820040416388919760
+            --final-seed 589684135938649225
+            --captured-at 2026-11-03T00:00:00+07:00
+            --timezone SE-Asia-Standard-Time
+            --approved-design S6ApprovedImplementationDesign-v1.0
+            --generator-id S7-DETERMINISTIC-SYNTHETIC-v1
+            --cuda-architecture ${CMAKE_CUDA_ARCHITECTURES}
+            --build-flags Release-fast-math-disabled
+            --stream-policy default-stream-synchronous-one-process)
+    add_test(NAME s7.benchmark.acceptance_negative
+        COMMAND ${S7_NODE_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/scripts/analyze-s7-benchmarks.mjs
+            --self-test ${S7_BENCHMARK_INTEGRITY_ROOT}/negative-tests)
+    add_test(NAME s7.cuda_v2.frozen_matrix
+        COMMAND s7_cuda_v2_matrix_tests
+            ${S7_BENCHMARK_INTEGRITY_ROOT}/cuda-v2-frozen-matrix.txt
+            ${S7_BENCHMARK_INTEGRITY_ROOT}/cuda-v2-frozen-reports
+            ${S7_CUDA_V2_EVIDENCE_MANIFEST}
+            ${S7_CUDA_V2_EVIDENCE_ROOT}/functional.txt
+            ${S7_BENCHMARK_INTEGRITY_ROOT}/tuning-freeze.csv)
+    add_test(NAME s7.cuda_v3.frozen_matrix
+        COMMAND s7_cuda_v3_matrix_tests
+            ${S7_BENCHMARK_INTEGRITY_ROOT}/cuda-v3-frozen-matrix.txt
+            ${S7_BENCHMARK_INTEGRITY_ROOT}/cuda-v3-frozen-reports
+            ${S7_CUDA_V3_EVIDENCE_MANIFEST}
+            ${S7_CUDA_V3_EVIDENCE_ROOT}/functional.txt
+            ${S7_BENCHMARK_INTEGRITY_ROOT}/tuning-freeze.csv)
+    set_tests_properties(s7.benchmark.integrity s7.benchmark.acceptance_negative
+        PROPERTIES TIMEOUT 60)
+    set_tests_properties(s7.benchmark.dry_run PROPERTIES
+        DEPENDS s7.benchmark.integrity TIMEOUT 300)
+    set_tests_properties(s7.cuda_v2.frozen_matrix PROPERTIES
+        DEPENDS "s7.cuda_v2.required_matrix;s7.benchmark.integrity"
+        FIXTURES_REQUIRED S7_CUDA_V2_FUNCTIONAL TIMEOUT 2400)
+    set_tests_properties(s7.cuda_v3.frozen_matrix PROPERTIES
+        DEPENDS "s7.cuda_v3.required_matrix;s7.benchmark.integrity"
+        FIXTURES_REQUIRED S7_CUDA_V3_FUNCTIONAL TIMEOUT 2400)
+    set_tests_properties(s7.cuda_v2.functional PROPERTIES
+        FIXTURES_SETUP S7_CUDA_V2_FUNCTIONAL)
+    set_tests_properties(s7.cuda_v3.functional PROPERTIES
+        FIXTURES_SETUP S7_CUDA_V3_FUNCTIONAL)
 endif()

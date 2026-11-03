@@ -1,0 +1,32 @@
+{
+  "schema_version": "S7-TUNING-FREEZE-v1",
+  "candidates": [128,256,512],
+  "selection_metric": "BND-KERNEL median",
+  "exact_tie_rule": "smaller block size",
+  "mapping": [
+    {"variant":"v2","N":1024,"D":8,"block_size":128,"tuning_median_ns":25600},
+    {"variant":"v3","N":1024,"D":8,"block_size":128,"tuning_median_ns":27648},
+    {"variant":"v2","N":1024,"D":32,"block_size":128,"tuning_median_ns":35840},
+    {"variant":"v3","N":1024,"D":32,"block_size":128,"tuning_median_ns":35840},
+    {"variant":"v2","N":1024,"D":128,"block_size":256,"tuning_median_ns":35840},
+    {"variant":"v3","N":1024,"D":128,"block_size":128,"tuning_median_ns":35840},
+    {"variant":"v2","N":16384,"D":8,"block_size":128,"tuning_median_ns":24576},
+    {"variant":"v3","N":16384,"D":8,"block_size":256,"tuning_median_ns":34304},
+    {"variant":"v2","N":16384,"D":32,"block_size":256,"tuning_median_ns":36864},
+    {"variant":"v3","N":16384,"D":32,"block_size":256,"tuning_median_ns":32768},
+    {"variant":"v2","N":16384,"D":128,"block_size":128,"tuning_median_ns":303104},
+    {"variant":"v3","N":16384,"D":128,"block_size":512,"tuning_median_ns":310272},
+    {"variant":"v2","N":262144,"D":8,"block_size":512,"tuning_median_ns":304128},
+    {"variant":"v3","N":262144,"D":8,"block_size":512,"tuning_median_ns":297984},
+    {"variant":"v2","N":262144,"D":32,"block_size":128,"tuning_median_ns":1.08442e+06},
+    {"variant":"v3","N":262144,"D":32,"block_size":512,"tuning_median_ns":1.08595e+06},
+    {"variant":"v2","N":262144,"D":128,"block_size":512,"tuning_median_ns":517632},
+    {"variant":"v3","N":262144,"D":128,"block_size":128,"tuning_median_ns":519680},
+    {"variant":"v2","N":1048576,"D":8,"block_size":256,"tuning_median_ns":1.06906e+06},
+    {"variant":"v3","N":1048576,"D":8,"block_size":128,"tuning_median_ns":1.07878e+06},
+    {"variant":"v2","N":1048576,"D":32,"block_size":128,"tuning_median_ns":522240},
+    {"variant":"v3","N":1048576,"D":32,"block_size":128,"tuning_median_ns":529920},
+    {"variant":"v2","N":1048576,"D":128,"block_size":256,"tuning_median_ns":1.63226e+06},
+    {"variant":"v3","N":1048576,"D":128,"block_size":128,"tuning_median_ns":1.6425e+06}
+  ]
+}
