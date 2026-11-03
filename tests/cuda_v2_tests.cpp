@@ -86,6 +86,48 @@ void verify_against_prior_variants(const std::vector<float>& dataset,
     }
 }
 
+void test_transpose_mapping(std::ofstream& evidence) {
+    struct Shape { std::size_t n; std::size_t d; };
+    const std::array<Shape, 15> shapes = {{{1U, 1U}, {1U, 33U}, {33U, 1U},
+        {31U, 31U}, {32U, 32U}, {33U, 33U}, {63U, 31U}, {64U, 32U},
+        {65U, 33U}, {63U, 63U}, {64U, 64U}, {65U, 65U}, {33U, 17U},
+        {65U, 31U}, {129U, 33U}}};
+    const std::array<float, 8> values = {{
+        +0.0F, -0.0F, std::numeric_limits<float>::denorm_min(),
+        -std::numeric_limits<float>::denorm_min(), 1.0F, -3.5F,
+        std::numeric_limits<float>::max(), std::numeric_limits<float>::lowest()}};
+    const std::array<s6::detail::CudaV2TransposeTileCandidate, 3> tiles = {{
+        s6::detail::CudaV2TransposeTileCandidate::tile_32x32,
+        s6::detail::CudaV2TransposeTileCandidate::tile_64x32,
+        s6::detail::CudaV2TransposeTileCandidate::tile_64x64}};
+    for (const auto shape : shapes) {
+        std::vector<float> aos(shape.n * shape.d);
+        for (std::size_t index = 0; index < aos.size(); ++index) {
+            aos[index] = values[index % values.size()];
+        }
+        const std::vector<float> original = aos;
+        for (const auto tile : tiles) {
+            const auto observed = s6::detail::cuda_v2_transform_aos_to_soa_for_testing(
+                {aos.data(), static_cast<std::uint64_t>(shape.n),
+                 static_cast<std::uint64_t>(shape.d), aos.size()}, tile);
+            require(observed.size() == aos.size(), "V2 SoA transform size mismatch");
+            for (std::size_t j = 0; j < shape.d; ++j) {
+                for (std::size_t i = 0; i < shape.n; ++i) {
+                    require(bits(observed[j * shape.n + i]) ==
+                                bits(aos[i * shape.d + j]),
+                            "V2 AoS-to-SoA bit mapping mismatch");
+                }
+            }
+        }
+        for (std::size_t index = 0; index < aos.size(); ++index) {
+            require(bits(aos[index]) == bits(original[index]),
+                    "V2 AoS input was modified by transpose");
+        }
+    }
+    evidence << "transpose_mapping=passed bit_preservation=passed"
+                " input_immutability=passed tile_candidates=3 shapes=15\n";
+}
+
 void test_device_abi_and_layout(std::ofstream& evidence) {
     const auto device = s6::inspect_cuda_v2_device();
     require(device.status == s6::EvidenceStatus::passed &&
@@ -96,14 +138,6 @@ void test_device_abi_and_layout(std::ofstream& evidence) {
                 abi.host_alignment == 16U && abi.device_size == 16U &&
                 abi.device_alignment == 16U,
             "CUDA V2 reduction-record ABI failed");
-    const std::vector<float> aos = {1.0F, -0.0F, 2.0F, +0.0F, 3.0F, 4.0F};
-    const auto soa = s6::detail::cuda_v2_transform_aos_to_soa_for_testing(
-        {aos.data(), 3U, 2U, aos.size()});
-    const std::vector<float> expected = {1.0F, 2.0F, 3.0F, -0.0F, +0.0F, 4.0F};
-    require(soa.size() == expected.size(), "V2 SoA transform size mismatch");
-    for (std::size_t i = 0; i < soa.size(); ++i) {
-        require(bits(soa[i]) == bits(expected[i]), "V2 SoA bit mapping failed");
-    }
     evidence << "device=passed name=" << device.name << " uuid=" << device.uuid
              << " compute=" << device.compute_major << '.' << device.compute_minor
              << " memory_bytes=" << device.total_global_memory
@@ -113,8 +147,7 @@ void test_device_abi_and_layout(std::ofstream& evidence) {
              << " driver_version=" << device.driver_version
              << " runtime_version=" << device.runtime_version << '\n'
              << "abi=passed host_size=16 host_alignment=16 device_size=16"
-                " device_alignment=16\n"
-             << "transpose_mapping=passed bit_preservation=passed\n";
+                " device_alignment=16\n";
 }
 
 void test_block_candidates_and_hierarchy(std::ofstream& evidence) {
@@ -398,6 +431,7 @@ int main(int argc, char** argv) {
                  << "source_manifest_sha256="
                  << s6::build_identity::kSourceManifestSha256 << '\n';
         test_device_abi_and_layout(evidence);
+        test_transpose_mapping(evidence);
         test_block_candidates_and_hierarchy(evidence);
         test_boundary_and_zero_fixtures(evidence);
         test_direct_reduction(evidence);

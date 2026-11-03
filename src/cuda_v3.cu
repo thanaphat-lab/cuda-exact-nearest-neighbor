@@ -4,6 +4,7 @@
 
 #include <cuda_runtime.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -163,8 +164,10 @@ class DeviceAllocation {
     T* pointer_ = nullptr;
 };
 
-bool transform_aos_to_soa(DatasetView dataset, std::vector<float>& soa,
-                          std::string& detail) {
+template <std::size_t TileN, std::size_t TileD>
+bool transform_aos_to_soa_blocked(DatasetView dataset, std::vector<float>& soa,
+                                  std::string& detail) {
+    static_assert(TileN > 0U && TileD > 0U, "transpose tiles must be nonzero");
     if (dataset.element_count > soa.max_size()) {
         detail = "SoA host element count exceeds vector capacity";
         return false;
@@ -180,12 +183,26 @@ bool transform_aos_to_soa(DatasetView dataset, std::vector<float>& soa,
     }
     const auto n = static_cast<std::size_t>(dataset.candidate_count);
     const auto d = static_cast<std::size_t>(dataset.dimension);
-    for (std::size_t j = 0; j < d; ++j) {
-        for (std::size_t i = 0; i < n; ++i) {
-            soa[j * n + i] = dataset.data[i * d + j];
+    for (std::size_t i0 = 0; i0 < n;) {
+        const std::size_t i_end = i0 + std::min(TileN, n - i0);
+        for (std::size_t j0 = 0; j0 < d;) {
+            const std::size_t j_end = j0 + std::min(TileD, d - j0);
+            for (std::size_t i = i0; i < i_end; ++i) {
+                const std::size_t aos_base = i * d;
+                for (std::size_t j = j0; j < j_end; ++j) {
+                    soa[j * n + i] = dataset.data[aos_base + j];
+                }
+            }
+            j0 = j_end;
         }
+        i0 = i_end;
     }
     return true;
+}
+
+bool transform_aos_to_soa(DatasetView dataset, std::vector<float>& soa,
+                          std::string& detail) {
+    return transform_aos_to_soa_blocked<32U, 32U>(dataset, soa, detail);
 }
 
 __device__ __forceinline__ CudaV3ReductionRecord combine_records(
@@ -951,13 +968,31 @@ CudaV3ReductionDiagnostics cuda_v3_reduce_diagnostics_for_testing(
 }
 
 std::vector<float> cuda_v3_transform_aos_to_soa_for_testing(DatasetView dataset) {
+    return cuda_v3_transform_aos_to_soa_for_testing(
+        dataset, CudaV3TransposeTileCandidate::tile_32x32);
+}
+
+std::vector<float> cuda_v3_transform_aos_to_soa_for_testing(
+    DatasetView dataset, CudaV3TransposeTileCandidate tile) {
     if (dataset.data == nullptr || dataset.candidate_count == 0U ||
         dataset.dimension == 0U) {
         return {};
     }
     std::vector<float> result;
     std::string detail;
-    if (!transform_aos_to_soa(dataset, result, detail)) {
+    bool transformed = false;
+    switch (tile) {
+        case CudaV3TransposeTileCandidate::tile_32x32:
+            transformed = transform_aos_to_soa_blocked<32U, 32U>(dataset, result, detail);
+            break;
+        case CudaV3TransposeTileCandidate::tile_64x32:
+            transformed = transform_aos_to_soa_blocked<64U, 32U>(dataset, result, detail);
+            break;
+        case CudaV3TransposeTileCandidate::tile_64x64:
+            transformed = transform_aos_to_soa_blocked<64U, 64U>(dataset, result, detail);
+            break;
+    }
+    if (!transformed) {
         return {};
     }
     return result;

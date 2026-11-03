@@ -87,26 +87,45 @@ void verify_evidence(const std::vector<float>& dataset,
 }
 
 void test_transpose_mapping(std::ofstream& evidence) {
-    const std::vector<float> aos = {
-        1.0F, 2.0F, 3.0F, 4.0F,
-        5.0F, 6.0F, 7.0F, 8.0F,
-        -0.0F, +0.0F, -1.0F, 9.0F,
-    };
-    const std::vector<float> expected_soa = {
-        1.0F, 5.0F, -0.0F,
-        2.0F, 6.0F, +0.0F,
-        3.0F, 7.0F, -1.0F,
-        4.0F, 8.0F, 9.0F,
-    };
-    const auto observed = s6::detail::cuda_v1_transform_aos_to_soa_for_testing(
-        {aos.data(), 3U, 4U, aos.size()});
-    require(observed.size() == expected_soa.size(),
-            "AoS-to-SoA transform size mismatch");
-    for (std::size_t index = 0; index < observed.size(); ++index) {
-        require(bits(observed[index]) == bits(expected_soa[index]),
-                "AoS-to-SoA transform mapping mismatch");
+    struct Shape { std::size_t n; std::size_t d; };
+    const std::array<Shape, 15> shapes = {{{1U, 1U}, {1U, 33U}, {33U, 1U},
+        {31U, 31U}, {32U, 32U}, {33U, 33U}, {63U, 31U}, {64U, 32U},
+        {65U, 33U}, {63U, 63U}, {64U, 64U}, {65U, 65U}, {33U, 17U},
+        {65U, 31U}, {129U, 33U}}};
+    const std::array<float, 8> values = {{
+        +0.0F, -0.0F, std::numeric_limits<float>::denorm_min(),
+        -std::numeric_limits<float>::denorm_min(), 1.0F, -3.5F,
+        std::numeric_limits<float>::max(), std::numeric_limits<float>::lowest()}};
+    const std::array<s6::detail::CudaV1TransposeTileCandidate, 3> tiles = {{
+        s6::detail::CudaV1TransposeTileCandidate::tile_32x32,
+        s6::detail::CudaV1TransposeTileCandidate::tile_64x32,
+        s6::detail::CudaV1TransposeTileCandidate::tile_64x64}};
+    for (const auto shape : shapes) {
+        std::vector<float> aos(shape.n * shape.d);
+        for (std::size_t index = 0; index < aos.size(); ++index) {
+            aos[index] = values[index % values.size()];
+        }
+        const std::vector<float> original = aos;
+        for (const auto tile : tiles) {
+            const auto observed = s6::detail::cuda_v1_transform_aos_to_soa_for_testing(
+                {aos.data(), static_cast<std::uint64_t>(shape.n),
+                 static_cast<std::uint64_t>(shape.d), aos.size()}, tile);
+            require(observed.size() == aos.size(), "V1 SoA transform size mismatch");
+            for (std::size_t j = 0; j < shape.d; ++j) {
+                for (std::size_t i = 0; i < shape.n; ++i) {
+                    require(bits(observed[j * shape.n + i]) ==
+                                bits(aos[i * shape.d + j]),
+                            "V1 AoS-to-SoA bit mapping mismatch");
+                }
+            }
+        }
+        for (std::size_t index = 0; index < aos.size(); ++index) {
+            require(bits(aos[index]) == bits(original[index]),
+                    "V1 AoS input was modified by transpose");
+        }
     }
-    evidence << "transpose_mapping=passed bit_preservation=passed N=3 D=4\n";
+    evidence << "transpose_mapping=passed bit_preservation=passed"
+                " input_immutability=passed tile_candidates=3 shapes=15\n";
 }
 
 void test_device_and_abi(std::ofstream& evidence) {
