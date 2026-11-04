@@ -176,4 +176,3 @@ if (args[0] === "--self-test" && args.length === 1) {
 } else if (args[0] === "--tuning" && args.length === 2) tune(args[1]);
 else if (args[0] === "--final" && args.length === 4 && args[2] === "--freeze") final(args[1], args[3]);
 else fail("usage: analyze-s8-benchmarks.mjs --self-test | --tuning DIR | --final DIR --freeze FILE");
-

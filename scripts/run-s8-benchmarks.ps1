@@ -123,4 +123,3 @@ $telemetryErrors = @(Get-Content -LiteralPath `
         -not [string]::IsNullOrWhiteSpace($_)
     })
 if ($telemetryErrors.Count -ne 0) { throw 'telemetry capture reported errors' }
-
