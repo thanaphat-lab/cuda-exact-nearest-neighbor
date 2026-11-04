@@ -96,6 +96,10 @@ set(S6_EVIDENCE_INPUTS
     scripts/run-s7-benchmarks.ps1
     scripts/capture-s7-telemetry.ps1
     scripts/analyze-s7-benchmarks.mjs
+    benchmarks/s8_benchmark.cpp
+    benchmarks/config/s8-transpose-ab-20261104-01.json
+    scripts/run-s8-benchmarks.ps1
+    scripts/analyze-s8-benchmarks.mjs
     docs/specifications/S6-CONSOLIDATED-NUMERICAL-POLICY-v1.0.md
 )
 foreach(relative_path IN LISTS S6_EVIDENCE_INPUTS)
@@ -312,6 +316,18 @@ target_compile_definitions(s7_benchmark PRIVATE
     S7_BENCHMARK_TREE_STATE="${S6_WORKTREE_STATE}")
 target_compile_options(s7_benchmark PRIVATE /W4 /WX /fp:strict /permissive-)
 add_dependencies(s7_benchmark s6_verify_source_identity)
+
+add_executable(s8_benchmark benchmarks/s8_benchmark.cpp)
+target_include_directories(s8_benchmark PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests)
+target_link_libraries(s8_benchmark PRIVATE
+    s6_cpu_evidence s7_cuda_v1 s7_cuda_v2 s7_cuda_v3)
+target_compile_definitions(s8_benchmark PRIVATE
+    S8_BENCHMARK_REVISION="${S6_BUILD_REVISION}"
+    S8_BENCHMARK_TREE_STATE="${S6_WORKTREE_STATE}")
+target_compile_options(s8_benchmark PRIVATE /W4 /WX /fp:strict /permissive-)
+add_dependencies(s8_benchmark s6_verify_source_identity)
 
 if(BUILD_TESTING)
     add_executable(s6_cpu_tests tests/cpu_baseline_tests.cpp)
@@ -683,6 +699,16 @@ if(BUILD_TESTING)
         "${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/config/s7-accept-20261103-01.json")
     file(SHA256 "${S7_EXPERIMENT_CONFIG}" S7_EXPERIMENT_CONFIG_SHA256)
     find_program(S7_NODE_EXECUTABLE node REQUIRED)
+    set(S8_BENCHMARK_INTEGRITY_ROOT
+        "${CMAKE_CURRENT_BINARY_DIR}/evidence/s8-benchmark-integrity")
+    add_test(NAME s8.benchmark.integrity
+        COMMAND s8_benchmark --self-test ${S8_BENCHMARK_INTEGRITY_ROOT})
+    add_test(NAME s8.analysis.integrity
+        COMMAND ${S7_NODE_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/scripts/analyze-s8-benchmarks.mjs
+            --self-test)
+    set_tests_properties(s8.benchmark.integrity s8.analysis.integrity
+        PROPERTIES TIMEOUT 60)
     add_test(NAME s7.benchmark.integrity
         COMMAND s7_benchmark --self-test ${S7_BENCHMARK_INTEGRITY_ROOT})
     add_test(NAME s7.benchmark.dry_run

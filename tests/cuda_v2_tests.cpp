@@ -1,6 +1,7 @@
 #include "s6/cuda_v2.hpp"
 #include "s6/cuda_v1.hpp"
 #include "s6/cuda_v0.hpp"
+#include "s6/benchmark_internal.hpp"
 #include "s6/cpu_build_identity.hpp"
 
 #include <cuda_runtime_api.h>
@@ -126,6 +127,55 @@ void test_transpose_mapping(std::ofstream& evidence) {
     }
     evidence << "transpose_mapping=passed bit_preservation=passed"
                 " input_immutability=passed tile_candidates=3 shapes=15\n";
+}
+
+void test_s8_production_selectors(std::ofstream& evidence) {
+    constexpr std::uint64_t n = 129U;
+    constexpr std::uint64_t d = 33U;
+    std::vector<float> dataset(static_cast<std::size_t>(n * d));
+    std::vector<float> query(static_cast<std::size_t>(d));
+    for (std::uint64_t j = 0; j < d; ++j) {
+        query[static_cast<std::size_t>(j)] = static_cast<float>(j % 11U) / 16.0F;
+    }
+    for (std::uint64_t i = 0; i < n; ++i) {
+        for (std::uint64_t j = 0; j < d; ++j) {
+            dataset[static_cast<std::size_t>(i * d + j)] =
+                static_cast<float>((i * 17U + j * 13U) % 257U) / 64.0F;
+        }
+    }
+    const s6::DatasetView dataset_view{dataset.data(), n, d, dataset.size()};
+    const s6::QueryView query_view{query.data(), d, query.size()};
+    const auto expected = s6::cpu_search_float32(dataset_view, query_view);
+    require(expected.result.has_value(), "S8 V2 CPU reference failed");
+    const std::array<s6::detail::S8TransposeImplementation, 4> implementations = {{
+        s6::detail::S8TransposeImplementation::original,
+        s6::detail::S8TransposeImplementation::tile_32x32,
+        s6::detail::S8TransposeImplementation::tile_64x32,
+        s6::detail::S8TransposeImplementation::tile_64x64}};
+    const s6::CudaV2Options options{0, nullptr, 256U};
+    for (const auto implementation : implementations) {
+        const auto outcome = s6::detail::cuda_v2_search_float32_evidenced_for_s8_testing(
+            dataset_view, query_view, implementation, options);
+        require(outcome.production.result.has_value() &&
+                    outcome.production.result->index == expected.result->index &&
+                    bits(outcome.production.result->squared_distance) ==
+                        bits(expected.result->squared_distance) &&
+                    outcome.evidence.mapping_status == s6::EvidenceStatus::passed &&
+                    outcome.evidence.overwrite_status == s6::EvidenceStatus::passed,
+                "S8 V2 production selector correctness failed");
+    }
+    const auto public_default = s6::cuda_v2_search_float32(
+        dataset_view, query_view, options);
+    const auto selected_default = s6::detail::cuda_v2_search_float32_for_s8_benchmark(
+        dataset_view, query_view,
+        s6::detail::S8TransposeImplementation::tile_32x32, options);
+    require(public_default.result.has_value() && selected_default.result.has_value() &&
+                public_default.result->index == selected_default.result->index &&
+                bits(public_default.result->squared_distance) ==
+                    bits(selected_default.result->squared_distance),
+            "S8 V2 public default changed");
+    evidence << "s8_production_selectors=passed implementations=4"
+                " public_default=32x32\n";
 }
 
 void test_device_abi_and_layout(std::ofstream& evidence) {
@@ -432,6 +482,7 @@ int main(int argc, char** argv) {
                  << s6::build_identity::kSourceManifestSha256 << '\n';
         test_device_abi_and_layout(evidence);
         test_transpose_mapping(evidence);
+        test_s8_production_selectors(evidence);
         test_block_candidates_and_hierarchy(evidence);
         test_boundary_and_zero_fixtures(evidence);
         test_direct_reduction(evidence);

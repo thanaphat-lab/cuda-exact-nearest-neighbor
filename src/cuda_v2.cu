@@ -163,22 +163,8 @@ class DeviceAllocation {
 };
 
 template <std::size_t TileN, std::size_t TileD>
-bool transform_aos_to_soa_blocked(DatasetView dataset, std::vector<float>& soa,
-                                  std::string& detail) {
+void transform_aos_to_soa_blocked(DatasetView dataset, std::vector<float>& soa) {
     static_assert(TileN > 0U && TileD > 0U, "transpose tiles must be nonzero");
-    if (dataset.element_count > soa.max_size()) {
-        detail = "SoA host element count exceeds vector capacity";
-        return false;
-    }
-    try {
-        soa.resize(dataset.element_count);
-    } catch (const std::bad_alloc&) {
-        detail = "SoA host allocation failed";
-        return false;
-    } catch (const std::length_error&) {
-        detail = "SoA host element count exceeds vector capacity";
-        return false;
-    }
     const auto n = static_cast<std::size_t>(dataset.candidate_count);
     const auto d = static_cast<std::size_t>(dataset.dimension);
     for (std::size_t i0 = 0; i0 < n;) {
@@ -195,12 +181,58 @@ bool transform_aos_to_soa_blocked(DatasetView dataset, std::vector<float>& soa,
         }
         i0 = i_end;
     }
-    return true;
 }
 
-bool transform_aos_to_soa(DatasetView dataset, std::vector<float>& soa,
-                          std::string& detail) {
-    return transform_aos_to_soa_blocked<32U, 32U>(dataset, soa, detail);
+void transform_aos_to_soa_original(DatasetView dataset, std::vector<float>& soa) {
+    const auto candidate_count = static_cast<std::size_t>(dataset.candidate_count);
+    const auto dimension = static_cast<std::size_t>(dataset.dimension);
+    for (std::size_t j = 0; j < dimension; ++j) {
+        const std::size_t soa_base = j * candidate_count;
+        for (std::size_t i = 0; i < candidate_count; ++i) {
+            soa[soa_base + i] = dataset.data[i * dimension + j];
+        }
+    }
+}
+
+bool transform_aos_to_soa(
+    DatasetView dataset, std::vector<float>& soa, std::string& detail,
+    detail::S8TransposeImplementation implementation,
+    detail::S7CudaStageTiming* benchmark_timing) {
+    if (dataset.element_count > soa.max_size()) {
+        detail = "SoA host element count exceeds vector capacity";
+        return false;
+    }
+    try {
+        soa.resize(dataset.element_count);
+    } catch (const std::bad_alloc&) {
+        detail = "SoA host allocation failed";
+        return false;
+    } catch (const std::length_error&) {
+        detail = "SoA host element count exceeds vector capacity";
+        return false;
+    }
+    const auto transpose_start = benchmark_timing != nullptr
+        ? detail::benchmark_internal::Clock::now()
+        : detail::benchmark_internal::Clock::time_point{};
+    switch (implementation) {
+        case detail::S8TransposeImplementation::original:
+            transform_aos_to_soa_original(dataset, soa);
+            break;
+        case detail::S8TransposeImplementation::tile_32x32:
+            transform_aos_to_soa_blocked<32U, 32U>(dataset, soa);
+            break;
+        case detail::S8TransposeImplementation::tile_64x32:
+            transform_aos_to_soa_blocked<64U, 32U>(dataset, soa);
+            break;
+        case detail::S8TransposeImplementation::tile_64x64:
+            transform_aos_to_soa_blocked<64U, 64U>(dataset, soa);
+            break;
+    }
+    if (benchmark_timing != nullptr) {
+        benchmark_timing->transpose_ns = detail::benchmark_internal::elapsed_ns(
+            transpose_start, detail::benchmark_internal::Clock::now());
+    }
+    return true;
 }
 
 __device__ __forceinline__ CudaV2ReductionRecord combine_records(
@@ -384,7 +416,9 @@ void apply_final_record(CudaV2EvidencedOutcome& result,
 CudaV2EvidencedOutcome run_cuda_v2(
     DatasetView dataset, QueryView query, const CudaV2Options& options,
     bool collect_evidence, detail::CudaV2InjectedFailure injected_failure,
-    detail::S7CudaStageTiming* benchmark_timing = nullptr) {
+    detail::S7CudaStageTiming* benchmark_timing = nullptr,
+    detail::S8TransposeImplementation transpose_implementation =
+        detail::S8TransposeImplementation::tile_32x32) {
     CudaV2EvidencedOutcome result;
     const auto validation_start = benchmark_timing != nullptr
         ? detail::benchmark_internal::Clock::now()
@@ -484,7 +518,8 @@ CudaV2EvidencedOutcome run_cuda_v2(
         : detail::benchmark_internal::Clock::time_point{};
     std::vector<float> host_soa_dataset;
     std::string transform_detail;
-    if (!transform_aos_to_soa(dataset, host_soa_dataset, transform_detail)) {
+    if (!transform_aos_to_soa(dataset, host_soa_dataset, transform_detail,
+                              transpose_implementation, benchmark_timing)) {
         result.production.invocation_status = InvocationStatus::resource_failure;
         result.production.domain_status = DomainStatus::unknown;
         result.production.backend_detail = std::move(transform_detail);
@@ -801,6 +836,32 @@ S7StagedOutcome cuda_v2_search_float32_staged_for_benchmark(
     return result;
 }
 
+ProductionOutcome cuda_v2_search_float32_for_s8_benchmark(
+    DatasetView dataset, QueryView query, S8TransposeImplementation implementation,
+    const CudaV2Options& options) {
+    return run_cuda_v2(dataset, query, options, false,
+                       CudaV2InjectedFailure::none, nullptr, implementation)
+        .production;
+}
+
+CudaV2EvidencedOutcome cuda_v2_search_float32_evidenced_for_s8_testing(
+    DatasetView dataset, QueryView query, S8TransposeImplementation implementation,
+    const CudaV2Options& options) {
+    return run_cuda_v2(dataset, query, options, true,
+                       CudaV2InjectedFailure::none, nullptr, implementation);
+}
+
+S7StagedOutcome cuda_v2_search_float32_staged_for_s8_benchmark(
+    DatasetView dataset, QueryView query, S8TransposeImplementation implementation,
+    const CudaV2Options& options) {
+    S7StagedOutcome result;
+    auto production = run_cuda_v2(dataset, query, options, false,
+                                  CudaV2InjectedFailure::none, &result.stages,
+                                  implementation);
+    result.production = std::move(production.production);
+    return result;
+}
+
 CudaV2EvidencedOutcome cuda_v2_search_float32_for_testing(
     DatasetView dataset, QueryView query, const CudaV2Options& options,
     CudaV2InjectedFailure injected_failure) {
@@ -907,19 +968,19 @@ std::vector<float> cuda_v2_transform_aos_to_soa_for_testing(
     }
     std::vector<float> result;
     std::string detail;
-    bool transformed = false;
+    S8TransposeImplementation implementation = S8TransposeImplementation::tile_32x32;
     switch (tile) {
         case CudaV2TransposeTileCandidate::tile_32x32:
-            transformed = transform_aos_to_soa_blocked<32U, 32U>(dataset, result, detail);
+            implementation = S8TransposeImplementation::tile_32x32;
             break;
         case CudaV2TransposeTileCandidate::tile_64x32:
-            transformed = transform_aos_to_soa_blocked<64U, 32U>(dataset, result, detail);
+            implementation = S8TransposeImplementation::tile_64x32;
             break;
         case CudaV2TransposeTileCandidate::tile_64x64:
-            transformed = transform_aos_to_soa_blocked<64U, 64U>(dataset, result, detail);
+            implementation = S8TransposeImplementation::tile_64x64;
             break;
     }
-    if (!transformed) {
+    if (!transform_aos_to_soa(dataset, result, detail, implementation, nullptr)) {
         return {};
     }
     return result;
