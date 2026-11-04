@@ -1,0 +1,20 @@
+{
+  "schema_version": "S8-BENCHMARK-MANIFEST-v1",
+  "experiment_id": "S8-TRANSPOSE-AB-20261104-01",
+  "revision": "958677033f48d3d6543c03ed36dfd5cb10e16c59",
+  "working_tree_state": "clean",
+  "sample_role": "tuning",
+  "config_sha256": "5c1a9638067370e636ad2d9d5f77582670f793780bc0c413226902f85cbcb03a",
+  "s7_block_freeze": "docs/experiments/S7-ACCEPT-20261103-01/evidence/final/tuning-freeze.csv",
+  "correctness_reference": "",
+  "warmups": 10,
+  "repetitions": 100,
+  "ordering": "deterministic rotated A/B order",
+  "tuning_seed": "11820040416388919760",
+  "final_seed": "589684135938649225",
+  "cuda_architecture": "owner-approved-build",
+  "build_flags": "Release-fast-math-disabled",
+  "fast_math": "disabled",
+  "captured_at": "2026-11-04T12:55:19.8503456+07:00",
+  "timezone": "SE-Asia-Standard-Time"
+}

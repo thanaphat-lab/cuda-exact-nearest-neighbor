@@ -1,0 +1,11 @@
+{
+  "schema_version": "S8-HOST-ENVIRONMENT-v1",
+  "captured_at": "2026-11-04T12:55:19.8503456+07:00",
+  "revision": "958677033f48d3d6543c03ed36dfd5cb10e16c59",
+  "working_tree_state": "clean",
+  "operating_system": "Microsoft Windows NT 10.0.26300.0",
+  "processor": "Intel64 Family 6 Model 140 Stepping 1, GenuineIntel",
+  "machine_name": "DESKTOP-I7GBAM0",
+  "powershell": "7.6.9",
+  "config_sha256": "5c1a9638067370e636ad2d9d5f77582670f793780bc0c413226902f85cbcb03a"
+}

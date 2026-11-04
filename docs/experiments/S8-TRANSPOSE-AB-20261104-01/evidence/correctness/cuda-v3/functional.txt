@@ -1,0 +1,18 @@
+schema=S7-CUDA-V3-FUNCTIONAL-EVIDENCE-v1.0
+evidence_class=clean-candidate
+revision=958677033f48d3d6543c03ed36dfd5cb10e16c59
+working_tree_state=clean
+working_tree_fingerprint=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+source_manifest_sha256=5989cb2974e5a8cc57cee602897e8064673582d8c20c923696bd68fb35371eeb
+device=passed name=NVIDIA GeForce RTX 3060 Laptop GPU uuid=6119f54aff96d0a6df230b48a8bd991f compute=8.6 memory_bytes=6441926656 max_threads_per_block=1024 max_grid_x=2147483647 warp_size=32 driver_version=13040 runtime_version=13040
+abi=passed host_size=16 host_alignment=16 device_size=16 device_alignment=16 offsets=0,4,8
+transpose_mapping=passed bit_preservation=passed input_immutability=passed tile_candidates=3 shapes=15
+s8_production_selectors=passed implementations=4 public_default=32x32
+block_candidates=passed values=128,256,512 default=256-not-tuned hierarchy_tail=passed cross_block_tie=passed cpu_v3_comparison=passed v0_v3_comparison=passed v1_v3_comparison=passed v2_v3_comparison=passed
+warp_participation=passed physical_warp_size=32 full_mask=passed safe_active_sources=passed logical_warp_tails=passed offsets=16,8,4,2,1
+identity_tails=passed unique_boundary_winners=passed signed_zero=passed exact_positive_zero=passed
+reduction=passed hierarchy_associativity=passed mixed_finite_nonfinite_flags=passed result_suppression=passed full_width_index=passed signed_zero_tie=passed
+finite_high_magnitude=passed exact_dyadic_oracle=passed interval_classifier=passed interval_boundary_fixture=passed inclusive_boundary=passed confirmed_inclusion=passed confirmed_exclusion=passed boundary_uncertain_retention=passed
+repeatability=passed repetitions=5 block_candidates=3 invalid_input=passed invalid_configuration=passed resource_backend_failures=passed valid_outside_domain=passed
+nondefault_stream=passed
+overall=passed

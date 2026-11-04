@@ -1,0 +1,15 @@
+{
+  "schema_version": "S8-CORRECTNESS-GATE-v1",
+  "status": "passed-clean-candidate",
+  "revision": "958677033f48d3d6543c03ed36dfd5cb10e16c59",
+  "working_tree_state": "clean",
+  "experiment_id": "S8-TRANSPOSE-AB-20261104-01",
+  "experiment_config_sha256": "5c1a9638067370e636ad2d9d5f77582670f793780bc0c413226902f85cbcb03a",
+  "source_manifest_sha256": "5989cb2974e5a8cc57cee602897e8064673582d8c20c923696bd68fb35371eeb",
+  "ctest_passed": 18,
+  "ctest_failed": 0,
+  "required_matrix_accepted_unambiguous": 60,
+  "frozen_matrix_accepted_unambiguous": 24,
+  "selector_implementations": ["original", "32x32", "64x32", "64x64"],
+  "evidence_root": "build-s8-g4-clean-9586770/evidence"
+}

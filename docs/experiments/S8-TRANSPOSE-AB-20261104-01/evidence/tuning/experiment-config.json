@@ -1,0 +1,55 @@
+{
+  "schema_version": "S8-EXPERIMENT-CONFIG-v1",
+  "experiment_id": "S8-TRANSPOSE-AB-20261104-01",
+  "design_gate": "S8-G1",
+  "workload": {
+    "class": "single-query-primary",
+    "generator_id": "S7-DETERMINISTIC-SYNTHETIC-v1",
+    "candidate_counts": [1024, 16384, 262144, 1048576],
+    "dimensions": [8, 32, 128],
+    "tuning_seed": "11820040416388919760",
+    "final_seed": "589684135938649225"
+  },
+  "transpose_implementations": ["original", "32x32", "64x32", "64x64"],
+  "sampling": {
+    "warmups": 10,
+    "measured_repetitions": 100,
+    "percentile_method": "linear_n_minus_1",
+    "uncertainty_method": "deterministic percentile bootstrap, 2000 resamples, 95% median interval",
+    "run_order": "deterministic rotation by iteration and CUDA variant"
+  },
+  "tuning": {
+    "candidates": ["32x32", "64x32", "64x64"],
+    "selection_boundary": "BND-HOST-TRANSPOSE",
+    "selection_statistic": "median",
+    "exact_tie_order": ["32x32", "64x32", "64x64"],
+    "final_measurement_includes_all_candidates": true
+  },
+  "timing_boundaries": {
+    "CPU-E2E-RAW": "unchanged S7 CPU Float32 one-shot boundary",
+    "BND-E2E-RAW": "unchanged S7 GPU raw one-shot boundary",
+    "BND-KERNEL": "unchanged S7 complete production kernel sequence",
+    "STAGE-HOST-INPUT-VALIDATION": "unchanged S7 host validation stage",
+    "STAGE-AOS-TO-SOA": "unchanged S7 allocation-plus-conversion stage",
+    "BND-HOST-TRANSPOSE": "element-copy transpose loop after output resize",
+    "STAGE-H2D": "unchanged S7 dataset/query host-to-device stage"
+  },
+  "comparison": {
+    "ratio": "median(original) / median(candidate)",
+    "interval": "[original_ci_low/candidate_ci_high, original_ci_high/candidate_ci_low]",
+    "supported": "ci_low > 1",
+    "rejected": "ci_high < 1",
+    "inconclusive": "interval includes 1"
+  },
+  "correctness_prerequisite": "matching revision/configuration required before performance acceptance",
+  "environment_policy": {
+    "telemetry_required": true,
+    "telemetry_interval_ms": 1000,
+    "unauthorized_gpu_process_action_before_measurement": "fail",
+    "unauthorized_gpu_process_action_during_measurement": "retain-samples-and-mark-inconclusive",
+    "hardware_thermal_slowdown_treatment": "retain-samples-and-mark-inconclusive",
+    "numeric_temperature_clock_power_thresholds": "none approved"
+  },
+  "fast_math": "disabled",
+  "s7_evidence_policy": "immutable historical evidence; S8 results use independent paths"
+}

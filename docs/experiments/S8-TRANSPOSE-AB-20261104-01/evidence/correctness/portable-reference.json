@@ -1,0 +1,30 @@
+{
+  "schema_version": "S8-PORTABLE-CORRECTNESS-REFERENCE-v1",
+  "experiment_id": "S8-TRANSPOSE-AB-20261104-01",
+  "revision": "958677033f48d3d6543c03ed36dfd5cb10e16c59",
+  "original_correctness_gate": {
+    "path": "build-s8-g5-9586770/correctness-gate.json",
+    "sha256": "440935d92720b1a38622237ef6f57b405bedf5e5c740b23707c0f2d493af8fea",
+    "original_evidence_root": "build-s8-g4-clean-9586770/evidence"
+  },
+  "portable_gate_path": "correctness-gate.json",
+  "portable_evidence_root": ".",
+  "retained_evidence": {
+    "source_identity": "source_identity.txt",
+    "ctest_log": "ctest-last-test.log",
+    "ctest_cost_data": "ctest-cost-data.txt",
+    "cpu": "cpu/",
+    "cuda_v0": "cuda-v0/",
+    "cuda_v1": "cuda-v1/",
+    "cuda_v2": "cuda-v2/",
+    "cuda_v3": "cuda-v3/",
+    "frozen_matrices": "frozen/",
+    "benchmark_integrity": "integrity/"
+  },
+  "omitted_bulk": [
+    "*.candidates.bin",
+    "per-case candidate metadata",
+    "disassembly and symbol dumps"
+  ],
+  "note": "The original gate is preserved byte-for-byte. This record maps its ignored build-tree evidence root to the compact portable evidence retained beside this file."
+}

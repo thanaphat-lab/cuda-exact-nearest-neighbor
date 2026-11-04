@@ -1,0 +1,19 @@
+s6.cpu.fixtures 1 0.643756
+s6.cpu.evidence 1 2.68077
+s6.cpu.source_identity 1 0.507753
+s6.cpu.required_matrix 1 12.5145
+s7.cuda_v0.functional 1 0.168267
+s7.cuda_v0.required_matrix 1 8.53045
+s7.cuda_v1.functional 1 0.16236
+s7.cuda_v1.required_matrix 1 12.048
+s7.cuda_v2.functional 1 0.418231
+s7.cuda_v2.required_matrix 1 10.5813
+s7.cuda_v3.functional 1 0.505925
+s7.cuda_v3.required_matrix 1 18.7679
+s8.benchmark.integrity 1 0.37617
+s8.analysis.integrity 1 0.0655826
+s7.benchmark.integrity 1 0.629108
+s7.benchmark.acceptance_negative 1 0.0568116
+s7.cuda_v2.frozen_matrix 1 13.4455
+s7.cuda_v3.frozen_matrix 1 15.8479
+---
