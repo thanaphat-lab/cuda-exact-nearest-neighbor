@@ -1,0 +1,12 @@
+{
+  "schema_version": "S8-ENVIRONMENT-v1",
+  "gpu_name": "NVIDIA GeForce RTX 3060 Laptop GPU",
+  "gpu_uuid": "6119f54aff96d0a6df230b48a8bd991f",
+  "gpu_memory_bytes": 6441926656,
+  "compute_capability": "8.6",
+  "driver_version": 13040,
+  "cuda_runtime_version": 13040,
+  "cuda_architecture": "owner-approved-build",
+  "build_flags": "Release-fast-math-disabled",
+  "fast_math": "disabled"
+}

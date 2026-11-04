@@ -2,6 +2,7 @@
 #include "s6/cuda_v2.hpp"
 #include "s6/cuda_v1.hpp"
 #include "s6/cuda_v0.hpp"
+#include "s6/benchmark_internal.hpp"
 #include "s6/cpu_build_identity.hpp"
 
 #include <cuda_runtime_api.h>
@@ -94,6 +95,97 @@ void verify_against_prior_variants(const std::vector<float>& dataset,
     }
 }
 
+void test_transpose_mapping(std::ofstream& evidence) {
+    struct Shape { std::size_t n; std::size_t d; };
+    const std::array<Shape, 15> shapes = {{{1U, 1U}, {1U, 33U}, {33U, 1U},
+        {31U, 31U}, {32U, 32U}, {33U, 33U}, {63U, 31U}, {64U, 32U},
+        {65U, 33U}, {63U, 63U}, {64U, 64U}, {65U, 65U}, {33U, 17U},
+        {65U, 31U}, {129U, 33U}}};
+    const std::array<float, 8> values = {{
+        +0.0F, -0.0F, std::numeric_limits<float>::denorm_min(),
+        -std::numeric_limits<float>::denorm_min(), 1.0F, -3.5F,
+        std::numeric_limits<float>::max(), std::numeric_limits<float>::lowest()}};
+    const std::array<s6::detail::CudaV3TransposeTileCandidate, 3> tiles = {{
+        s6::detail::CudaV3TransposeTileCandidate::tile_32x32,
+        s6::detail::CudaV3TransposeTileCandidate::tile_64x32,
+        s6::detail::CudaV3TransposeTileCandidate::tile_64x64}};
+    for (const auto shape : shapes) {
+        std::vector<float> aos(shape.n * shape.d);
+        for (std::size_t index = 0; index < aos.size(); ++index) {
+            aos[index] = values[index % values.size()];
+        }
+        const std::vector<float> original = aos;
+        for (const auto tile : tiles) {
+            const auto observed = s6::detail::cuda_v3_transform_aos_to_soa_for_testing(
+                {aos.data(), static_cast<std::uint64_t>(shape.n),
+                 static_cast<std::uint64_t>(shape.d), aos.size()}, tile);
+            require(observed.size() == aos.size(), "V3 SoA transform size mismatch");
+            for (std::size_t j = 0; j < shape.d; ++j) {
+                for (std::size_t i = 0; i < shape.n; ++i) {
+                    require(bits(observed[j * shape.n + i]) ==
+                                bits(aos[i * shape.d + j]),
+                            "V3 AoS-to-SoA bit mapping mismatch");
+                }
+            }
+        }
+        for (std::size_t index = 0; index < aos.size(); ++index) {
+            require(bits(aos[index]) == bits(original[index]),
+                    "V3 AoS input was modified by transpose");
+        }
+    }
+    evidence << "transpose_mapping=passed bit_preservation=passed"
+                " input_immutability=passed tile_candidates=3 shapes=15\n";
+}
+
+void test_s8_production_selectors(std::ofstream& evidence) {
+    constexpr std::uint64_t n = 129U;
+    constexpr std::uint64_t d = 33U;
+    std::vector<float> dataset(static_cast<std::size_t>(n * d));
+    std::vector<float> query(static_cast<std::size_t>(d));
+    for (std::uint64_t j = 0; j < d; ++j) {
+        query[static_cast<std::size_t>(j)] = static_cast<float>(j % 11U) / 16.0F;
+    }
+    for (std::uint64_t i = 0; i < n; ++i) {
+        for (std::uint64_t j = 0; j < d; ++j) {
+            dataset[static_cast<std::size_t>(i * d + j)] =
+                static_cast<float>((i * 17U + j * 13U) % 257U) / 64.0F;
+        }
+    }
+    const s6::DatasetView dataset_view{dataset.data(), n, d, dataset.size()};
+    const s6::QueryView query_view{query.data(), d, query.size()};
+    const auto expected = s6::cpu_search_float32(dataset_view, query_view);
+    require(expected.result.has_value(), "S8 V3 CPU reference failed");
+    const std::array<s6::detail::S8TransposeImplementation, 4> implementations = {{
+        s6::detail::S8TransposeImplementation::original,
+        s6::detail::S8TransposeImplementation::tile_32x32,
+        s6::detail::S8TransposeImplementation::tile_64x32,
+        s6::detail::S8TransposeImplementation::tile_64x64}};
+    const s6::CudaV3Options options{0, nullptr, 256U};
+    for (const auto implementation : implementations) {
+        const auto outcome = s6::detail::cuda_v3_search_float32_evidenced_for_s8_testing(
+            dataset_view, query_view, implementation, options);
+        require(outcome.production.result.has_value() &&
+                    outcome.production.result->index == expected.result->index &&
+                    bits(outcome.production.result->squared_distance) ==
+                        bits(expected.result->squared_distance) &&
+                    outcome.evidence.mapping_status == s6::EvidenceStatus::passed &&
+                    outcome.evidence.overwrite_status == s6::EvidenceStatus::passed,
+                "S8 V3 production selector correctness failed");
+    }
+    const auto public_default = s6::cuda_v3_search_float32(
+        dataset_view, query_view, options);
+    const auto selected_default = s6::detail::cuda_v3_search_float32_for_s8_benchmark(
+        dataset_view, query_view,
+        s6::detail::S8TransposeImplementation::tile_32x32, options);
+    require(public_default.result.has_value() && selected_default.result.has_value() &&
+                public_default.result->index == selected_default.result->index &&
+                bits(public_default.result->squared_distance) ==
+                    bits(selected_default.result->squared_distance),
+            "S8 V3 public default changed");
+    evidence << "s8_production_selectors=passed implementations=4"
+                " public_default=32x32\n";
+}
+
 void test_device_abi_and_layout(std::ofstream& evidence) {
     const auto device = s6::inspect_cuda_v3_device();
     require(device.status == s6::EvidenceStatus::passed &&
@@ -107,14 +199,6 @@ void test_device_abi_and_layout(std::ofstream& evidence) {
                 abi.device_distance_offset == 0U && abi.device_flags_offset == 4U &&
                 abi.device_index_offset == 8U,
             "CUDA V3 reduction-record ABI failed");
-    const std::vector<float> aos = {1.0F, -0.0F, 2.0F, +0.0F, 3.0F, 4.0F};
-    const auto soa = s6::detail::cuda_v3_transform_aos_to_soa_for_testing(
-        {aos.data(), 3U, 2U, aos.size()});
-    const std::vector<float> expected = {1.0F, 2.0F, 3.0F, -0.0F, +0.0F, 4.0F};
-    require(soa.size() == expected.size(), "V2 SoA transform size mismatch");
-    for (std::size_t i = 0; i < soa.size(); ++i) {
-        require(bits(soa[i]) == bits(expected[i]), "V2 SoA bit mapping failed");
-    }
     evidence << "device=passed name=" << device.name << " uuid=" << device.uuid
              << " compute=" << device.compute_major << '.' << device.compute_minor
              << " memory_bytes=" << device.total_global_memory
@@ -124,8 +208,7 @@ void test_device_abi_and_layout(std::ofstream& evidence) {
              << " driver_version=" << device.driver_version
              << " runtime_version=" << device.runtime_version << '\n'
              << "abi=passed host_size=16 host_alignment=16 device_size=16"
-                " device_alignment=16 offsets=0,4,8\n"
-             << "transpose_mapping=passed bit_preservation=passed\n";
+                " device_alignment=16 offsets=0,4,8\n";
 }
 
 void test_block_candidates_and_hierarchy(std::ofstream& evidence) {
@@ -437,6 +520,8 @@ int main(int argc, char** argv) {
                  << "source_manifest_sha256="
                  << s6::build_identity::kSourceManifestSha256 << '\n';
         test_device_abi_and_layout(evidence);
+        test_transpose_mapping(evidence);
+        test_s8_production_selectors(evidence);
         test_block_candidates_and_hierarchy(evidence);
         test_logical_warp_tails(evidence);
         test_boundary_and_zero_fixtures(evidence);

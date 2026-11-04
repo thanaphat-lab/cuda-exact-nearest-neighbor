@@ -1,0 +1,330 @@
+Start testing: Nov 04 12:38 SE Asia Standard Time
+----------------------------------------------------------
+1/19 Testing: s6.cpu.fixtures
+1/19 Test: s6.cpu.fixtures
+Command: "D:/ku/Parallel Project/build-s8-g4-clean-9586770/s6_cpu_tests.exe" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/s6_cpu_tests.manifest.txt" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/s6_cpu_fixtures.status.txt"
+Directory: D:/ku/Parallel Project/build-s8-g4-clean-9586770
+"s6.cpu.fixtures" start time: Nov 04 12:38 SE Asia Standard Time
+Output:
+----------------------------------------------------------
+arithmetic-environment RNE=1 FTZ-disabled=1 DAZ-disabled=1 fused-FMA=1 sequential-order=1 f64-fused-FMA=1 f64-sequential-order=1
+policies S6-NUM-GRAPH-v1.0 S6-NUM-ENV-v1.0 S6-UD001-DIST-BOUND-v1.0 S6-UD002-RANK-INTERVAL-v1.0 S6-UD003-QCA-v1.0
+S6 CPU fixture tests: PASS
+<end of output>
+Test time =   0.64 sec
+----------------------------------------------------------
+Test Passed.
+"s6.cpu.fixtures" end time: Nov 04 12:38 SE Asia Standard Time
+"s6.cpu.fixtures" time elapsed: 00:00:00
+----------------------------------------------------------
+
+2/19 Testing: s6.cpu.evidence
+2/19 Test: s6.cpu.evidence
+Command: "D:/ku/Parallel Project/build-s8-g4-clean-9586770/s6_cpu_evidence_tests.exe" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/s6_cpu_evidence_tests.manifest.txt"
+Directory: D:/ku/Parallel Project/build-s8-g4-clean-9586770
+"s6.cpu.evidence" start time: Nov 04 12:38 SE Asia Standard Time
+Output:
+----------------------------------------------------------
+S6 CPU evidence tests: PASS identity=958677033f48d3d6543c03ed36dfd5cb10e16c59|clean|s6_cpu_evidence_tests|exe=a6def6cec37930f4031aadc82721ba8ceb4ae4736c2d208d15a09564488fe31c|obj=1405fadc1af18b19b889af270e3a344648787003005806a29c9114ef88d5ad02|compiler=19.51.36248.0
+<end of output>
+Test time =   2.68 sec
+----------------------------------------------------------
+Test Passed.
+"s6.cpu.evidence" end time: Nov 04 12:38 SE Asia Standard Time
+"s6.cpu.evidence" time elapsed: 00:00:02
+----------------------------------------------------------
+
+3/19 Testing: s6.cpu.source_identity
+3/19 Test: s6.cpu.source_identity
+Command: "C:/Program Files/Microsoft Visual Studio/18/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe" "-DS6_IDENTITY_FILE=D:/ku/Parallel Project/build-s8-g4-clean-9586770/generated/s6/source_identity.txt" "-DS6_SOURCE_ROOT=D:/ku/Parallel Project" "-DS6_GIT=C:/Program Files/Git/cmd/git.exe" "-DS6_OUTPUT_ROOT=D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/identity-negative" "-P" "D:/ku/Parallel Project/cmake/SourceIdentityTests.cmake"
+Directory: D:/ku/Parallel Project/build-s8-g4-clean-9586770
+"s6.cpu.source_identity" start time: Nov 04 12:38 SE Asia Standard Time
+Output:
+----------------------------------------------------------
+-- S6 source identity negative tests: PASS
+<end of output>
+Test time =   0.51 sec
+----------------------------------------------------------
+Test Passed.
+"s6.cpu.source_identity" end time: Nov 04 12:38 SE Asia Standard Time
+"s6.cpu.source_identity" time elapsed: 00:00:00
+----------------------------------------------------------
+
+4/19 Testing: s6.cpu.required_matrix
+4/19 Test: s6.cpu.required_matrix
+Command: "D:/ku/Parallel Project/build-s8-g4-clean-9586770/s6_cpu_matrix_tests.exe" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/s6_cpu_matrix_tests.manifest.txt" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/s6_cpu_fixtures.status.txt" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/matrix-report"
+Directory: D:/ku/Parallel Project/build-s8-g4-clean-9586770
+"s6.cpu.required_matrix" start time: Nov 04 12:38 SE Asia Standard Time
+Output:
+----------------------------------------------------------
+matrix N=1024 D=8 seed=7640891576956012809 invocation=completed result_index=512 result_distance=0 independent_f32_index=512 independent_f32_distance=0 f64_index=512 ud001=passed ud002=passed graph=passed coverage=passed workload_sha256=c219d16324d333d50a7dc8334ff8e771e56485104c2c353a48c8a36afbc4c12c evidence_identity=958677033f48d3d6543c03ed36dfd5cb10e16c59|clean|s6_cpu_matrix_tests|exe=ada4da0ec41c52f9b53129b63b23b37a31978cd570974221a80b4143db48ddde|obj=1405fadc1af18b19b889af270e3a344648787003005806a29c9114ef88d5ad02|compiler=19.51.36248.0 report_bytes=127000 report_sha256=f66abb94a5b992398c95d667af2099da5b784e9bfc348116c9f37515d9d94eeb verdict=accepted-unambiguous
+matrix N=1024 D=32 seed=7640891576956012809 invocation=completed result_index=512 result_distance=0 independent_f32_index=512 independent_f32_distance=0 f64_index=512 ud001=passed ud002=passed graph=passed coverage=passed workload_sha256=78b7b5ed0678dcc25ea4572727014e4cda6472842622694d00697d4156a1c7b4 evidence_identity=958677033f48d3d6543c03ed36dfd5cb10e16c59|clean|s6_cpu_matrix_tests|exe=ada4da0ec41c52f9b53129b63b23b37a31978cd570974221a80b4143db48ddde|obj=1405fadc1af18b19b889af270e3a344648787003005806a29c9114ef88d5ad02|compiler=19.51.36248.0 report_bytes=127000 report_sha256=d8bb1f19c9f4e2311d4ada204afc1f3202d1432441876a986b27df346b02c0a6 verdict=accepted-unambiguous
+matrix N=1024 D=128 seed=7640891576956012809 invocation=completed result_index=512 result_distance=0 independent_f32_index=512 independent_f32_distance=0 f64_index=512 ud001=passed ud002=passed graph=passed coverage=passed workload_sha256=0984e3a1c66ba0f25f2132772f446fa8f041942c28251d9eaba501ba996df679 evidence_identity=958677033f48d3d6543c03ed36dfd5cb10e16c59|clean|s6_cpu_matrix_tests|exe=ada4da0ec41c52f9b53129b63b23b37a31978cd570974221a80b4143db48ddde|obj=1405fadc1af18b19b889af270e3a344648787003005806a29c9114ef88d5ad02|compiler=19.51.36248.0 report_bytes=127000 report_sha256=f3853ba9946febc9e8aebaf99c9133c748cf8269f59c8303df26b97776e30202 verdict=accepted-unambiguous
+matrix N=16384 D=8 seed=7640891576956012809 invocation=completed result_index=8192 result_distance=0 independent_f32_index=8192 independent_f32_distance=0 f64_index=8192 ud001=passed ud002=passed graph=passed coverage=passed workload_sha256=46b7b79879ff4f7e29af4055e55ef006fb52df2903ee34f7e334a837a4532da9 evidence_identity=958677033f48d3d6543c03ed36dfd5cb10e16c59|clean|s6_cpu_matrix_tests|exe=ada4da0ec41c52f9b53129b63b23b37a31978cd570974221a80b4143db48ddde|obj=1405fadc1af18b19b889af270e3a344648787003005806a29c9114ef88d5ad02|compiler=19.51.36248.0 report_bytes=2031640 report_sha256=ca79f90bfe1122ca000ffb02937834f0b8183498bba18e96dc5b7252d61107b7 verdict=accepted-unambiguous
+matrix N=16384 D=32 seed=7640891576956012809 invocation=completed result_index=8192 result_distance=0 independent_f32_index=8192 independent_f32_distance=0 f64_index=8192 ud001=passed ud002=passed graph=passed coverage=passed workload_sha256=ece45e5b6430a5a88fead73be65c86d8a1101cc5f646aa5b54e2cd50320ee8ba evidence_identity=958677033f48d3d6543c03ed36dfd5cb10e16c59|clean|s6_cpu_matrix_tests|exe=ada4da0ec41c52f9b53129b63b23b37a31978cd570974221a80b4143db48ddde|obj=1405fadc1af18b19b889af270e3a344648787003005806a29c9114ef88d5ad02|compiler=19.51.36248.0 report_bytes=2031640 report_sha256=b635322764edb67b7c4b22f145cd7dbaf603e6865047769a28f62f243a649a0a verdict=accepted-unambiguous
+matrix N=16384 D=128 seed=7640891576956012809 invocation=completed result_index=8192 result_distance=0 independent_f32_index=8192 independent_f32_distance=0 f64_index=8192 ud001=passed ud002=passed graph=passed coverage=passed workload_sha256=a2f4286302ec281284fbdd9438b9d4310979ea51d3e1831426ee6548bdaaa386 evidence_identity=958677033f48d3d6543c03ed36dfd5cb10e16c59|clean|s6_cpu_matrix_tests|exe=ada4da0ec41c52f9b53129b63b23b37a31978cd570974221a80b4143db48ddde|obj=1405fadc1af18b19b889af270e3a344648787003005806a29c9114ef88d5ad02|compiler=19.51.36248.0 report_bytes=2031640 report_sha256=6d1157afec05587e9ae7d8a1396700b8d916e0d02291e9b1233c16c9f2ebf825 verdict=accepted-unambiguous
+matrix N=262144 D=8 seed=7640891576956012809 invocation=completed result_index=131072 result_distance=0 independent_f32_index=131072 independent_f32_distance=0 f64_index=131072 ud001=passed ud002=passed graph=passed coverage=passed workload_sha256=684e9b4dbeeb53cfd67806d6b13438fc3a31a8298ef20f65e72ad208d8233920 evidence_identity=958677033f48d3d6543c03ed36dfd5cb10e16c59|clean|s6_cpu_matrix_tests|exe=ada4da0ec41c52f9b53129b63b23b37a31978cd570974221a80b4143db48ddde|obj=1405fadc1af18b19b889af270e3a344648787003005806a29c9114ef88d5ad02|compiler=19.51.36248.0 report_bytes=32505880 report_sha256=6804258e1017b3bc9782a7bd6927741ae5a4462b19b3a3b7efca081a7f76b9d6 verdict=accepted-unambiguous
+matrix N=262144 D=32 seed=7640891576956012809 invocation=completed result_index=131072 result_distance=0 independent_f32_index=131072 independent_f32_distance=0 f64_index=131072 ud001=passed ud002=passed graph=passed coverage=passed workload_sha256=a71ce2bd89556e19b72fff52be0e594de586c980176edfc06ebcc72fc7c2f30f evidence_identity=958677033f48d3d6543c03ed36dfd5cb10e16c59|clean|s6_cpu_matrix_tests|exe=ada4da0ec41c52f9b53129b63b23b37a31978cd570974221a80b4143db48ddde|obj=1405fadc1af18b19b889af270e3a344648787003005806a29c9114ef88d5ad02|compiler=19.51.36248.0 report_bytes=32505880 report_sha256=a61c55407333dd11c694de32fb1956a5ae515a1ecc31464578ebd35c4e553af3 verdict=accepted-unambiguous
+matrix N=262144 D=128 seed=7640891576956012809 invocation=completed result_index=131072 result_distance=0 independent_f32_index=131072 independent_f32_distance=0 f64_index=131072 ud001=passed ud002=passed graph=passed coverage=passed workload_sha256=9a8cb80977079a272a10d01caf02a898a229d1bed31dab126dbbc50935749118 evidence_identity=958677033f48d3d6543c03ed36dfd5cb10e16c59|clean|s6_cpu_matrix_tests|exe=ada4da0ec41c52f9b53129b63b23b37a31978cd570974221a80b4143db48ddde|obj=1405fadc1af18b19b889af270e3a344648787003005806a29c9114ef88d5ad02|compiler=19.51.36248.0 report_bytes=32505880 report_sha256=4598613f1c20633dbdcb5c09949376cb79ef57a2992db6e3ae98e6fcca1bbcc4 verdict=accepted-unambiguous
+matrix N=1048576 D=8 seed=7640891576956012809 invocation=completed result_index=524288 result_distance=0 independent_f32_index=524288 independent_f32_distance=0 f64_index=524288 ud001=passed ud002=passed graph=passed coverage=passed workload_sha256=2748168f3099240ddb7c45722f75428c71d448ee2d46158be5d5ff32c1a528e7 evidence_identity=958677033f48d3d6543c03ed36dfd5cb10e16c59|clean|s6_cpu_matrix_tests|exe=ada4da0ec41c52f9b53129b63b23b37a31978cd570974221a80b4143db48ddde|obj=1405fadc1af18b19b889af270e3a344648787003005806a29c9114ef88d5ad02|compiler=19.51.36248.0 report_bytes=130023448 report_sha256=3dbef9a69407cbad1a7bcb9705aad333ed79d26f10ac252c319a56e38ec8701a verdict=accepted-unambiguous
+matrix N=1048576 D=32 seed=7640891576956012809 invocation=completed result_index=524288 result_distance=0 independent_f32_index=524288 independent_f32_distance=0 f64_index=524288 ud001=passed ud002=passed graph=passed coverage=passed workload_sha256=282dd7d52e1d7cbb4ed980235eb21d7d99223db213ff9383864ef14c4b977f3c evidence_identity=958677033f48d3d6543c03ed36dfd5cb10e16c59|clean|s6_cpu_matrix_tests|exe=ada4da0ec41c52f9b53129b63b23b37a31978cd570974221a80b4143db48ddde|obj=1405fadc1af18b19b889af270e3a344648787003005806a29c9114ef88d5ad02|compiler=19.51.36248.0 report_bytes=130023448 report_sha256=1da11d815948bfe576c1f6c41e317e49c6da9e7b44f68a6a39ef85e79c63efc6 verdict=accepted-unambiguous
+matrix N=1048576 D=128 seed=7640891576956012809 invocation=completed result_index=524288 result_distance=0 independent_f32_index=524288 independent_f32_distance=0 f64_index=524288 ud001=passed ud002=passed graph=passed coverage=passed workload_sha256=166595bc3584ecbccb02273c27dfd63a858db77f60bd93d76bc8100db2d4c377 evidence_identity=958677033f48d3d6543c03ed36dfd5cb10e16c59|clean|s6_cpu_matrix_tests|exe=ada4da0ec41c52f9b53129b63b23b37a31978cd570974221a80b4143db48ddde|obj=1405fadc1af18b19b889af270e3a344648787003005806a29c9114ef88d5ad02|compiler=19.51.36248.0 report_bytes=130023448 report_sha256=1291db4b55364338187aae93446a87df32b982249ab086ab8adcf7d48f011e94 verdict=accepted-unambiguous
+S6 CPU required 12-case matrix: PASS
+<end of output>
+Test time =  12.51 sec
+----------------------------------------------------------
+Test Passed.
+"s6.cpu.required_matrix" end time: Nov 04 12:38 SE Asia Standard Time
+"s6.cpu.required_matrix" time elapsed: 00:00:12
+----------------------------------------------------------
+
+5/19 Testing: s7.cuda_v0.functional
+5/19 Test: s7.cuda_v0.functional
+Command: "D:/ku/Parallel Project/build-s8-g4-clean-9586770/s7_cuda_v0_tests.exe" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/cuda-v0/functional.txt"
+Directory: D:/ku/Parallel Project/build-s8-g4-clean-9586770
+"s7.cuda_v0.functional" start time: Nov 04 12:38 SE Asia Standard Time
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.17 sec
+----------------------------------------------------------
+Test Passed.
+"s7.cuda_v0.functional" end time: Nov 04 12:38 SE Asia Standard Time
+"s7.cuda_v0.functional" time elapsed: 00:00:00
+----------------------------------------------------------
+
+6/19 Testing: s7.cuda_v0.required_matrix
+6/19 Test: s7.cuda_v0.required_matrix
+Command: "D:/ku/Parallel Project/build-s8-g4-clean-9586770/s7_cuda_v0_matrix_tests.exe" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/cuda-v0/matrix.txt" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/cuda-v0/matrix-report" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/cuda-v0/binary.manifest.txt" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/cuda-v0/functional.txt"
+Directory: D:/ku/Parallel Project/build-s8-g4-clean-9586770
+"s7.cuda_v0.required_matrix" start time: Nov 04 12:38 SE Asia Standard Time
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   8.53 sec
+----------------------------------------------------------
+Test Passed.
+"s7.cuda_v0.required_matrix" end time: Nov 04 12:38 SE Asia Standard Time
+"s7.cuda_v0.required_matrix" time elapsed: 00:00:08
+----------------------------------------------------------
+
+7/19 Testing: s7.cuda_v1.functional
+7/19 Test: s7.cuda_v1.functional
+Command: "D:/ku/Parallel Project/build-s8-g4-clean-9586770/s7_cuda_v1_tests.exe" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/cuda-v1/functional.txt"
+Directory: D:/ku/Parallel Project/build-s8-g4-clean-9586770
+"s7.cuda_v1.functional" start time: Nov 04 12:38 SE Asia Standard Time
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.16 sec
+----------------------------------------------------------
+Test Passed.
+"s7.cuda_v1.functional" end time: Nov 04 12:38 SE Asia Standard Time
+"s7.cuda_v1.functional" time elapsed: 00:00:00
+----------------------------------------------------------
+
+8/19 Testing: s7.cuda_v1.required_matrix
+8/19 Test: s7.cuda_v1.required_matrix
+Command: "D:/ku/Parallel Project/build-s8-g4-clean-9586770/s7_cuda_v1_matrix_tests.exe" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/cuda-v1/matrix.txt" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/cuda-v1/matrix-report" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/cuda-v1/binary.manifest.txt" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/cuda-v1/functional.txt"
+Directory: D:/ku/Parallel Project/build-s8-g4-clean-9586770
+"s7.cuda_v1.required_matrix" start time: Nov 04 12:38 SE Asia Standard Time
+Output:
+----------------------------------------------------------
+CUDA V1 matrix N=1024 D=8: PASS
+CUDA V1 matrix N=1024 D=32: PASS
+CUDA V1 matrix N=1024 D=128: PASS
+CUDA V1 matrix N=16384 D=8: PASS
+CUDA V1 matrix N=16384 D=32: PASS
+CUDA V1 matrix N=16384 D=128: PASS
+CUDA V1 matrix N=262144 D=8: PASS
+CUDA V1 matrix N=262144 D=32: PASS
+CUDA V1 matrix N=262144 D=128: PASS
+CUDA V1 matrix N=1048576 D=8: PASS
+CUDA V1 matrix N=1048576 D=32: PASS
+CUDA V1 matrix N=1048576 D=128: PASS
+S7 CUDA V1 required 12-case matrix: PASS
+<end of output>
+Test time =  12.05 sec
+----------------------------------------------------------
+Test Passed.
+"s7.cuda_v1.required_matrix" end time: Nov 04 12:39 SE Asia Standard Time
+"s7.cuda_v1.required_matrix" time elapsed: 00:00:12
+----------------------------------------------------------
+
+9/19 Testing: s7.cuda_v2.functional
+9/19 Test: s7.cuda_v2.functional
+Command: "D:/ku/Parallel Project/build-s8-g4-clean-9586770/s7_cuda_v2_tests.exe" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/cuda-v2/functional.txt"
+Directory: D:/ku/Parallel Project/build-s8-g4-clean-9586770
+"s7.cuda_v2.functional" start time: Nov 04 12:39 SE Asia Standard Time
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.42 sec
+----------------------------------------------------------
+Test Passed.
+"s7.cuda_v2.functional" end time: Nov 04 12:39 SE Asia Standard Time
+"s7.cuda_v2.functional" time elapsed: 00:00:00
+----------------------------------------------------------
+
+10/19 Testing: s7.cuda_v2.required_matrix
+10/19 Test: s7.cuda_v2.required_matrix
+Command: "D:/ku/Parallel Project/build-s8-g4-clean-9586770/s7_cuda_v2_matrix_tests.exe" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/cuda-v2/matrix.txt" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/cuda-v2/matrix-report" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/cuda-v2/binary.manifest.txt" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/cuda-v2/functional.txt"
+Directory: D:/ku/Parallel Project/build-s8-g4-clean-9586770
+"s7.cuda_v2.required_matrix" start time: Nov 04 12:39 SE Asia Standard Time
+Output:
+----------------------------------------------------------
+CUDA V2 matrix N=1024 D=8: PASS
+CUDA V2 matrix N=1024 D=32: PASS
+CUDA V2 matrix N=1024 D=128: PASS
+CUDA V2 matrix N=16384 D=8: PASS
+CUDA V2 matrix N=16384 D=32: PASS
+CUDA V2 matrix N=16384 D=128: PASS
+CUDA V2 matrix N=262144 D=8: PASS
+CUDA V2 matrix N=262144 D=32: PASS
+CUDA V2 matrix N=262144 D=128: PASS
+CUDA V2 matrix N=1048576 D=8: PASS
+CUDA V2 matrix N=1048576 D=32: PASS
+CUDA V2 matrix N=1048576 D=128: PASS
+S7 CUDA V2 required 12-case matrix: PASS
+<end of output>
+Test time =  10.58 sec
+----------------------------------------------------------
+Test Passed.
+"s7.cuda_v2.required_matrix" end time: Nov 04 12:39 SE Asia Standard Time
+"s7.cuda_v2.required_matrix" time elapsed: 00:00:10
+----------------------------------------------------------
+
+11/19 Testing: s7.cuda_v3.functional
+11/19 Test: s7.cuda_v3.functional
+Command: "D:/ku/Parallel Project/build-s8-g4-clean-9586770/s7_cuda_v3_tests.exe" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/cuda-v3/functional.txt"
+Directory: D:/ku/Parallel Project/build-s8-g4-clean-9586770
+"s7.cuda_v3.functional" start time: Nov 04 12:39 SE Asia Standard Time
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.51 sec
+----------------------------------------------------------
+Test Passed.
+"s7.cuda_v3.functional" end time: Nov 04 12:39 SE Asia Standard Time
+"s7.cuda_v3.functional" time elapsed: 00:00:00
+----------------------------------------------------------
+
+12/19 Testing: s7.cuda_v3.required_matrix
+12/19 Test: s7.cuda_v3.required_matrix
+Command: "D:/ku/Parallel Project/build-s8-g4-clean-9586770/s7_cuda_v3_matrix_tests.exe" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/cuda-v3/matrix.txt" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/cuda-v3/matrix-report" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/cuda-v3/binary.manifest.txt" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/cuda-v3/functional.txt"
+Directory: D:/ku/Parallel Project/build-s8-g4-clean-9586770
+"s7.cuda_v3.required_matrix" start time: Nov 04 12:39 SE Asia Standard Time
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =  18.77 sec
+----------------------------------------------------------
+Test Passed.
+"s7.cuda_v3.required_matrix" end time: Nov 04 12:39 SE Asia Standard Time
+"s7.cuda_v3.required_matrix" time elapsed: 00:00:18
+----------------------------------------------------------
+
+13/19 Testing: s8.benchmark.integrity
+13/19 Test: s8.benchmark.integrity
+Command: "D:/ku/Parallel Project/build-s8-g4-clean-9586770/s8_benchmark.exe" "--self-test" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/s8-benchmark-integrity"
+Directory: D:/ku/Parallel Project/build-s8-g4-clean-9586770
+"s8.benchmark.integrity" start time: Nov 04 12:39 SE Asia Standard Time
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.38 sec
+----------------------------------------------------------
+Test Passed.
+"s8.benchmark.integrity" end time: Nov 04 12:39 SE Asia Standard Time
+"s8.benchmark.integrity" time elapsed: 00:00:00
+----------------------------------------------------------
+
+14/19 Testing: s8.analysis.integrity
+14/19 Test: s8.analysis.integrity
+Command: "C:/Program Files/nodejs/node.exe" "D:/ku/Parallel Project/scripts/analyze-s8-benchmarks.mjs" "--self-test"
+Directory: D:/ku/Parallel Project/build-s8-g4-clean-9586770
+"s8.analysis.integrity" start time: Nov 04 12:39 SE Asia Standard Time
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.07 sec
+----------------------------------------------------------
+Test Passed.
+"s8.analysis.integrity" end time: Nov 04 12:39 SE Asia Standard Time
+"s8.analysis.integrity" time elapsed: 00:00:00
+----------------------------------------------------------
+
+15/19 Testing: s7.benchmark.integrity
+15/19 Test: s7.benchmark.integrity
+Command: "D:/ku/Parallel Project/build-s8-g4-clean-9586770/s7_benchmark.exe" "--self-test" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/s7-benchmark-integrity"
+Directory: D:/ku/Parallel Project/build-s8-g4-clean-9586770
+"s7.benchmark.integrity" start time: Nov 04 12:39 SE Asia Standard Time
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.63 sec
+----------------------------------------------------------
+Test Passed.
+"s7.benchmark.integrity" end time: Nov 04 12:39 SE Asia Standard Time
+"s7.benchmark.integrity" time elapsed: 00:00:00
+----------------------------------------------------------
+
+17/19 Testing: s7.benchmark.acceptance_negative
+17/19 Test: s7.benchmark.acceptance_negative
+Command: "C:/Program Files/nodejs/node.exe" "D:/ku/Parallel Project/scripts/analyze-s7-benchmarks.mjs" "--self-test" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/s7-benchmark-integrity/negative-tests"
+Directory: D:/ku/Parallel Project/build-s8-g4-clean-9586770
+"s7.benchmark.acceptance_negative" start time: Nov 04 12:39 SE Asia Standard Time
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.06 sec
+----------------------------------------------------------
+Test Passed.
+"s7.benchmark.acceptance_negative" end time: Nov 04 12:39 SE Asia Standard Time
+"s7.benchmark.acceptance_negative" time elapsed: 00:00:00
+----------------------------------------------------------
+
+18/19 Testing: s7.cuda_v2.frozen_matrix
+18/19 Test: s7.cuda_v2.frozen_matrix
+Command: "D:/ku/Parallel Project/build-s8-g4-clean-9586770/s7_cuda_v2_matrix_tests.exe" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/s7-benchmark-integrity/cuda-v2-frozen-matrix.txt" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/s7-benchmark-integrity/cuda-v2-frozen-reports" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/cuda-v2/binary.manifest.txt" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/cuda-v2/functional.txt" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/s7-benchmark-integrity/tuning-freeze.csv"
+Directory: D:/ku/Parallel Project/build-s8-g4-clean-9586770
+"s7.cuda_v2.frozen_matrix" start time: Nov 04 12:39 SE Asia Standard Time
+Output:
+----------------------------------------------------------
+CUDA V2 matrix N=1024 D=8: PASS
+CUDA V2 matrix N=1024 D=32: PASS
+CUDA V2 matrix N=1024 D=128: PASS
+CUDA V2 matrix N=16384 D=8: PASS
+CUDA V2 matrix N=16384 D=32: PASS
+CUDA V2 matrix N=16384 D=128: PASS
+CUDA V2 matrix N=262144 D=8: PASS
+CUDA V2 matrix N=262144 D=32: PASS
+CUDA V2 matrix N=262144 D=128: PASS
+CUDA V2 matrix N=1048576 D=8: PASS
+CUDA V2 matrix N=1048576 D=32: PASS
+CUDA V2 matrix N=1048576 D=128: PASS
+S7 CUDA V2 required 12-case matrix: PASS
+<end of output>
+Test time =  13.45 sec
+----------------------------------------------------------
+Test Passed.
+"s7.cuda_v2.frozen_matrix" end time: Nov 04 12:39 SE Asia Standard Time
+"s7.cuda_v2.frozen_matrix" time elapsed: 00:00:13
+----------------------------------------------------------
+
+19/19 Testing: s7.cuda_v3.frozen_matrix
+19/19 Test: s7.cuda_v3.frozen_matrix
+Command: "D:/ku/Parallel Project/build-s8-g4-clean-9586770/s7_cuda_v3_matrix_tests.exe" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/s7-benchmark-integrity/cuda-v3-frozen-matrix.txt" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/s7-benchmark-integrity/cuda-v3-frozen-reports" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/cuda-v3/binary.manifest.txt" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/cuda-v3/functional.txt" "D:/ku/Parallel Project/build-s8-g4-clean-9586770/evidence/s7-benchmark-integrity/tuning-freeze.csv"
+Directory: D:/ku/Parallel Project/build-s8-g4-clean-9586770
+"s7.cuda_v3.frozen_matrix" start time: Nov 04 12:39 SE Asia Standard Time
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =  15.85 sec
+----------------------------------------------------------
+Test Passed.
+"s7.cuda_v3.frozen_matrix" end time: Nov 04 12:40 SE Asia Standard Time
+"s7.cuda_v3.frozen_matrix" time elapsed: 00:00:15
+----------------------------------------------------------
+
+End testing: Nov 04 12:40 SE Asia Standard Time

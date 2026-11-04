@@ -1,0 +1,8 @@
+schema=S6-CPU-FIXTURE-EVIDENCE-v1.0
+source_identity=958677033f48d3d6543c03ed36dfd5cb10e16c59|clean|e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855|5989cb2974e5a8cc57cee602897e8064673582d8c20c923696bd68fb35371eeb
+build_identity=958677033f48d3d6543c03ed36dfd5cb10e16c59|clean|s6_cpu_tests|exe=c41421a41f3ce18e647bdd66bcad50c8274b5505ad536866805ade8ee4eda55a|obj=1405fadc1af18b19b889af270e3a344648787003005806a29c9114ef88d5ad02|compiler=19.51.36248.0
+fixture_status=passed
+oracle_status=passed
+tie_status=passed
+reduction_status=passed
+fixture_ids=EC-001..EC-017|exact-dyadic-v1|cpu-lexicographic-tie-v1

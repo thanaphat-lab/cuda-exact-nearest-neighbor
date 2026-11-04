@@ -71,6 +71,12 @@ std::size_t cuda_v1_final_record_alignment() noexcept;
 
 namespace detail {
 
+enum class CudaV1TransposeTileCandidate {
+    tile_32x32,
+    tile_64x32,
+    tile_64x64,
+};
+
 enum class CudaV1InjectedFailure {
     none,
     resource_allocation,
@@ -98,6 +104,8 @@ CudaV1ReductionDiagnostics cuda_v1_reduce_diagnostics_for_testing(
     const std::vector<float>& distances, const CudaV1Options& options = {});
 
 std::vector<float> cuda_v1_transform_aos_to_soa_for_testing(DatasetView dataset);
+std::vector<float> cuda_v1_transform_aos_to_soa_for_testing(
+    DatasetView dataset, CudaV1TransposeTileCandidate tile);
 
 }  // namespace detail
 
