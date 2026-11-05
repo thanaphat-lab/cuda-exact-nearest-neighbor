@@ -46,6 +46,12 @@ compile_commands.json
 /artifacts/datasets/
 /artifacts/profiles/
 /profiles/raw/
+# Original public ANN dataset files remain external and are never redistributed.
+*.fvecs
+*.ivecs
+sift.tar.gz
+/data/sift1m/
+/datasets/sift1m/
 *.nsys-rep
 *.ncu-rep
 *.nvvp
