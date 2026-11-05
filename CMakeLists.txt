@@ -435,6 +435,7 @@ if(BUILD_TESTING)
     s6_add_cpu_evidence_artifacts(s6_cpu_tests)
     s6_add_cpu_evidence_artifacts(s6_cpu_matrix_tests)
     s6_add_cpu_evidence_artifacts(s6_cpu_evidence_tests)
+    s6_add_cpu_evidence_artifacts(s10_sift1m)
 
     set(S6_FIXTURE_EVIDENCE
         "${CMAKE_CURRENT_BINARY_DIR}/evidence/s6_cpu_fixtures.status.txt")

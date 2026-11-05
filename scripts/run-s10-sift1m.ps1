@@ -337,7 +337,7 @@ $arguments = @(
 )
 
 if ($Mode -eq 'Correctness') {
-    $cpuManifest = Join-Path $build 'evidence/s6_cpu_matrix_tests.manifest.txt'
+    $cpuManifest = Join-Path $build 'evidence/s10_sift1m.manifest.txt'
     $fixtureEvidence = Join-Path $build 'evidence/s6_cpu_fixtures.status.txt'
     $arguments += @('--cpu-manifest', $cpuManifest, '--fixture-evidence', $fixtureEvidence)
     foreach ($variant in 0..3) {
