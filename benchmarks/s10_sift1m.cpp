@@ -365,34 +365,103 @@ bool accepted(s6::NnVerdict verdict) {
            verdict == s6::NnVerdict::accepted_ambiguous;
 }
 
+constexpr std::string_view kCandidateDistancePendingV0V1 =
+    "mapping and poison-overwrite are production instrumentation; "
+    "independent distance comparison remains required";
+constexpr std::string_view kCandidateDistancePendingV2V3 =
+    "diagnostic per-candidate buffers are independent of production reduction";
+
+struct CudaCandidateEvidenceView {
+    s6::InvocationStatus invocation_status = s6::InvocationStatus::not_executed;
+    bool result_present = false;
+    s6::EvidenceStatus mapping_status = s6::EvidenceStatus::blocked;
+    s6::EvidenceStatus overwrite_status = s6::EvidenceStatus::blocked;
+    s6::EvidenceStatus candidate_distance_status = s6::EvidenceStatus::blocked;
+    std::string_view detail;
+    std::uint64_t expected_candidate_count = 0U;
+    std::uint64_t observed_mapping_count = 0U;
+    std::size_t candidate_distance_count = 0U;
+};
+
+bool candidate_distance_verification_pending(const CudaCandidateEvidenceView& evidence) {
+    return evidence.candidate_distance_status == s6::EvidenceStatus::blocked &&
+           (evidence.detail == kCandidateDistancePendingV0V1 ||
+            evidence.detail == kCandidateDistancePendingV2V3);
+}
+
+s6::EvidenceStatus production_candidate_evidence_status(
+    const CudaCandidateEvidenceView& evidence, std::uint64_t expected_count) {
+    if (evidence.invocation_status != s6::InvocationStatus::completed ||
+        !evidence.result_present || evidence.mapping_status == s6::EvidenceStatus::blocked ||
+        evidence.overwrite_status == s6::EvidenceStatus::blocked) {
+        return s6::EvidenceStatus::blocked;
+    }
+    if (evidence.mapping_status == s6::EvidenceStatus::failed ||
+        evidence.overwrite_status == s6::EvidenceStatus::failed ||
+        evidence.candidate_distance_status == s6::EvidenceStatus::failed ||
+        evidence.expected_candidate_count != expected_count ||
+        evidence.observed_mapping_count != expected_count ||
+        evidence.candidate_distance_count != static_cast<std::size_t>(expected_count)) {
+        return s6::EvidenceStatus::failed;
+    }
+    return candidate_distance_verification_pending(evidence)
+               ? s6::EvidenceStatus::passed
+               : s6::EvidenceStatus::blocked;
+}
+
+s6::EvidenceStatus independently_validate_candidate_distances(
+    const std::vector<float>& actual, const std::vector<float>& expected) {
+    if (actual.size() != expected.size()) return s6::EvidenceStatus::failed;
+    for (std::size_t index = 0U; index < actual.size(); ++index) {
+        if (float_bits(actual[index]) != float_bits(expected[index])) {
+            return s6::EvidenceStatus::failed;
+        }
+    }
+    return s6::EvidenceStatus::passed;
+}
+
+bool cuda_candidate_case_authorized(s6::EvidenceStatus production_evidence,
+                                    s6::EvidenceStatus production_output,
+                                    s6::EvidenceStatus independent_distances) {
+    return production_evidence == s6::EvidenceStatus::passed &&
+           production_output == s6::EvidenceStatus::passed &&
+           independent_distances == s6::EvidenceStatus::passed;
+}
+
 template <typename Evidenced>
 void validate_gpu_case(const Evidenced& gpu, const s6::ValidationReport& cpu_report,
                        std::uint64_t n) {
-    require(gpu.production.invocation_status == s6::InvocationStatus::completed &&
-                gpu.production.result,
-            "S10 CUDA production invocation failed");
-    require(gpu.evidence.mapping_status == s6::EvidenceStatus::passed &&
-                gpu.evidence.overwrite_status == s6::EvidenceStatus::passed &&
-                gpu.evidence.candidate_distance_status == s6::EvidenceStatus::passed &&
-                gpu.evidence.expected_candidate_count == n &&
-                gpu.evidence.observed_mapping_count == n &&
-                gpu.evidence.candidate_distances.size() == static_cast<std::size_t>(n),
-            "S10 CUDA production candidate evidence is incomplete");
+    const auto production_evidence = production_candidate_evidence_status(
+        {gpu.production.invocation_status, static_cast<bool>(gpu.production.result),
+         gpu.evidence.mapping_status, gpu.evidence.overwrite_status,
+         gpu.evidence.candidate_distance_status, gpu.evidence.detail,
+         gpu.evidence.expected_candidate_count, gpu.evidence.observed_mapping_count,
+         gpu.evidence.candidate_distances.size()},
+        n);
+    require(production_evidence == s6::EvidenceStatus::passed,
+            "S10 CUDA production candidate evidence is incomplete or unsupported");
     require(cpu_report.independently_computed_float32_argmin_index &&
                 cpu_report.independently_computed_float32_distances.size() ==
                     static_cast<std::size_t>(n),
             "S10 independent Float32 evidence is incomplete");
     const auto index = *cpu_report.independently_computed_float32_argmin_index;
-    require(gpu.production.result->index == index &&
+    const auto production_output =
+        gpu.production.result->index == index &&
                 float_bits(gpu.production.result->squared_distance) ==
                     float_bits(cpu_report.independently_computed_float32_distances[
-                        static_cast<std::size_t>(index)]),
+                        static_cast<std::size_t>(index)])
+            ? s6::EvidenceStatus::passed
+            : s6::EvidenceStatus::failed;
+    require(production_output == s6::EvidenceStatus::passed,
             "S10 CUDA production result differs from independent Float32 argmin");
-    for (std::size_t i = 0U; i < static_cast<std::size_t>(n); ++i) {
-        require(float_bits(gpu.evidence.candidate_distances[i]) ==
-                    float_bits(cpu_report.independently_computed_float32_distances[i]),
-                "S10 CUDA candidate differs from independent Float32 graph");
-    }
+    const auto independent_distances = independently_validate_candidate_distances(
+        gpu.evidence.candidate_distances,
+        cpu_report.independently_computed_float32_distances);
+    require(independent_distances == s6::EvidenceStatus::passed,
+            "S10 CUDA candidate differs from independent Float32 graph");
+    require(cuda_candidate_case_authorized(
+                production_evidence, production_output, independent_distances),
+            "S10 CUDA correctness authorization is incomplete");
 }
 
 void write_case(std::ofstream& output, std::uint64_t ordinal,
@@ -797,6 +866,101 @@ int self_test(const fs::path& output) {
         return false;
     };
     require(rejected_schema() && rejected_type(), "strict JSON schema/type negative tests failed");
+
+    CudaCandidateEvidenceView candidate_evidence{
+        s6::InvocationStatus::completed, true, s6::EvidenceStatus::passed,
+        s6::EvidenceStatus::passed, s6::EvidenceStatus::blocked,
+        kCandidateDistancePendingV0V1, 2U, 2U, 2U};
+    require(production_candidate_evidence_status(candidate_evidence, 2U) ==
+                s6::EvidenceStatus::passed,
+            "documented V0/V1 pending candidate verification was rejected");
+    candidate_evidence.detail = kCandidateDistancePendingV2V3;
+    require(production_candidate_evidence_status(candidate_evidence, 2U) ==
+                s6::EvidenceStatus::passed,
+            "documented V2/V3 pending candidate verification was rejected");
+
+    const std::vector<float> expected_distances = {1.0F, 2.0F};
+    const std::vector<float> matching_distances = {1.0F, 2.0F};
+    const std::vector<float> mismatched_distances = {1.0F, 3.0F};
+    const std::vector<float> incomplete_distances = {1.0F};
+    const auto matching_status = independently_validate_candidate_distances(
+        matching_distances, expected_distances);
+    require(cuda_candidate_case_authorized(s6::EvidenceStatus::passed,
+                                            s6::EvidenceStatus::passed,
+                                            matching_status),
+            "successful independent candidate verification did not authorize correctness");
+    const auto mismatched_status = independently_validate_candidate_distances(
+        mismatched_distances, expected_distances);
+    require(mismatched_status == s6::EvidenceStatus::failed &&
+                !cuda_candidate_case_authorized(s6::EvidenceStatus::passed,
+                                                s6::EvidenceStatus::passed,
+                                                mismatched_status),
+            "failed independent candidate verification authorized correctness");
+    require(independently_validate_candidate_distances(
+                incomplete_distances, expected_distances) == s6::EvidenceStatus::failed,
+            "incomplete independent candidate evidence authorized correctness");
+
+    candidate_evidence.detail = "unrecognized blocked candidate evidence";
+    require(production_candidate_evidence_status(candidate_evidence, 2U) ==
+                s6::EvidenceStatus::blocked,
+            "unsupported blocked candidate evidence bypassed the gate");
+    candidate_evidence.detail = kCandidateDistancePendingV0V1;
+    candidate_evidence.mapping_status = s6::EvidenceStatus::blocked;
+    require(production_candidate_evidence_status(candidate_evidence, 2U) ==
+                s6::EvidenceStatus::blocked,
+            "genuinely blocked production mapping evidence bypassed the gate");
+    candidate_evidence.mapping_status = s6::EvidenceStatus::failed;
+    require(production_candidate_evidence_status(candidate_evidence, 2U) ==
+                s6::EvidenceStatus::failed,
+            "failed production mapping evidence bypassed the gate");
+    candidate_evidence.mapping_status = s6::EvidenceStatus::passed;
+    candidate_evidence.overwrite_status = s6::EvidenceStatus::blocked;
+    require(production_candidate_evidence_status(candidate_evidence, 2U) ==
+                s6::EvidenceStatus::blocked,
+            "genuinely blocked overwrite evidence bypassed the gate");
+    candidate_evidence.overwrite_status = s6::EvidenceStatus::failed;
+    require(production_candidate_evidence_status(candidate_evidence, 2U) ==
+                s6::EvidenceStatus::failed,
+            "failed overwrite evidence bypassed the gate");
+    candidate_evidence.overwrite_status = s6::EvidenceStatus::passed;
+    candidate_evidence.invocation_status = s6::InvocationStatus::backend_failure;
+    require(production_candidate_evidence_status(candidate_evidence, 2U) ==
+                s6::EvidenceStatus::blocked,
+            "failed production invocation bypassed the gate");
+    candidate_evidence.invocation_status = s6::InvocationStatus::completed;
+    candidate_evidence.candidate_distance_status = s6::EvidenceStatus::failed;
+    require(production_candidate_evidence_status(candidate_evidence, 2U) ==
+                s6::EvidenceStatus::failed,
+            "failed candidate evidence bypassed the gate");
+    candidate_evidence.candidate_distance_status = s6::EvidenceStatus::passed;
+    require(production_candidate_evidence_status(candidate_evidence, 2U) ==
+                s6::EvidenceStatus::blocked,
+            "unsupported candidate evidence status bypassed the gate");
+    candidate_evidence.candidate_distance_status = s6::EvidenceStatus::blocked;
+    candidate_evidence.candidate_distance_count = 1U;
+    require(production_candidate_evidence_status(candidate_evidence, 2U) ==
+                s6::EvidenceStatus::failed,
+            "incomplete candidate coverage bypassed the gate");
+    candidate_evidence.candidate_distance_count = 2U;
+    candidate_evidence.observed_mapping_count = 1U;
+    require(production_candidate_evidence_status(candidate_evidence, 2U) ==
+                s6::EvidenceStatus::failed,
+            "incomplete observed mapping coverage bypassed the gate");
+    candidate_evidence.observed_mapping_count = 2U;
+    candidate_evidence.expected_candidate_count = 1U;
+    require(production_candidate_evidence_status(candidate_evidence, 2U) ==
+                s6::EvidenceStatus::failed,
+            "incorrect expected candidate coverage bypassed the gate");
+    candidate_evidence.expected_candidate_count = 2U;
+    candidate_evidence.result_present = false;
+    require(production_candidate_evidence_status(candidate_evidence, 2U) ==
+                s6::EvidenceStatus::blocked,
+            "missing production result bypassed the gate");
+    require(!cuda_candidate_case_authorized(s6::EvidenceStatus::passed,
+                                             s6::EvidenceStatus::failed,
+                                             s6::EvidenceStatus::passed),
+            "failed production reduction/output evidence authorized correctness");
+
     Options options;
     options.expected_revision = "r";
     options.config_sha256 = "c";
