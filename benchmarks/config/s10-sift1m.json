@@ -1,0 +1,57 @@
+{
+  "schema_version": "S10-SIFT1M-CONFIG-v1",
+  "experiment_id": "S10-SIFT1M-PUBLIC-DATASET-v1",
+  "design_gate": "S10-G2",
+  "workload": {
+    "class": "single-query-primary",
+    "dataset": "INRIA TexMex ANN_SIFT1M",
+    "homepage": "http://corpus-texmex.irisa.fr/",
+    "archive_url": "ftp://ftp.irisa.fr/local/texmex/corpus/sift.tar.gz",
+    "base_file": "sift_base.fvecs",
+    "query_file": "sift_query.fvecs",
+    "candidate_counts": [1024, 16384, 262144, 1000000],
+    "dimension": 128,
+    "query_ordinal": 0,
+    "query_validation": "all canonical query records must contain finite Float32 values",
+    "layout": "original-float32-aos",
+    "normalization": "none"
+  },
+  "variants": ["cpu-f32", "v0", "v1", "v2", "v3"],
+  "launch": {
+    "v0_threads_per_block": 256,
+    "v1_threads_per_block": 256,
+    "v2_threads_per_block": 256,
+    "v3_threads_per_block": 256,
+    "retuning": false
+  },
+  "correctness": {
+    "required_cases": 20,
+    "policy": "S6-UD003-QCA-v1.0",
+    "performance_requires": "strictly validated 20-case ledger bound to matching clean source, binary, numerical-build, configuration, and dataset SHA-256 identities",
+    "published_ground_truth": "supplementary-full-dataset-only-not-an-acceptance-oracle"
+  },
+  "sampling": {
+    "warmups": 10,
+    "measured_repetitions": 100,
+    "percentile_method": "linear_n_minus_1",
+    "uncertainty_method": "deterministic percentile bootstrap, 2000 resamples, 95% median interval",
+    "run_order": "deterministic rotation by iteration"
+  },
+  "timing_boundaries": {
+    "CPU-E2E-RAW": "wall time around the CPU Float32 production call on an already-loaded AoS prefix and query",
+    "BND-E2E-RAW": "wall time around the CUDA one-shot production API on an already-loaded host AoS prefix and query",
+    "BND-KERNEL": "CUDA events around the complete production kernel sequence"
+  },
+  "excluded_from_timing": [
+    "dataset download",
+    "file I/O",
+    "fvecs validation",
+    "SHA-256 capture",
+    "Float64 reference",
+    "correctness classification",
+    "logging and report generation"
+  ],
+  "fast_math": "disabled",
+  "acceptance": "measurement output is valid-unreviewed until environment and telemetry analysis emits accepted experiment evidence",
+  "historical_evidence_policy": "S7 and S8 evidence is immutable and not replaced by S10"
+}

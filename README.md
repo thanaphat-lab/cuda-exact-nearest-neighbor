@@ -78,7 +78,11 @@ This gives 12 workload sizes. Both experiments used distinct recorded seeds:
 
 Each reported configuration used 10 warm-ups followed by 100 retained measurements. Final measurements were not reused for tuning. The experiment packets record revision and tree state, configuration hashes, environment, commands, workload parameters, timing boundaries, samples or traceable summaries, and correctness prerequisites.
 
-**Submission gap:** a required external public dataset has not yet been demonstrated. The committed performance conclusions therefore apply only to the deterministic synthetic workloads above and must not be generalized to real-world data distributions.
+S10 additionally demonstrates the public INRIA TexMex ANN_SIFT1M dataset. Its results are exploratory and remain separate from the formally accepted S7 evidence; the S7/S8 conclusions above still apply only to their deterministic synthetic workloads.
+
+## S10 SIFT1M exploratory results
+
+The [S10 exploratory report](docs/experiments/S10-SIFT1M-Exploratory/ExploratoryResultsReport.md) records the external public-dataset provenance, 20/20 correctness gate, existing CPU/GPU Raw E2E and V0–V3 kernel-only medians, clean analyzer-fix verification, and limitations. Its explicit status is **EXPLORATORY / VALID-UNREVIEWED**: the performance benchmark was not rerun, no formal performance acceptance is claimed, and bulky measurements and dataset bytes remain outside Git.
 
 ## Timing boundaries
 
@@ -136,7 +140,7 @@ See the [S8 final report](docs/experiments/S8-TRANSPOSE-AB-20261104-01/FinalExpe
 
 ## Limitations and future improvements
 
-- Measurements cover deterministic synthetic, single-query workloads only; the required external public dataset remains pending.
+- S7/S8 measurements cover deterministic synthetic single-query workloads; S10 adds one exploratory SIFT1M query across four candidate prefixes, not a broader public-dataset acceptance campaign.
 - Results come from one Windows laptop environment and one RTX 3060 Laptop GPU. Hardware-specific block choices and performance are not universal constants.
 - Raw one-shot GPU calls repeatedly allocate, transpose, transfer, synchronize, and clean up. Future separately evaluated APIs could reuse prepared/device-resident datasets and persistent workspaces.
 - Batch-query evaluation is secondary and has not been reported. It may better amortize preprocessing and transfer costs, but requires separate correctness and performance evidence.
@@ -154,6 +158,7 @@ See the [S8 final report](docs/experiments/S8-TRANSPOSE-AB-20261104-01/FinalExpe
 - [S7 evidence index](docs/experiments/S7-ACCEPT-20261103-01/EVIDENCE_INDEX.md)
 - [S8 final experiment report](docs/experiments/S8-TRANSPOSE-AB-20261104-01/FinalExperimentReport.md)
 - [S8 evidence index](docs/experiments/S8-TRANSPOSE-AB-20261104-01/EVIDENCE_INDEX.md)
+- [S10 SIFT1M exploratory report](docs/experiments/S10-SIFT1M-Exploratory/ExploratoryResultsReport.md)
 - [Canonical project specification](docs/specifications/FinalProjectSpecification-v1.0.md)
 - [Approved numerical policy](docs/specifications/S6-CONSOLIDATED-NUMERICAL-POLICY-v1.0.md)
 - [Approved implementation design](docs/design/S6ApprovedImplementationDesign-v1.0.md)
