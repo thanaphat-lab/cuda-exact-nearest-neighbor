@@ -192,15 +192,15 @@ function integer(row, field) {
   if (!Number.isSafeInteger(value)) fail(`invalid ${field}`);
   return value;
 }
-function expectedRows() {
+function expectedRows(warmups, repetitions) {
   const expected = [];
   for (const N of candidateCounts) {
-    for (let iteration = 0; iteration < 100; ++iteration) {
+    for (let iteration = 0; iteration < repetitions; ++iteration) {
       expected.push({variant:"cpu-f32", boundary:"CPU-E2E-RAW", N, block_size:0,
         run_order:0, iteration, timer:"steady_clock"});
     }
-    for (let iteration = 0; iteration < 100; ++iteration) {
-      const offset = iteration % cudaVariants.length;
+    for (let iteration = 0; iteration < repetitions; ++iteration) {
+      const offset = (iteration + warmups) % cudaVariants.length;
       for (let order = 0; order < cudaVariants.length; ++order) {
         const variant = cudaVariants[(order + offset) % cudaVariants.length];
         expected.push({variant, boundary:"BND-E2E-RAW", N, block_size:256,
@@ -212,8 +212,8 @@ function expectedRows() {
   }
   return expected;
 }
-const expectedMatrixRows = expectedRows();
-function validateRows(rows) {
+function validateRows(rows, warmups, repetitions) {
+  const expectedMatrixRows = expectedRows(warmups, repetitions);
   if (rows.length !== expectedMatrixRows.length) fail("unexpected S10 raw sample count");
   for (let i = 0; i < rows.length; ++i) {
     const row = rows[i], expected = expectedMatrixRows[i];
@@ -623,7 +623,6 @@ function analyze(directory) {
       manifest.sample_role !== "final" || manifest.working_tree_state !== "clean" ||
       manifest.measurement_status !== "valid-unreviewed" || manifest.fast_math !== "disabled" ||
       manifest.v2_block_size !== 256 || manifest.v3_block_size !== 256 ||
-      manifest.warmups !== 10 || manifest.repetitions !== 100 ||
       !/^[0-9a-f]{64}$/.test(manifest.source_manifest_sha256) ||
       !/^[0-9a-f]{64}$/.test(manifest.config_sha256) ||
       !/^[0-9a-f]{64}$/.test(manifest.sift_base_sha256) ||
@@ -634,8 +633,20 @@ function analyze(directory) {
       !/^[0-9a-f]{64}$/.test(manifest.numerical_build_identity_sha256)) {
     fail("invalid S10 benchmark manifest");
   }
+  const configPath = path.join(directory,"experiment-config.json");
+  const config = readStrictJson(configPath);
+  if (sha256File(configPath) !== manifest.config_sha256 ||
+      config.schema_version !== "S10-SIFT1M-CONFIG-v1" ||
+      !config.sampling || typeof config.sampling !== "object" || Array.isArray(config.sampling) ||
+      !Number.isSafeInteger(config.sampling.warmups) || config.sampling.warmups < 0 ||
+      config.sampling.measured_repetitions !== 100 ||
+      config.sampling.run_order !== "deterministic rotation by iteration" ||
+      manifest.warmups !== config.sampling.warmups ||
+      manifest.repetitions !== config.sampling.measured_repetitions) {
+    fail("benchmark sampling configuration mismatch");
+  }
   const rows = parseCsv(path.join(directory, "raw_samples.csv"));
-  validateRows(rows);
+  validateRows(rows, config.sampling.warmups, config.sampling.measured_repetitions);
   if (new Set(rows.map(row => row.revision)).size !== 1 ||
       rows[0].revision !== manifest.revision ||
       new Set(rows.map(row => row.tree_state)).size !== 1 ||
@@ -690,16 +701,19 @@ function selfTest() {
   if (first[0] !== second[0] || first[1] !== second[1]) {
     fail("bootstrap determinism self-test failed");
   }
+  const warmups = 10, repetitions = 100;
+  const expectedMatrixRows = expectedRows(warmups, repetitions);
+  if (expectedMatrixRows[100].variant !== "v2") fail("warm-up rotation positive self-test failed");
   const rows = expectedMatrixRows.map(row => ({schema_version:"S10-RAW-SAMPLE-v1",
     revision:"r",tree_state:"clean",sample_role:"final",boundary:row.boundary,
     variant:row.variant,N:String(row.N),D:"128",query_ordinal:"0",
     block_size:String(row.block_size),run_order:String(row.run_order),
     iteration:String(row.iteration),warmup:"false",elapsed_ns:"1",timer:row.timer,
     status:"completed"}));
-  validateRows(rows);
+  validateRows(rows, warmups, repetitions);
   const rejected = mutate => {
     const candidate = rows.map(row => ({...row})); mutate(candidate);
-    try { validateRows(candidate); } catch { return true; } return false;
+    try { validateRows(candidate, warmups, repetitions); } catch { return true; } return false;
   };
   const checks = [
     r => r.pop(),
@@ -709,6 +723,8 @@ function selfTest() {
     r => { r[100].block_size = "128"; },
     r => { r[100].timer = "cuda_event"; },
     r => { r[100].run_order = "4"; },
+    r => { r[100].variant = "v0"; },
+    r => { r[102] = {...r[100]}; },
     r => { r[0].N = "16384"; },
     r => { r[100].boundary = "BND-KERNEL"; },
     r => { r[0].elapsed_ns = "-1"; }
