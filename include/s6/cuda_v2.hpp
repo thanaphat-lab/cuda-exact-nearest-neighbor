@@ -6,6 +6,8 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -17,6 +19,80 @@ struct CudaV2Options {
     int device_ordinal = 0;
     cudaStream_t stream = nullptr;
     std::uint32_t threads_per_block = kCudaV2DefaultThreadsPerBlock;
+};
+
+namespace detail {
+struct CudaV2PreparedDatasetState;
+struct CudaV2PreparedSearchAccess;
+struct CudaV2WorkspaceState;
+}  // namespace detail
+
+class CudaV2PreparedDataset;
+class CudaV2Workspace;
+struct CudaV2PreparedDatasetOutcome;
+struct CudaV2WorkspaceOutcome;
+
+class CudaV2PreparedDataset {
+  public:
+    CudaV2PreparedDataset() noexcept;
+    ~CudaV2PreparedDataset();
+    CudaV2PreparedDataset(CudaV2PreparedDataset&&) noexcept;
+    CudaV2PreparedDataset& operator=(CudaV2PreparedDataset&&) noexcept;
+    CudaV2PreparedDataset(const CudaV2PreparedDataset&) = delete;
+    CudaV2PreparedDataset& operator=(const CudaV2PreparedDataset&) = delete;
+
+    bool valid() const noexcept;
+    std::uint64_t candidate_count() const noexcept;
+    std::uint64_t dimension() const noexcept;
+    int device_ordinal() const noexcept;
+
+  private:
+    std::unique_ptr<detail::CudaV2PreparedDatasetState> state_;
+
+    friend CudaV2PreparedDatasetOutcome cuda_v2_prepare_dataset_float32(
+        DatasetView, const CudaV2Options&);
+    friend CudaV2WorkspaceOutcome cuda_v2_create_workspace(
+        const CudaV2PreparedDataset&, const CudaV2Options&);
+    friend ProductionOutcome cuda_v2_search_prepared_float32(
+        const CudaV2PreparedDataset&, QueryView, CudaV2Workspace&,
+        const CudaV2Options&);
+    friend struct detail::CudaV2PreparedSearchAccess;
+};
+
+class CudaV2Workspace {
+  public:
+    CudaV2Workspace() noexcept;
+    ~CudaV2Workspace();
+    CudaV2Workspace(CudaV2Workspace&&) noexcept;
+    CudaV2Workspace& operator=(CudaV2Workspace&&) noexcept;
+    CudaV2Workspace(const CudaV2Workspace&) = delete;
+    CudaV2Workspace& operator=(const CudaV2Workspace&) = delete;
+
+    bool valid() const noexcept;
+
+  private:
+    std::unique_ptr<detail::CudaV2WorkspaceState> state_;
+
+    friend CudaV2WorkspaceOutcome cuda_v2_create_workspace(
+        const CudaV2PreparedDataset&, const CudaV2Options&);
+    friend ProductionOutcome cuda_v2_search_prepared_float32(
+        const CudaV2PreparedDataset&, QueryView, CudaV2Workspace&,
+        const CudaV2Options&);
+    friend struct detail::CudaV2PreparedSearchAccess;
+};
+
+struct CudaV2PreparedDatasetOutcome {
+    InvocationStatus invocation_status = InvocationStatus::not_executed;
+    InputOutcome input_outcome = InputOutcome::not_applicable;
+    DomainStatus domain_status = DomainStatus::not_applicable;
+    std::optional<CudaV2PreparedDataset> prepared_dataset;
+    std::string backend_detail;
+};
+
+struct CudaV2WorkspaceOutcome {
+    InvocationStatus invocation_status = InvocationStatus::not_executed;
+    std::optional<CudaV2Workspace> workspace;
+    std::string backend_detail;
 };
 
 struct CudaV2DeviceInfo {
@@ -66,6 +142,14 @@ ProductionOutcome cuda_v2_search_float32(
     DatasetView dataset, QueryView query, const CudaV2Options& options = {});
 CudaV2EvidencedOutcome cuda_v2_search_float32_evidenced(
     DatasetView dataset, QueryView query, const CudaV2Options& options = {});
+CudaV2PreparedDatasetOutcome cuda_v2_prepare_dataset_float32(
+    DatasetView dataset, const CudaV2Options& options = {});
+CudaV2WorkspaceOutcome cuda_v2_create_workspace(
+    const CudaV2PreparedDataset& dataset,
+    const CudaV2Options& options = {});
+ProductionOutcome cuda_v2_search_prepared_float32(
+    const CudaV2PreparedDataset& dataset, QueryView query,
+    CudaV2Workspace& workspace, const CudaV2Options& options = {});
 
 std::size_t cuda_v2_reduction_record_size() noexcept;
 std::size_t cuda_v2_reduction_record_alignment() noexcept;
@@ -104,6 +188,10 @@ struct CudaV2ReductionDiagnostics {
 
 CudaV2EvidencedOutcome cuda_v2_search_float32_for_testing(
     DatasetView dataset, QueryView query, const CudaV2Options& options,
+    CudaV2InjectedFailure injected_failure);
+ProductionOutcome cuda_v2_search_prepared_float32_for_testing(
+    const CudaV2PreparedDataset& dataset, QueryView query,
+    CudaV2Workspace& workspace, const CudaV2Options& options,
     CudaV2InjectedFailure injected_failure);
 CudaV2ReductionDiagnostics cuda_v2_reduce_diagnostics_for_testing(
     const std::vector<CudaV2ReductionInput>& records,
