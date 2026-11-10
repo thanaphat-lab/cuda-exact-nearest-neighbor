@@ -1,0 +1,68 @@
+{
+  "schema_version": "S13-EXPERIMENT-CONFIG-v1",
+  "experiment_id": "S13-PREPARED-V2-20261110-01",
+  "expected_revision_source": "owner-supplied runner argument",
+  "approved_design": "S6ApprovedImplementationDesign-v1.0",
+  "approved_numerical_policy": {
+    "id": "S6-CONSOLIDATED-NUMERICAL-POLICY-v1.0",
+    "sha256": "503aa6b2c97567d814a9316fb0f2f9890d5472aea2bcf1f928ac505c29d1aa39"
+  },
+  "workload": {
+    "class": "single-query-primary",
+    "generator_id": "S7-DETERMINISTIC-SYNTHETIC-v1",
+    "candidate_counts": [1024, 16384, 262144, 1048576],
+    "dimensions": [8, 32, 128],
+    "final_seed": "589684135938649225"
+  },
+  "frozen_v2_configuration": {
+    "path": "docs/experiments/S7-ACCEPT-20261103-01/evidence/final/tuning-freeze.csv",
+    "sha256": "6907ec9d918fb9b3805685fe4b91e53b7538e1f6fe46c851b1ac24fab1f761b8",
+    "retuning": "prohibited"
+  },
+  "sampling": {
+    "warmups": 10,
+    "measured_repetitions": 100,
+    "percentile_method": "linear_n_minus_1",
+    "uncertainty_method": "deterministic percentile bootstrap, 2000 resamples, 95% median interval",
+    "run_order": "construction costs first; then deterministic rotation of CPU Raw, V2 Raw, V2 Prepared by workload ordinal and iteration"
+  },
+  "timing_boundaries": {
+    "CPU-E2E-RAW": "CPU Float32 call entry before validation through synchronous host result return",
+    "BND-E2E-RAW": "V2 raw one-shot API including validation, conversion, transient allocation, H2D, production kernels, D2H, synchronization and call-owned cleanup",
+    "BND-E2E-PREP": "V2 prepared search with prepared dataset and workspace already available; includes per-query validation, transfer, kernels, result transfer and synchronization",
+    "COST-PREP-DATASET-CONSTRUCTION": "dataset preparation API call only; persistent prepared-dataset destruction excluded",
+    "COST-WORKSPACE-CONSTRUCTION": "workspace creation API call only; persistent workspace destruction excluded",
+    "COST-PREPARED-READY-CONSTRUCTION": "wall time from dataset preparation entry through workspace creation return; persistent-resource destruction excluded"
+  },
+  "comparisons": [
+    {"id": "H1", "reference": "CPU-E2E-RAW", "candidate": "BND-E2E-PREP", "statement": "V2 Prepared steady-state latency is lower than CPU Raw latency"},
+    {"id": "H2", "reference": "CPU-E2E-RAW", "candidate": "BND-E2E-RAW", "statement": "V2 Raw latency is lower than CPU Raw latency"},
+    {"id": "H3", "reference": "BND-E2E-RAW", "candidate": "BND-E2E-PREP", "statement": "V2 Prepared steady-state latency is lower than V2 Raw latency"}
+  ],
+  "ratio_rule": {
+    "definition": "median(reference) / median(candidate)",
+    "interval": "[reference_ci_low/candidate_ci_high, reference_ci_high/candidate_ci_low]",
+    "speedup_gt_1_supported": "ci_low > 1",
+    "rejected": "ci_high < 1",
+    "inconclusive": "interval includes 1",
+    "universal_supported": "all 12 cases supported",
+    "universal_rejected": "at least one case rejected",
+    "universal_inconclusive": "no case rejected and at least one case inconclusive"
+  },
+  "break_even": {
+    "point_formula": "floor(median(ready_construction)/(median(reference)-median(prepared)))+1 when denominator > 0",
+    "amortized_speedup": "q*median(reference)/(median(ready_construction)+q*median(prepared))",
+    "conservative_formula": "floor(ready_construction_ci_high/(reference_ci_low-prepared_ci_high))+1 when denominator > 0",
+    "persistent_resource_destruction": "excluded; results are construction-plus-query amortization, not complete lifetime cost"
+  },
+  "environment_policy": {
+    "telemetry_required": true,
+    "telemetry_interval_ms": 1000,
+    "unauthorized_gpu_process_action_before_measurement": "fail",
+    "unauthorized_gpu_process_action_during_measurement": "retain-samples-and-mark-inconclusive",
+    "hardware_thermal_slowdown_treatment": "retain-samples-and-mark-inconclusive",
+    "numeric_temperature_clock_power_thresholds": "none approved"
+  },
+  "fast_math": "disabled",
+  "historical_evidence_policy": "S7, S8 and S10 evidence is immutable; S13 writes only to a new output directory"
+}
