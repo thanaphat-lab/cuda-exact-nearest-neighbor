@@ -24,6 +24,28 @@ function Add-CommandRecord([string]$Path, [string]$Stage, [string[]]$Command) {
         Add-Content -LiteralPath $Path -Encoding utf8
 }
 
+function Assert-S13PreparedMatrixSummary(
+    [string]$MatrixText,
+    [object[]]$CandidateCounts,
+    [object[]]$Dimensions
+) {
+    $caseLines = @($MatrixText -split '\r?\n' | Where-Object { $_ -match '^case=' })
+    $expectedCaseCount = $CandidateCounts.Count * $Dimensions.Count
+    Require-Value ($caseLines.Count -eq $expectedCaseCount) `
+        "Frozen V2 matrix reported $($caseLines.Count) case rows; expected $expectedCaseCount."
+    foreach ($candidateCount in $CandidateCounts) {
+        foreach ($dimension in $Dimensions) {
+            $casePattern = "^case=N$candidateCount-D$dimension(?:\s|$)"
+            $matchingRows = @($caseLines | Where-Object { $_ -match $casePattern })
+            Require-Value ($matchingRows.Count -eq 1) `
+                "Frozen V2 matrix must report exactly one N=$candidateCount D=$dimension row."
+            Require-Value ($matchingRows[0] -match `
+                '(?:^|\s)prepared_v2=passed(?:\s|$)') `
+                "Frozen V2 matrix N=$candidateCount D=$dimension did not pass the prepared V2 path."
+        }
+    }
+}
+
 Require-Value ($config.schema_version -eq 'S13-EXPERIMENT-CONFIG-v1') `
     'Unsupported S13 experiment configuration schema.'
 Require-Value ([int]$config.sampling.warmups -eq 10 -and `
@@ -50,6 +72,45 @@ Require-Value ($policyHash -eq $config.approved_numerical_policy.sha256) `
     'Approved numerical-policy hash mismatch.'
 
 if ($Mode -eq 'SelfTest') {
+    $validRows = [System.Collections.Generic.List[string]]::new()
+    foreach ($candidateCount in $config.workload.candidate_counts) {
+        foreach ($dimension in $config.workload.dimensions) {
+            $validRows.Add(
+                "case=N$candidateCount-D$dimension prepared_v2=passed nn_verdict=accepted-unambiguous")
+        }
+    }
+    $validMatrix = $validRows -join "`n"
+    Assert-S13PreparedMatrixSummary $validMatrix `
+        $config.workload.candidate_counts $config.workload.dimensions
+
+    $missingCaseRejected = $false
+    try {
+        Assert-S13PreparedMatrixSummary `
+            (($validRows | Select-Object -SkipLast 1) -join "`n") `
+            $config.workload.candidate_counts $config.workload.dimensions
+    } catch { $missingCaseRejected = $true }
+    Require-Value $missingCaseRejected `
+        'S13 matrix regression test accepted a missing workload.'
+
+    $failedMarkerRejected = $false
+    try {
+        Assert-S13PreparedMatrixSummary `
+            ($validMatrix -replace 'prepared_v2=passed', 'prepared_v2=failed') `
+            $config.workload.candidate_counts $config.workload.dimensions
+    } catch { $failedMarkerRejected = $true }
+    Require-Value $failedMarkerRejected `
+        'S13 matrix regression test accepted a failed prepared V2 marker.'
+
+    $metadataMarkerRejected = $false
+    try {
+        Assert-S13PreparedMatrixSummary `
+            ($validMatrix -replace 'prepared_v2=passed', `
+                'prepared_production_path_status=passed') `
+            $config.workload.candidate_counts $config.workload.dimensions
+    } catch { $metadataMarkerRejected = $true }
+    Require-Value $metadataMarkerRejected `
+        'S13 matrix regression test accepted the per-case metadata marker in the summary.'
+
     Write-Output 'S13 orchestration self-test: passed'
     return
 }
@@ -221,8 +282,8 @@ try {
     & $matrixExecutable @matrixArguments
     if ($LASTEXITCODE -ne 0) { throw 'Frozen V2 raw/prepared correctness matrix failed.' }
     $matrixText = Get-Content -Raw -LiteralPath $matrixOutput
-    Require-Value ($matrixText -match 'prepared_production_path_status=passed') `
-        'Frozen V2 matrix did not report the prepared production path as passed.'
+    Assert-S13PreparedMatrixSummary $matrixText `
+        $config.workload.candidate_counts $config.workload.dimensions
 
     $gatePath = Join-Path $correctnessDirectory 'correctness-gate.json'
     [ordered]@{
