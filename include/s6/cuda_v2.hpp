@@ -25,12 +25,16 @@ namespace detail {
 struct CudaV2PreparedDatasetState;
 struct CudaV2PreparedSearchAccess;
 struct CudaV2WorkspaceState;
+struct CudaV4BatchWorkspaceState;
+struct CudaV4BatchSearchAccess;
 }  // namespace detail
 
 class CudaV2PreparedDataset;
 class CudaV2Workspace;
+class CudaV4BatchWorkspace;
 struct CudaV2PreparedDatasetOutcome;
 struct CudaV2WorkspaceOutcome;
+struct CudaV4BatchWorkspaceOutcome;
 
 class CudaV2PreparedDataset {
   public:
@@ -56,7 +60,33 @@ class CudaV2PreparedDataset {
     friend ProductionOutcome cuda_v2_search_prepared_float32(
         const CudaV2PreparedDataset&, QueryView, CudaV2Workspace&,
         const CudaV2Options&);
+    friend CudaV4BatchWorkspaceOutcome cuda_v4_create_batch_workspace(
+        const CudaV2PreparedDataset&, std::uint64_t, const CudaV2Options&);
     friend struct detail::CudaV2PreparedSearchAccess;
+    friend struct detail::CudaV4BatchSearchAccess;
+};
+
+class CudaV4BatchWorkspace {
+  public:
+    CudaV4BatchWorkspace() noexcept;
+    ~CudaV4BatchWorkspace();
+    CudaV4BatchWorkspace(CudaV4BatchWorkspace&&) noexcept;
+    CudaV4BatchWorkspace& operator=(CudaV4BatchWorkspace&&) noexcept;
+    CudaV4BatchWorkspace(const CudaV4BatchWorkspace&) = delete;
+    CudaV4BatchWorkspace& operator=(const CudaV4BatchWorkspace&) = delete;
+
+    bool valid() const noexcept;
+    std::uint64_t capacity() const noexcept;
+
+  private:
+    std::unique_ptr<detail::CudaV4BatchWorkspaceState> state_;
+
+    friend CudaV4BatchWorkspaceOutcome cuda_v4_create_batch_workspace(
+        const CudaV2PreparedDataset&, std::uint64_t, const CudaV2Options&);
+    friend BatchProductionOutcome cuda_v4_search_prepared_batch_float32(
+        const CudaV2PreparedDataset&, QueryBatchView, CudaV4BatchWorkspace&,
+        const CudaV2Options&);
+    friend struct detail::CudaV4BatchSearchAccess;
 };
 
 class CudaV2Workspace {
@@ -92,6 +122,12 @@ struct CudaV2PreparedDatasetOutcome {
 struct CudaV2WorkspaceOutcome {
     InvocationStatus invocation_status = InvocationStatus::not_executed;
     std::optional<CudaV2Workspace> workspace;
+    std::string backend_detail;
+};
+
+struct CudaV4BatchWorkspaceOutcome {
+    InvocationStatus invocation_status = InvocationStatus::not_executed;
+    std::optional<CudaV4BatchWorkspace> workspace;
     std::string backend_detail;
 };
 
@@ -150,6 +186,12 @@ CudaV2WorkspaceOutcome cuda_v2_create_workspace(
 ProductionOutcome cuda_v2_search_prepared_float32(
     const CudaV2PreparedDataset& dataset, QueryView query,
     CudaV2Workspace& workspace, const CudaV2Options& options = {});
+CudaV4BatchWorkspaceOutcome cuda_v4_create_batch_workspace(
+    const CudaV2PreparedDataset& dataset, std::uint64_t maximum_query_count,
+    const CudaV2Options& options = {});
+BatchProductionOutcome cuda_v4_search_prepared_batch_float32(
+    const CudaV2PreparedDataset& dataset, QueryBatchView queries,
+    CudaV4BatchWorkspace& workspace, const CudaV2Options& options = {});
 
 std::size_t cuda_v2_reduction_record_size() noexcept;
 std::size_t cuda_v2_reduction_record_alignment() noexcept;
@@ -192,6 +234,10 @@ CudaV2EvidencedOutcome cuda_v2_search_float32_for_testing(
 ProductionOutcome cuda_v2_search_prepared_float32_for_testing(
     const CudaV2PreparedDataset& dataset, QueryView query,
     CudaV2Workspace& workspace, const CudaV2Options& options,
+    CudaV2InjectedFailure injected_failure);
+BatchProductionOutcome cuda_v4_search_prepared_batch_float32_for_testing(
+    const CudaV2PreparedDataset& dataset, QueryBatchView queries,
+    CudaV4BatchWorkspace& workspace, const CudaV2Options& options,
     CudaV2InjectedFailure injected_failure);
 CudaV2ReductionDiagnostics cuda_v2_reduce_diagnostics_for_testing(
     const std::vector<CudaV2ReductionInput>& records,

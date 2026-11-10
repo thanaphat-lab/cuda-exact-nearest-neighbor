@@ -635,6 +635,187 @@ void test_prepared_post_enqueue_failures(std::ofstream& evidence) {
                 " cross_stream_reuse_safety=passed\n";
 }
 
+void test_v4_batch_path(std::ofstream& evidence) {
+    constexpr std::uint64_t n = 257U;
+    constexpr std::uint64_t d = 8U;
+    std::vector<float> dataset(static_cast<std::size_t>(n * d));
+    for (std::uint64_t i = 0; i < n; ++i) {
+        for (std::uint64_t j = 0; j < d; ++j) {
+            dataset[static_cast<std::size_t>(i * d + j)] =
+                static_cast<float>(static_cast<int>((i * 19U + j * 7U) % 97U) -
+                                   48) /
+                16.0F;
+        }
+    }
+    // Exercise the smallest-index tie across a block boundary.
+    for (std::uint64_t j = 0; j < d; ++j) {
+        dataset[static_cast<std::size_t>(3U * d + j)] =
+            static_cast<float>(j) / 8.0F;
+        dataset[static_cast<std::size_t>(200U * d + j)] =
+            static_cast<float>(j) / 8.0F;
+    }
+    std::vector<float> queries(static_cast<std::size_t>(32U * d));
+    for (std::uint64_t q = 0; q < 32U; ++q) {
+        for (std::uint64_t j = 0; j < d; ++j) {
+            queries[static_cast<std::size_t>(q * d + j)] =
+                q == 0U ? static_cast<float>(j) / 8.0F
+                        : static_cast<float>(
+                              static_cast<int>((q * 11U + j * 5U) % 61U) - 30) /
+                              16.0F;
+        }
+    }
+    const s6::DatasetView dataset_view{dataset.data(), n, d, dataset.size()};
+    const s6::CudaV2Options options{0, nullptr, 128U};
+    auto preparation = s6::cuda_v2_prepare_dataset_float32(dataset_view, options);
+    require(preparation.prepared_dataset.has_value(),
+            "V4 batch prepared dataset construction failed");
+    auto prepared = std::move(*preparation.prepared_dataset);
+    auto workspace_result =
+        s6::cuda_v4_create_batch_workspace(prepared, 32U, options);
+    require(workspace_result.invocation_status == s6::InvocationStatus::completed &&
+                workspace_result.workspace.has_value(),
+            "V4 batch workspace construction failed");
+    auto workspace = std::move(*workspace_result.workspace);
+    require(workspace.valid() && workspace.capacity() == 32U,
+            "V4 batch workspace ownership or capacity failed");
+
+    for (const std::uint64_t batch_size : {1U, 8U, 32U}) {
+        const s6::QueryBatchView batch_view{
+            queries.data(), batch_size, d,
+            static_cast<std::size_t>(batch_size * d)};
+        const auto cpu = s6::cpu_search_batch_float32(dataset_view, batch_view);
+        const auto batch = s6::cuda_v4_search_prepared_batch_float32(
+            prepared, batch_view, workspace, options);
+        require(cpu.invocation_status == s6::InvocationStatus::completed &&
+                    batch.invocation_status == s6::InvocationStatus::completed &&
+                    batch.results.size() == static_cast<std::size_t>(batch_size) &&
+                    cpu.results.size() == batch.results.size(),
+                "V4 batch execution failed");
+        auto single_workspace_result =
+            s6::cuda_v2_create_workspace(prepared, options);
+        require(single_workspace_result.workspace.has_value(),
+                "V4 batch sequential comparison workspace failed");
+        auto single_workspace = std::move(*single_workspace_result.workspace);
+        for (std::uint64_t q = 0; q < batch_size; ++q) {
+            const s6::QueryView query_view{
+                queries.data() + static_cast<std::size_t>(q * d), d,
+                static_cast<std::size_t>(d)};
+            const auto single = s6::cuda_v2_search_prepared_float32(
+                prepared, query_view, single_workspace, options);
+            const auto index = static_cast<std::size_t>(q);
+            require(single.result &&
+                        batch.results[index].index == cpu.results[index].index &&
+                        batch.results[index].index == single.result->index &&
+                        bits(batch.results[index].squared_distance) ==
+                            bits(cpu.results[index].squared_distance) &&
+                        bits(batch.results[index].squared_distance) ==
+                            bits(single.result->squared_distance),
+                    "V4 batch result differs from CPU or sequential V2");
+        }
+    }
+    require(s6::cuda_v4_search_prepared_batch_float32(
+                prepared, {queries.data(), 0U, d, 0U}, workspace, options)
+                .invocation_status == s6::InvocationStatus::api_misuse,
+            "V4 zero query count was not API misuse");
+    std::vector<float> excessive(static_cast<std::size_t>(33U * d), 0.0F);
+    require(s6::cuda_v4_search_prepared_batch_float32(
+                prepared, {excessive.data(), 33U, d, excessive.size()}, workspace,
+                options)
+                .invocation_status == s6::InvocationStatus::api_misuse,
+            "V4 capacity violation was not API misuse");
+    std::vector<float> invalid = queries;
+    invalid[static_cast<std::size_t>(d)] =
+        std::numeric_limits<float>::quiet_NaN();
+    require(s6::cuda_v4_search_prepared_batch_float32(
+                prepared, {invalid.data(), 8U, d, static_cast<std::size_t>(8U * d)},
+                workspace, options)
+                .input_outcome == s6::InputOutcome::invalid_nonfinite,
+            "V4 nonfinite batch was not rejected");
+    const auto recovered = s6::cuda_v4_search_prepared_batch_float32(
+        prepared, {queries.data(), 8U, d, static_cast<std::size_t>(8U * d)},
+        workspace, options);
+    require(recovered.invocation_status == s6::InvocationStatus::completed,
+            "V4 workspace retained stale state after input rejection");
+
+    auto failure_workspace_result =
+        s6::cuda_v4_create_batch_workspace(prepared, 8U, options);
+    require(failure_workspace_result.workspace.has_value(),
+            "V4 failure recovery workspace construction failed");
+    auto failure_workspace = std::move(*failure_workspace_result.workspace);
+    const s6::QueryBatchView eight_queries{
+        queries.data(), 8U, d, static_cast<std::size_t>(8U * d)};
+    require(s6::detail::cuda_v4_search_prepared_batch_float32_for_testing(
+                prepared, eight_queries, failure_workspace, options,
+                s6::detail::CudaV2InjectedFailure::backend_launch)
+                .invocation_status == s6::InvocationStatus::backend_failure,
+            "V4 injected launch failure did not fail");
+    require(s6::cuda_v4_search_prepared_batch_float32(
+                prepared, eight_queries, failure_workspace, options)
+                .invocation_status == s6::InvocationStatus::completed,
+            "V4 workspace was not reusable after drained launch failure");
+
+    auto disabled_workspace_result =
+        s6::cuda_v4_create_batch_workspace(prepared, 8U, options);
+    require(disabled_workspace_result.workspace.has_value(),
+            "V4 disabled workspace construction failed");
+    auto disabled_workspace = std::move(*disabled_workspace_result.workspace);
+    require(s6::detail::cuda_v4_search_prepared_batch_float32_for_testing(
+                prepared, eight_queries, disabled_workspace, options,
+                s6::detail::CudaV2InjectedFailure::backend_synchronize)
+                .invocation_status == s6::InvocationStatus::backend_failure,
+            "V4 injected synchronization failure did not fail");
+    require(s6::cuda_v4_search_prepared_batch_float32(
+                prepared, eight_queries, disabled_workspace, options)
+                .invocation_status == s6::InvocationStatus::backend_failure,
+            "V4 workspace was reused after undrainable failure");
+
+    cudaStream_t stream = nullptr;
+    require(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking) == cudaSuccess,
+            "could not create V4 nondefault stream");
+    const s6::CudaV2Options stream_options{0, stream, 128U};
+    auto stream_workspace_result =
+        s6::cuda_v4_create_batch_workspace(prepared, 8U, stream_options);
+    require(stream_workspace_result.workspace.has_value(),
+            "V4 nondefault-stream workspace failed");
+    auto stream_workspace = std::move(*stream_workspace_result.workspace);
+    require(s6::cuda_v4_search_prepared_batch_float32(
+                prepared, eight_queries, stream_workspace, stream_options)
+                .invocation_status == s6::InvocationStatus::completed,
+            "V4 nondefault-stream execution failed");
+    stream_workspace = {};
+    require(cudaStreamDestroy(stream) == cudaSuccess,
+            "could not destroy V4 nondefault stream");
+
+    require(s6::cuda_v4_create_batch_workspace(prepared, 0U, options)
+                .invocation_status == s6::InvocationStatus::api_misuse,
+            "V4 zero workspace capacity was not API misuse");
+
+    const float maximum = std::numeric_limits<float>::max();
+    const std::vector<float> overflow_dataset = {maximum, 0.0F};
+    auto overflow_preparation = s6::cuda_v2_prepare_dataset_float32(
+        {overflow_dataset.data(), 2U, 1U, overflow_dataset.size()}, options);
+    require(overflow_preparation.prepared_dataset.has_value(),
+            "V4 overflow prepared dataset construction failed");
+    auto overflow_workspace_result = s6::cuda_v4_create_batch_workspace(
+        *overflow_preparation.prepared_dataset, 2U, options);
+    require(overflow_workspace_result.workspace.has_value(),
+            "V4 overflow batch workspace construction failed");
+    const std::vector<float> overflow_queries = {-maximum, 0.0F};
+    const auto overflow = s6::cuda_v4_search_prepared_batch_float32(
+        *overflow_preparation.prepared_dataset,
+        {overflow_queries.data(), 2U, 1U, overflow_queries.size()},
+        *overflow_workspace_result.workspace, options);
+    require(overflow.invocation_status == s6::InvocationStatus::backend_failure &&
+                overflow.domain_status ==
+                    s6::DomainStatus::valid_outside_approved_domain &&
+                overflow.results.empty(),
+            "V4 nonfinite arithmetic did not fail all-or-nothing");
+    evidence << "v4_batch_sizes=1,8,32 v4_batch_equivalence=passed"
+                " v4_batch_reuse=passed v4_batch_errors=passed"
+                " v4_batch_nondefault_stream=passed"
+                " v4_batch_nonfinite_status=passed\n";
+}
+
 void test_nondefault_stream(std::ofstream& evidence) {
     cudaStream_t stream = nullptr;
     require(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking) == cudaSuccess,
@@ -701,6 +882,7 @@ int main(int argc, char** argv) {
         test_invalid_failures_and_repeatability(evidence);
         test_prepared_dataset_and_workspace(evidence);
         test_prepared_post_enqueue_failures(evidence);
+        test_v4_batch_path(evidence);
         test_nondefault_stream(evidence);
         evidence << "overall=passed\n";
         std::cout << "S7 CUDA V2 functional tests: PASS\n";

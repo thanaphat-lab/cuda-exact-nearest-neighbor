@@ -433,6 +433,58 @@ void test_end_to_end_outside_domain_verdict() {
             "demonstrated numerical failure did not override outside-domain status");
 }
 
+void test_batch_baseline() {
+    constexpr std::uint64_t n = 5U;
+    constexpr std::uint64_t d = 3U;
+    const std::vector<float> dataset = {
+        0.0F, 0.0F, 0.0F,
+        1.0F, 1.0F, 1.0F,
+        -1.0F, -1.0F, -1.0F,
+        2.0F, 0.0F, 0.0F,
+        2.0F, 0.0F, 0.0F,
+    };
+    const std::vector<float> queries = {
+        0.0F, 0.0F, 0.0F,
+        1.0F, 1.0F, 1.0F,
+        2.0F, 0.0F, 0.0F,
+        -0.0F, +0.0F, -0.0F,
+    };
+    const s6::DatasetView dataset_view{dataset.data(), n, d, dataset.size()};
+    const s6::QueryBatchView batch_view{queries.data(), 4U, d, queries.size()};
+    const auto batch = s6::cpu_search_batch_float32(dataset_view, batch_view);
+    require(batch.invocation_status == s6::InvocationStatus::completed &&
+                batch.input_outcome == s6::InputOutcome::valid &&
+                batch.results.size() == 4U,
+            "CPU batch baseline did not complete");
+    for (std::size_t q = 0; q < batch.results.size(); ++q) {
+        const s6::QueryView query{queries.data() + q * static_cast<std::size_t>(d),
+                                  d, static_cast<std::size_t>(d)};
+        const auto single = s6::cpu_search_float32(dataset_view, query);
+        require(single.result && single.result->index == batch.results[q].index &&
+                    bits(single.result->squared_distance) ==
+                        bits(batch.results[q].squared_distance),
+                "CPU batch result differs from single-query baseline");
+    }
+    require(batch.results[2].index == 3U,
+            "CPU batch equal-distance tie did not select the smallest index");
+
+    require(s6::cpu_search_batch_float32(
+                dataset_view, {queries.data(), 0U, d, 0U})
+                .invocation_status == s6::InvocationStatus::api_misuse,
+            "zero CPU batch query count was not API misuse");
+    require(s6::cpu_search_batch_float32(
+                dataset_view, {queries.data(), 4U, d, queries.size() - 1U})
+                .invocation_status == s6::InvocationStatus::api_misuse,
+            "inconsistent CPU batch size was not API misuse");
+    std::vector<float> invalid = queries;
+    invalid[static_cast<std::size_t>(d)] =
+        std::numeric_limits<float>::quiet_NaN();
+    require(s6::cpu_search_batch_float32(
+                dataset_view, {invalid.data(), 4U, d, invalid.size()})
+                .input_outcome == s6::InputOutcome::invalid_nonfinite,
+            "nonfinite CPU batch query was not rejected");
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -459,6 +511,7 @@ int main(int argc, char** argv) {
         test_nearest_neighbor_and_independence();
         test_bounds_ranking_and_verdict_precedence();
         test_end_to_end_outside_domain_verdict();
+        test_batch_baseline();
         const auto environment = s6::inspect_arithmetic_environment();
         std::cout << "arithmetic-environment RNE=" << environment.round_to_nearest_even
                   << " FTZ-disabled=" << environment.ftz_disabled

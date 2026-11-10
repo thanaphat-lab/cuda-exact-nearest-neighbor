@@ -17,8 +17,9 @@ CPU and GPU production paths use Float32. Float64 is retained only as an indepen
 | CUDA V1 | Structure of arrays (SoA) for candidate-coalesced access; retains the V0 serial final reducer. |
 | CUDA V2 | SoA; shared-memory block reduction followed by pair-only grid-reduction stages. |
 | CUDA V3 | SoA; warp-shuffle and warp-leader shared-memory reduction followed by pair-only grid-reduction stages. |
+| Optional CUDA V4 batch | Reuses an immutable Prepared V2 dataset; query-major batches use query-by-candidate-block distance kernels and per-query hierarchical reductions with one synchronous completion per batch. |
 
-V0–V3 preserve the same input, distance, exhaustive-search, output, and smallest-index tie contracts. V4 is optional stretch work and is not implemented or evaluated here. The implementation architecture is documented in the [approved S6 design](docs/design/S6ApprovedImplementationDesign-v1.0.md).
+V0–V3 preserve the same input, distance, exhaustive-search, output, and smallest-index tie contracts. V4 is optional secondary work and cannot replace core evidence; its batch path preserves the same per-query contract and is verified separately. The core implementation architecture is documented in the [approved S6 design](docs/design/S6ApprovedImplementationDesign-v1.0.md).
 
 ## Repository layout
 

@@ -81,6 +81,74 @@ InputCheck inspect_input(DatasetView dataset, QueryView query) {
     return {InvocationStatus::completed, InputOutcome::valid, domain, {}};
 }
 
+InputCheck inspect_batch_input(DatasetView dataset, QueryBatchView queries) {
+    if (queries.query_count == 0) {
+        return {InvocationStatus::api_misuse, InputOutcome::not_applicable,
+                DomainStatus::not_applicable, "query count is zero"};
+    }
+    if (dataset.candidate_count == 0) {
+        return {InvocationStatus::contract_invalid, InputOutcome::invalid_N_zero,
+                DomainStatus::not_applicable, "N is zero"};
+    }
+    if (dataset.dimension == 0) {
+        return {InvocationStatus::contract_invalid, InputOutcome::invalid_D_zero,
+                DomainStatus::not_applicable, "D is zero"};
+    }
+    if (queries.dimension != dataset.dimension) {
+        return {InvocationStatus::api_misuse, InputOutcome::not_applicable,
+                DomainStatus::not_applicable,
+                "query batch and dataset dimensions differ"};
+    }
+    if (dataset.data == nullptr || queries.data == nullptr) {
+        return {InvocationStatus::api_misuse, InputOutcome::not_applicable,
+                DomainStatus::not_applicable, "null data view"};
+    }
+    if (dataset.dimension >
+        static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max())) {
+        return {InvocationStatus::api_misuse, InputOutcome::not_applicable,
+                DomainStatus::not_applicable, "dimension is not addressable"};
+    }
+    const auto dimension = static_cast<std::size_t>(dataset.dimension);
+    if (dataset.candidate_count >
+            static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max() /
+                                       dimension) ||
+        queries.query_count >
+            static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max() /
+                                       dimension)) {
+        return {InvocationStatus::api_misuse, InputOutcome::not_applicable,
+                DomainStatus::not_applicable, "batch element-count overflow"};
+    }
+    const auto dataset_elements =
+        static_cast<std::size_t>(dataset.candidate_count) * dimension;
+    const auto query_elements =
+        static_cast<std::size_t>(queries.query_count) * dimension;
+    if (dataset.element_count != dataset_elements ||
+        queries.element_count != query_elements) {
+        return {InvocationStatus::api_misuse, InputOutcome::not_applicable,
+                DomainStatus::not_applicable, "inconsistent batch element count"};
+    }
+    for (std::size_t i = 0; i < dataset.element_count; ++i) {
+        if (!std::isfinite(dataset.data[i])) {
+            return {InvocationStatus::contract_invalid,
+                    InputOutcome::invalid_nonfinite,
+                    DomainStatus::not_applicable,
+                    "dataset contains NaN or infinity"};
+        }
+    }
+    for (std::size_t i = 0; i < queries.element_count; ++i) {
+        if (!std::isfinite(queries.data[i])) {
+            return {InvocationStatus::contract_invalid,
+                    InputOutcome::invalid_nonfinite,
+                    DomainStatus::not_applicable,
+                    "query batch contains NaN or infinity"};
+        }
+    }
+    const auto domain = dataset.dimension <= kMaximumPolicyDimension
+                            ? DomainStatus::core_eligible
+                            : DomainStatus::valid_outside_approved_domain;
+    return {InvocationStatus::completed, InputOutcome::valid, domain, {}};
+}
+
 #if defined(_MSC_VER)
 #define S6_NOINLINE __declspec(noinline)
 #else
@@ -358,6 +426,66 @@ std::uintptr_t detail::cpu_search_float32_impl_function_address() noexcept {
 
 ProductionOutcome cpu_search_float32(DatasetView dataset, QueryView query) {
     return detail::cpu_search_float32_impl(dataset, query, nullptr);
+}
+
+BatchProductionOutcome cpu_search_batch_float32(DatasetView dataset,
+                                                 QueryBatchView queries) {
+    BatchProductionOutcome outcome;
+    const auto input = inspect_batch_input(dataset, queries);
+    outcome.invocation_status = input.invocation;
+    outcome.input_outcome = input.input;
+    outcome.domain_status = input.domain;
+    outcome.backend_detail = input.detail;
+    if (input.invocation != InvocationStatus::completed) {
+        return outcome;
+    }
+    if (!inspect_arithmetic_environment().conforming_float32()) {
+        outcome.invocation_status = InvocationStatus::backend_failure;
+        outcome.domain_status = DomainStatus::unknown;
+        outcome.backend_detail = "nonconforming Float32 arithmetic environment";
+        return outcome;
+    }
+
+    const auto dimension = static_cast<std::size_t>(dataset.dimension);
+    try {
+        outcome.results.reserve(static_cast<std::size_t>(queries.query_count));
+        for (std::uint64_t query_index = 0; query_index < queries.query_count;
+             ++query_index) {
+            const float* query =
+                queries.data + static_cast<std::size_t>(query_index) * dimension;
+            bool have_best = false;
+            SearchResult best{};
+            for (std::uint64_t candidate = 0;
+                 candidate < dataset.candidate_count; ++candidate) {
+                const auto offset = static_cast<std::size_t>(candidate) * dimension;
+                const float distance =
+                    production_distance(dataset.data + offset, query, dimension);
+                if (!std::isfinite(distance)) {
+                    outcome.invocation_status = InvocationStatus::backend_failure;
+                    outcome.domain_status =
+                        DomainStatus::valid_outside_approved_domain;
+                    outcome.results.clear();
+                    outcome.backend_detail =
+                        "nonfinite Float32 candidate distance in query batch";
+                    return outcome;
+                }
+                if (!have_best || distance < best.squared_distance ||
+                    (distance == best.squared_distance && candidate < best.index)) {
+                    best = {candidate, distance};
+                    have_best = true;
+                }
+            }
+            outcome.results.push_back(best);
+        }
+        outcome.invocation_status = InvocationStatus::completed;
+        outcome.backend_detail.clear();
+    } catch (const std::bad_alloc&) {
+        outcome.invocation_status = InvocationStatus::resource_failure;
+        outcome.domain_status = DomainStatus::unknown;
+        outcome.results.clear();
+        outcome.backend_detail = "allocation failure";
+    }
+    return outcome;
 }
 
 Float64Reference compute_float64_reference(DatasetView dataset, QueryView query) {

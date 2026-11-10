@@ -62,6 +62,7 @@ set(S6_EVIDENCE_INPUTS
     tests/cpu_baseline_tests.cpp
     tests/cpu_evidence_tests.cpp
     tests/cpu_matrix_tests.cpp
+    tests/cpu_batch_tests.cpp
     cmake/GenerateCudaV0Evidence.cmake
     cmake/FinalizeCudaV0Evidence.cmake
     include/s6/cuda_v0.hpp
@@ -81,6 +82,7 @@ set(S6_EVIDENCE_INPUTS
     src/cuda_v2.cu
     tests/cuda_v2_tests.cpp
     tests/cuda_v2_matrix_evidence_tests.cpp
+    tests/cuda_v4_batch_matrix_tests.cpp
     cmake/GenerateCudaV3Evidence.cmake
     cmake/FinalizeCudaV3Evidence.cmake
     include/s6/cuda_v3.hpp
@@ -385,6 +387,8 @@ if(BUILD_TESTING)
 
     add_executable(s6_cpu_evidence_tests tests/cpu_evidence_tests.cpp)
     target_link_libraries(s6_cpu_evidence_tests PRIVATE s6_cpu_evidence)
+    add_executable(s14_cpu_batch_tests tests/cpu_batch_tests.cpp)
+    target_link_libraries(s14_cpu_batch_tests PRIVATE s6_cpu_evidence)
     add_dependencies(s6_cpu_tests s6_verify_source_identity)
     add_dependencies(s6_cpu_matrix_tests s6_verify_source_identity)
     add_dependencies(s6_cpu_evidence_tests s6_verify_source_identity)
@@ -393,6 +397,7 @@ if(BUILD_TESTING)
         target_compile_options(s6_cpu_tests PRIVATE /W4 /WX /fp:strict /permissive-)
         target_compile_options(s6_cpu_matrix_tests PRIVATE /W4 /WX /fp:strict /permissive-)
         target_compile_options(s6_cpu_evidence_tests PRIVATE /W4 /WX /fp:strict /permissive-)
+        target_compile_options(s14_cpu_batch_tests PRIVATE /W4 /WX /fp:strict /permissive-)
     else()
         target_compile_options(s6_cpu_tests PRIVATE
             -Wall -Wextra -Wpedantic -Werror -fno-fast-math -frounding-math
@@ -471,6 +476,7 @@ if(BUILD_TESTING)
     add_test(NAME s6.cpu.required_matrix
         COMMAND s6_cpu_matrix_tests ${s6_cpu_matrix_tests_EVIDENCE_MANIFEST}
             ${S6_FIXTURE_EVIDENCE} ${S6_MATRIX_REPORT_ROOT})
+    add_test(NAME s14.cpu_batch.functional COMMAND s14_cpu_batch_tests)
 
     add_executable(s7_cuda_v0_tests tests/cuda_v0_tests.cpp)
     target_link_libraries(s7_cuda_v0_tests PRIVATE s7_cuda_v0 s6_cpu_evidence)
@@ -665,6 +671,24 @@ if(BUILD_TESTING)
     add_custom_target(s7_cuda_v2_evidence ALL
         DEPENDS ${S7_CUDA_V2_EVIDENCE_MANIFEST})
     add_dependencies(s7_cuda_v2_evidence s6_verify_source_identity)
+
+    add_executable(s14_cuda_v4_batch_matrix_tests
+        tests/cuda_v4_batch_matrix_tests.cpp)
+    target_include_directories(s14_cuda_v4_batch_matrix_tests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests)
+    target_link_libraries(s14_cuda_v4_batch_matrix_tests PRIVATE
+        s7_cuda_v2 s6_cpu_evidence)
+    target_compile_options(s14_cuda_v4_batch_matrix_tests PRIVATE
+        /W4 /WX /fp:strict /permissive-)
+    add_dependencies(s14_cuda_v4_batch_matrix_tests
+        s6_verify_source_identity s7_cuda_v2_evidence)
+    add_test(NAME s14.cuda_v4_batch.required_matrix
+        COMMAND s14_cuda_v4_batch_matrix_tests
+            ${CMAKE_CURRENT_BINARY_DIR}/evidence/cuda-v4-batch/matrix.txt
+            ${S7_CUDA_V2_EVIDENCE_MANIFEST}
+            ${CMAKE_CURRENT_SOURCE_DIR}/docs/experiments/S7-ACCEPT-20261103-01/evidence/final/tuning-freeze.csv)
+    set_tests_properties(s14.cuda_v4_batch.required_matrix PROPERTIES
+        DEPENDS s7.cuda_v2.required_matrix TIMEOUT 2400)
 
     add_executable(s7_cuda_v3_tests tests/cuda_v3_tests.cpp)
     target_link_libraries(s7_cuda_v3_tests PRIVATE
