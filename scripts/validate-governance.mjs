@@ -59,7 +59,11 @@ function walk(start, predicate = () => true) {
 function validateLinks() {
   const broken = [];
   let checked = 0;
-  for (const file of walk(root, (candidate) => candidate.endsWith(".md"))) {
+  // Archived evidence retains its original paths and bytes; its integrity is
+  // verified by PACKET_MANIFEST.sha256 rather than live-document link checks.
+  const immutableS14Evidence = path.join(root, "docs", "experiments", "S14-BATCH-V4-20261111-02", "evidence");
+  for (const file of walk(root, (candidate) =>
+    candidate.endsWith(".md") && !candidate.startsWith(`${immutableS14Evidence}${path.sep}`))) {
     const content = fs.readFileSync(file, "utf8");
     for (const match of content.matchAll(/!?(?:\[[^\]]*\])\(([^)]+)\)/g)) {
       let target = match[1].trim();

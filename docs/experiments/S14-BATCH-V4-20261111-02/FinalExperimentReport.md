@@ -128,4 +128,3 @@ reconcile, and the rejected H1/H2 aggregate outcomes are valid completed
 experiment results. Remaining work is Owner-only Git/PR/CI review and the
 acceptance decision. S15 implementation has not started; the bounded planning
 handoff is in [`S15Handoff.md`](S15Handoff.md).
-
