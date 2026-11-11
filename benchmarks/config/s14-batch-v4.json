@@ -1,0 +1,99 @@
+{
+  "schema_version": "S14-BATCH-EXPERIMENT-CONFIG-v1",
+  "experiment_id_source": "owner-supplied runner argument",
+  "expected_revision_source": "owner-supplied runner argument",
+  "approved_design": "S14 Batch Benchmark Design",
+  "approved_numerical_policy": {
+    "id": "S6-CONSOLIDATED-NUMERICAL-POLICY-v1.0",
+    "sha256": "503aa6b2c97567d814a9316fb0f2f9890d5472aea2bcf1f928ac505c29d1aa39"
+  },
+  "workload": {
+    "class": "batch-query-secondary",
+    "generator_id": "S14-DISTINCT-BATCH-v1",
+    "candidate_counts": [1024, 16384, 262144, 1048576],
+    "dimensions": [8, 32, 128],
+    "batch_sizes": [1, 8, 32],
+    "maximum_distinct_queries": 32,
+    "final_seed": "589684135938649225",
+    "query_order": "prefixes of one 32-query query-major buffer",
+    "exact_query_policy": "32 distinct dyadic Float32 queries inserted at deterministic unique candidate indices"
+  },
+  "frozen_v2_configuration": {
+    "path": "docs/experiments/S7-ACCEPT-20261103-01/evidence/final/tuning-freeze.csv",
+    "sha256": "6907ec9d918fb9b3805685fe4b91e53b7538e1f6fe46c851b1ac24fab1f761b8",
+    "retuning": "prohibited"
+  },
+  "sampling": {
+    "warmups": 10,
+    "measured_repetitions": 100,
+    "percentile_method": "linear_n_minus_1",
+    "uncertainty_method": "deterministic percentile bootstrap, 2000 resamples, 95% median interval",
+    "run_order": "deterministic rotation of CPU Batch, sequential Prepared V2, and V4 Batch by workload, batch size, and iteration"
+  },
+  "timing_boundaries": {
+    "BND-BATCH-E2E-CPU": "CPU batch API entry through synchronous host result return; dataset and query validation included",
+    "BND-BATCH-E2E-V2-SEQUENTIAL-PREP": "one outer interval around B sequential synchronous Prepared V2 calls with all host results available",
+    "BND-BATCH-E2E-V4": "V4 batch API entry through synchronous host batch result return with one completed-batch synchronization",
+    "COST-PREP-DATASET-CONSTRUCTION": "prepared V2 dataset construction; persistent destruction excluded",
+    "COST-V2-WORKSPACE-CONSTRUCTION": "single-query V2 workspace construction; persistent destruction excluded",
+    "COST-V4-BATCH-WORKSPACE-CONSTRUCTION": "V4 workspace construction at the reported batch capacity; persistent destruction excluded",
+    "COST-V2-READY-CONSTRUCTION": "dataset preparation plus V2 workspace construction; persistent destruction excluded",
+    "COST-V4-BATCH-READY-CONSTRUCTION": "dataset preparation plus V4 workspace construction; persistent destruction excluded"
+  },
+  "comparisons": [
+    {
+      "id": "H1",
+      "reference": "BND-BATCH-E2E-CPU",
+      "candidate": "BND-BATCH-E2E-V4",
+      "statement": "GPU V4 Batch E2E latency is lower than CPU Batch E2E latency"
+    },
+    {
+      "id": "H2",
+      "reference": "BND-BATCH-E2E-V2-SEQUENTIAL-PREP",
+      "candidate": "BND-BATCH-E2E-V4",
+      "statement": "GPU V4 Batch E2E latency is lower than sequential Prepared V2 E2E latency"
+    }
+  ],
+  "ratio_rule": {
+    "definition": "median(reference) / median(candidate)",
+    "interval": "[reference_ci_low/candidate_ci_high, reference_ci_high/candidate_ci_low]",
+    "supported": "ci_low > 1",
+    "rejected": "ci_high < 1",
+    "inconclusive": "interval includes 1",
+    "all_36_supported": "all 36 configuration outcomes are supported",
+    "all_36_rejected": "at least one configuration outcome is rejected",
+    "all_36_inconclusive": "no configuration is rejected and at least one is inconclusive"
+  },
+  "throughput": {
+    "unit": "queries_per_second",
+    "formula": "batch_size * 1e9 / elapsed_ns",
+    "latency_ci_transform": "[batch_size*1e9/latency_ci_high, batch_size*1e9/latency_ci_low]"
+  },
+  "break_even": {
+    "minimum_batches_formula": "max(1,floor((candidate_setup-reference_setup)/(reference_batch-candidate_batch))+1) when reference_batch>candidate_batch",
+    "cpu_reference_setup": "zero; host dataset and queries already materialized",
+    "v4_vs_cpu_candidate_setup": "COST-V4-BATCH-READY-CONSTRUCTION",
+    "v2_vs_v4_setup": "COST-V2-WORKSPACE-CONSTRUCTION versus COST-V4-BATCH-WORKSPACE-CONSTRUCTION; common prepared dataset cancels",
+    "total_queries": "minimum_batches * batch_size",
+    "persistent_resource_destruction": "excluded; results are construction-plus-batch amortization, not complete lifetime cost"
+  },
+  "correctness_gate": {
+    "workload_cases": 12,
+    "batch_configurations": 36,
+    "required_methods": ["cpu-batch", "v2-sequential", "v4-batch"],
+    "bitwise_float32_equivalence": true,
+    "float64_queries": 384,
+    "clean_revision_required_for_performance": true
+  },
+  "kernel_only": "omitted by approved minimal design",
+  "environment_policy": {
+    "telemetry_required": true,
+    "telemetry_interval_ms": 1000,
+    "unauthorized_gpu_process_action_before_measurement": "fail",
+    "unauthorized_gpu_process_action_during_measurement": "retain-samples-and-mark-inconclusive",
+    "hardware_thermal_slowdown_treatment": "retain-samples-and-mark-inconclusive",
+    "numeric_temperature_clock_power_thresholds": "none approved"
+  },
+  "fast_math": "disabled",
+  "historical_evidence_policy": "S7 through S13 evidence is immutable; S14 writes only to a new output directory"
+}

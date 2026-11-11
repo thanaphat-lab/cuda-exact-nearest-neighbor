@@ -106,6 +106,10 @@ set(S6_EVIDENCE_INPUTS
     benchmarks/config/s13-minimal-v2.json
     scripts/run-s13-benchmarks.ps1
     scripts/analyze-s13-benchmarks.mjs
+    benchmarks/s14_batch_benchmark.cpp
+    benchmarks/config/s14-batch-v4.json
+    scripts/run-s14-batch-benchmarks.ps1
+    scripts/analyze-s14-batch-benchmarks.mjs
     benchmarks/s10_sift1m_loader.hpp
     benchmarks/s10_sift1m_loader.cpp
     benchmarks/s10_sift1m.cpp
@@ -352,6 +356,18 @@ target_compile_definitions(s13_benchmark PRIVATE
     S13_BENCHMARK_TREE_STATE="${S6_WORKTREE_STATE}")
 target_compile_options(s13_benchmark PRIVATE /W4 /WX /fp:strict /permissive-)
 add_dependencies(s13_benchmark s6_verify_source_identity)
+
+add_executable(s14_batch_benchmark benchmarks/s14_batch_benchmark.cpp)
+target_include_directories(s14_batch_benchmark PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests)
+target_link_libraries(s14_batch_benchmark PRIVATE s6_cpu_evidence s7_cuda_v2)
+target_compile_definitions(s14_batch_benchmark PRIVATE
+    S14_BENCHMARK_REVISION="${S6_BUILD_REVISION}"
+    S14_BENCHMARK_TREE_STATE="${S6_WORKTREE_STATE}")
+target_compile_options(s14_batch_benchmark PRIVATE
+    /W4 /WX /fp:strict /permissive-)
+add_dependencies(s14_batch_benchmark s6_verify_source_identity)
 
 add_library(s10_sift1m_io STATIC
     benchmarks/s10_sift1m_loader.cpp
@@ -776,6 +792,8 @@ if(BUILD_TESTING)
         "${CMAKE_CURRENT_BINARY_DIR}/evidence/s8-benchmark-integrity")
     set(S13_BENCHMARK_INTEGRITY_ROOT
         "${CMAKE_CURRENT_BINARY_DIR}/evidence/s13-benchmark-integrity")
+    set(S14_BATCH_BENCHMARK_INTEGRITY_ROOT
+        "${CMAKE_CURRENT_BINARY_DIR}/evidence/s14-batch-benchmark-integrity")
     add_executable(s10_sift1m_loader_tests tests/s10_sift1m_loader_tests.cpp)
     target_link_libraries(s10_sift1m_loader_tests PRIVATE s10_sift1m_io)
     target_compile_definitions(s10_sift1m_loader_tests PRIVATE
@@ -818,6 +836,20 @@ if(BUILD_TESTING)
             -Mode SelfTest)
     set_tests_properties(s13.benchmark.integrity s13.analysis.integrity
         s13.orchestration.integrity PROPERTIES TIMEOUT 60)
+    add_test(NAME s14.batch_benchmark.integrity
+        COMMAND s14_batch_benchmark --self-test
+            ${S14_BATCH_BENCHMARK_INTEGRITY_ROOT})
+    add_test(NAME s14.batch_analysis.integrity
+        COMMAND ${S7_NODE_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/scripts/analyze-s14-batch-benchmarks.mjs
+            --self-test)
+    add_test(NAME s14.batch_orchestration.integrity
+        COMMAND ${S10_PWSH_EXECUTABLE} -NoProfile -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/scripts/run-s14-batch-benchmarks.ps1
+            -Mode SelfTest)
+    set_tests_properties(s14.batch_benchmark.integrity
+        s14.batch_analysis.integrity s14.batch_orchestration.integrity
+        PROPERTIES TIMEOUT 120)
     add_test(NAME s7.benchmark.integrity
         COMMAND s7_benchmark --self-test ${S7_BENCHMARK_INTEGRITY_ROOT})
     add_test(NAME s7.benchmark.dry_run
