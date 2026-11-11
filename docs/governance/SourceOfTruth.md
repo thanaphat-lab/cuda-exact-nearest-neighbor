@@ -1,8 +1,8 @@
 # Source of Truth
 
 Status: Canonical governance record\
-Milestone: S15 — Approved public SIFT1M benchmark design; S6 contracts retained\
-Effective date: 2026-11-11 (Asia/Bangkok)
+Milestone: S15 — Accepted public SIFT1M dataset provenance; S6 contracts retained\
+Effective date: 2026-11-12 (Asia/Bangkok)
 
 ## 1. Canonical sources
 
@@ -15,6 +15,7 @@ Effective date: 2026-11-11 (Asia/Bangkok)
 | Design approval evidence | [S6DesignApprovalRecord.md](S6DesignApprovalRecord.md) | Approval ID, source manifest, COND-01–03, scope, provenance limitations and authorization boundary. |
 | Approved experiment design | [S15PublicSift1mBenchmarkDesignDecision-v1.0.md](../design/S15PublicSift1mBenchmarkDesignDecision-v1.0.md) | Owner-approved formal public SIFT1M single-query experiment matrix, correctness prerequisite, timing/statistical method, performance interpretation, dataset identity and evidence-integrity design. It supplements rather than replaces required synthetic core evidence and does not authorize formal performance execution. |
 | Experiment-design approval evidence | [S15PublicSift1mBenchmarkApprovalRecord.md](S15PublicSift1mBenchmarkApprovalRecord.md) | Exact approved candidate SHA-256, all 12 confirmed decisions, approval date and role, implementation/correctness-integrity authorization, absence of an assigned approval ID, and the separate Owner gate for formal performance benchmark execution. |
+| Dataset-provenance acceptance evidence | [S15DatasetProvenanceRecoveryRecord.md](S15DatasetProvenanceRecoveryRecord.md) | Transcript-bound recovery of the public SIFT1M acquisition and extraction invocations, observed timestamps, archive and extracted-file identities, preserved historical unknowns, and Project Owner acceptance for prospective S15 use. It does not alter S10–S14 evidence or authorize formal performance execution. |
 | 2 | [DecisionRegister.md](DecisionRegister.md) | Status and history of approved, design-resolved, measurement-dependent and unresolved decisions. It records but does not override the specification or numerical policy. |
 | Operational | [DevelopmentAndMergePolicy.md](DevelopmentAndMergePolicy.md) | Approved branch, pull-request, human-review, CI, merge, and emergency process. It governs repository operation but cannot amend project semantics. |
 | 3 | [AcceptanceCriteria.md](../requirements/AcceptanceCriteria.md) | Observable gates derived from the approved specification. |
@@ -35,6 +36,14 @@ authorizes implementation and correctness/integrity verification, and retains a
 separate explicit Owner gate for formal performance benchmark execution. It
 does not amend the canonical S6 numerical policy or replace synthetic V0–V3
 core evidence.
+
+The S15 dataset provenance recovery record is the accepted source for the
+prospective S15 acquisition and extraction history. The Project Owner accepted
+it on 2026-11-12 (Asia/Bangkok) after direct verification of the identified
+Codex transcript, its SHA-256 and cited records, and corroboration against the
+retained external files. Historical executable identities and the server-issued
+acquisition timestamp remain explicitly unknown. This acceptance does not pass
+revision-bound runtime gates or authorize the formal performance benchmark.
 
 ## 2. Statement classes
 
