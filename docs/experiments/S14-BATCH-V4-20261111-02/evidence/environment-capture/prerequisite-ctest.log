@@ -1,0 +1,13 @@
+Test project D:/ku/Parallel Project/build-s14-fix-clean-00e3207-sm86
+    Start  5: s14.cpu_batch.functional
+1/4 Test  #5: s14.cpu_batch.functional ............   Passed    0.01 sec
+    Start 10: s7.cuda_v2.functional
+2/4 Test #10: s7.cuda_v2.functional ...............   Passed    1.02 sec
+    Start 11: s7.cuda_v2.required_matrix
+3/4 Test #11: s7.cuda_v2.required_matrix ..........   Passed   10.59 sec
+    Start 12: s14.cuda_v4_batch.required_matrix
+4/4 Test #12: s14.cuda_v4_batch.required_matrix ...   Passed   17.20 sec
+
+[0;32m100% tests passed[0;0m, 0 tests failed[0;0m out of 4
+
+Total Test time (real) =  28.83 sec

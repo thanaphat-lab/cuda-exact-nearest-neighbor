@@ -1,0 +1,28 @@
+{
+  "schema_version": "S14-ORCHESTRATION-COMMAND-v1",
+  "captured_at": "2026-11-11T16:11:21.0365696+07:00",
+  "executable": "C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+  "script": "D:\\ku\\Parallel Project\\scripts\\run-s14-batch-benchmarks.ps1",
+  "arguments": [
+    "-Mode",
+    "Final",
+    "-BuildDirectory",
+    "D:\\ku\\Parallel Project\\build-s14-fix-clean-00e3207-sm86",
+    "-OutputDirectory",
+    "D:\\ku\\Parallel Project\\build-s14-fix-clean-00e3207-sm86\\s14-final-02",
+    "-ExpectedRevision",
+    "00e3207cc020a99f88b927865c213b7100cfb5de",
+    "-ExperimentId",
+    "S14-BATCH-V4-20261111-02",
+    "-EnvironmentApproval",
+    "D:\\ku\\Parallel Project\\build-s14-fix-clean-00e3207-sm86\\s14-environment-approval-02.json"
+  ],
+  "working_directory": "D:\\ku\\Parallel Project",
+  "resolved_build_directory": "D:\\ku\\Parallel Project\\build-s14-fix-clean-00e3207-sm86",
+  "resolved_output_directory": "D:\\ku\\Parallel Project\\build-s14-fix-clean-00e3207-sm86\\s14-final-02",
+  "resolved_config_path": "D:\\ku\\Parallel Project\\benchmarks\\config\\s14-batch-v4.json",
+  "resolved_environment_approval": "D:\\ku\\Parallel Project\\build-s14-fix-clean-00e3207-sm86\\s14-environment-approval-02.json",
+  "runner_sha256": "9c6150892e8707bb47236df314e00ed48bd7a6839f53ddae95e316d95e14eed9",
+  "config_sha256": "6bc6f761255f0f14196f89e81428ba46670e95cfee8688d9449c0209c2404d02",
+  "environment_approval_sha256": "592d8ae55fdc90007c31ab253c6bd964cf0927cb35ccd690d35350069160def7"
+}

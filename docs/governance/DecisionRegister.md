@@ -2,7 +2,7 @@
 
 Status: Canonical decision-status record\
 Milestone: S6 — Approved numerical policy and implementation design\
-Last updated: 2026-10-29 (Asia/Bangkok)
+Last updated: 2026-11-11 (Asia/Bangkok)
 
 ## 1. Approved decisions
 
@@ -36,6 +36,7 @@ Last updated: 2026-10-29 (Asia/Bangkok)
 | DR-026 | UD-004's design method is approved: candidates `{128,256,512}`, correctness-gated independent tuning, kernel-only median selection, smaller block for exact measured ties, configuration freeze, correctness rerun and separation from final samples. Actual hardware winners and environment/resource facts remain unverified. | `S6-DESIGN-OWNER-APPROVAL-001`, COND-03 | REQ-O-001–REQ-O-005, REQ-B-001–REQ-B-008, REQ-R-001–REQ-R-004; AC-010, AC-012–AC-015 |
 | DR-027 | UD-005's V0–V3 API, ownership, CPU/Float64, layout, reduction, timing and verification architecture is approved. COND-01 governs full-warp participation, masks, safe shuffle sources and hierarchy ties. COND-02 separates associative finite lexicographic argmin from associative nonfinite/domain-failure aggregation: real nonfinite candidates remain logically present, never enter the ordinary floating comparator and propagate failure status through the complete hierarchy. No mandatory failing-index selection rule is established. The proposed 16-byte transport record remains subject to ABI verification. V4 is deferred. | `S6-DESIGN-OWNER-APPROVAL-001`, COND-01, COND-02 | REQ-S-001–REQ-S-003, REQ-N-001–REQ-N-006, REQ-I-001–REQ-I-003, REQ-O-001–REQ-O-006; AC-001–AC-016 |
 | DR-028 | S6 design documentation and future implementation integration use the approved focused-branch/PR process, and the Project Owner alone performs Squash & Merge into `main`. Codex may not merge or enable auto-merge. Branch deletion remains an Owner decision. | `S6-DESIGN-OWNER-APPROVAL-001`; DR-018 | Repository governance only |
+| DR-029 | `S14-EVIDENCE-REMEDIATION-OWNER-APPROVAL-001` prospectively approves the S14 batch evidence-integrity design bound to SHA-256 `ff75b8f7462ff6177536ccc24b014300b66d31e97485c475dc0515e76b518664`: 1,000 ms telemetry cadence, 3,000 ms maximum gap, 900 ms bounded query timeout, independent lifecycle/continuity validation, fail-safe inconclusive treatment for incomplete telemetry, blocking treatment for malformed or identity-mismatched evidence, structured command/CTest provenance, and preservation of the prior run as historical-audit-limited. It does not retrospectively approve the historical experiment or authorize a replacement run. | Project Owner, 2026-11-11; [S14BatchBenchmarkApprovalRecord.md](S14BatchBenchmarkApprovalRecord.md) | REQ-B-005, REQ-R-001–REQ-R-004; optional V4 evidence only |
 
 ## 2. Resolved open decisions
 
@@ -75,3 +76,4 @@ These items are intentionally unresolved. Proposed values, defaults, library beh
 | 2026-10-27 | Recorded DR-018 and synchronized repository workflow governance for S5.5-B. UD-001 through UD-005 remain unresolved. |
 | 2026-10-28 | Recorded the approved S6 policy carrier and resolved UD-001–UD-003 at the policy-decision level. Kept UD-004 open and UD-005 partially resolved. No runtime gate was marked passed. |
 | 2026-10-29 | Recorded `S6-DESIGN-OWNER-APPROVAL-001`, design-level closure of UD-005, approved UD-004 methodology, controlling COND-01–03, deferred V4 and retained all runtime gates as not executed or blocked. |
+| 2026-11-11 | Recorded prospective S14 evidence-integrity approval DR-029, including telemetry continuity/lifecycle controls and historical-audit-limited treatment. No replacement performance run was authorized or executed. |

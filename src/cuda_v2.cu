@@ -5,6 +5,7 @@
 #include <cuda_runtime.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -125,6 +126,140 @@ InputCheck inspect_input(DatasetView dataset, QueryView query) {
     result.query_bytes = dimension * sizeof(float);
     result.distance_bytes = static_cast<std::size_t>(dataset.candidate_count) *
                             sizeof(float);
+    return result;
+}
+
+InputCheck inspect_dataset_for_preparation(DatasetView dataset) {
+    if (dataset.candidate_count == 0U) {
+        return {InvocationStatus::contract_invalid, InputOutcome::invalid_N_zero,
+                DomainStatus::not_applicable, "N is zero"};
+    }
+    if (dataset.dimension == 0U) {
+        return {InvocationStatus::contract_invalid, InputOutcome::invalid_D_zero,
+                DomainStatus::not_applicable, "D is zero"};
+    }
+    if (dataset.data == nullptr) {
+        return {InvocationStatus::api_misuse, InputOutcome::not_applicable,
+                DomainStatus::not_applicable, "null dataset view"};
+    }
+    if (dataset.dimension >
+        static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max())) {
+        return {InvocationStatus::api_misuse, InputOutcome::not_applicable,
+                DomainStatus::not_applicable, "dimension is not addressable"};
+    }
+    const auto dimension = static_cast<std::size_t>(dataset.dimension);
+    if (dataset.candidate_count >
+        static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max() /
+                                   dimension)) {
+        return {InvocationStatus::api_misuse, InputOutcome::not_applicable,
+                DomainStatus::not_applicable, "dataset element-count overflow"};
+    }
+    const auto expected = static_cast<std::size_t>(dataset.candidate_count) * dimension;
+    if (dataset.element_count != expected) {
+        return {InvocationStatus::api_misuse, InputOutcome::not_applicable,
+                DomainStatus::not_applicable,
+                "inconsistent dataset element count"};
+    }
+    if (expected > std::numeric_limits<std::size_t>::max() / sizeof(float)) {
+        return {InvocationStatus::api_misuse, InputOutcome::not_applicable,
+                DomainStatus::not_applicable, "CUDA byte-count overflow"};
+    }
+    for (std::size_t i = 0; i < dataset.element_count; ++i) {
+        if (!std::isfinite(dataset.data[i])) {
+            return {InvocationStatus::contract_invalid,
+                    InputOutcome::invalid_nonfinite,
+                    DomainStatus::not_applicable,
+                    "dataset contains NaN or infinity"};
+        }
+    }
+    InputCheck result;
+    result.invocation = InvocationStatus::completed;
+    result.input = InputOutcome::valid;
+    result.domain = dataset.dimension <= kMaximumPolicyDimension
+                        ? DomainStatus::core_eligible
+                        : DomainStatus::valid_outside_approved_domain;
+    result.dataset_bytes = expected * sizeof(float);
+    return result;
+}
+
+InputCheck inspect_prepared_query(QueryView query, std::uint64_t dimension,
+                                  DomainStatus domain) {
+    if (query.dimension != dimension) {
+        return {InvocationStatus::api_misuse, InputOutcome::not_applicable,
+                DomainStatus::not_applicable,
+                "query and prepared dataset dimensions differ"};
+    }
+    if (query.data == nullptr) {
+        return {InvocationStatus::api_misuse, InputOutcome::not_applicable,
+                DomainStatus::not_applicable, "null query view"};
+    }
+    const auto query_elements = static_cast<std::size_t>(dimension);
+    if (query.element_count != query_elements) {
+        return {InvocationStatus::api_misuse, InputOutcome::not_applicable,
+                DomainStatus::not_applicable,
+                "inconsistent query element count"};
+    }
+    for (std::size_t j = 0; j < query.element_count; ++j) {
+        if (!std::isfinite(query.data[j])) {
+            return {InvocationStatus::contract_invalid,
+                    InputOutcome::invalid_nonfinite,
+                    DomainStatus::not_applicable,
+                    "query contains NaN or infinity"};
+        }
+    }
+    InputCheck result;
+    result.invocation = InvocationStatus::completed;
+    result.input = InputOutcome::valid;
+    result.domain = domain;
+    result.query_bytes = query_elements * sizeof(float);
+    return result;
+}
+
+InputCheck inspect_prepared_query_batch(QueryBatchView queries,
+                                        std::uint64_t dimension,
+                                        DomainStatus domain) {
+    if (queries.query_count == 0U) {
+        return {InvocationStatus::api_misuse, InputOutcome::not_applicable,
+                DomainStatus::not_applicable, "query count is zero"};
+    }
+    if (queries.dimension != dimension) {
+        return {InvocationStatus::api_misuse, InputOutcome::not_applicable,
+                DomainStatus::not_applicable,
+                "query batch and prepared dataset dimensions differ"};
+    }
+    if (queries.data == nullptr) {
+        return {InvocationStatus::api_misuse, InputOutcome::not_applicable,
+                DomainStatus::not_applicable, "null query batch view"};
+    }
+    const auto query_dimension = static_cast<std::size_t>(dimension);
+    if (queries.query_count >
+        static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max() /
+                                   query_dimension)) {
+        return {InvocationStatus::api_misuse, InputOutcome::not_applicable,
+                DomainStatus::not_applicable,
+                "query batch element-count overflow"};
+    }
+    const auto query_elements =
+        static_cast<std::size_t>(queries.query_count) * query_dimension;
+    if (queries.element_count != query_elements ||
+        query_elements > std::numeric_limits<std::size_t>::max() / sizeof(float)) {
+        return {InvocationStatus::api_misuse, InputOutcome::not_applicable,
+                DomainStatus::not_applicable,
+                "inconsistent query batch element count"};
+    }
+    for (std::size_t i = 0; i < query_elements; ++i) {
+        if (!std::isfinite(queries.data[i])) {
+            return {InvocationStatus::contract_invalid,
+                    InputOutcome::invalid_nonfinite,
+                    DomainStatus::not_applicable,
+                    "query batch contains NaN or infinity"};
+        }
+    }
+    InputCheck result;
+    result.invocation = InvocationStatus::completed;
+    result.input = InputOutcome::valid;
+    result.domain = domain;
+    result.query_bytes = query_elements * sizeof(float);
     return result;
 }
 
@@ -329,6 +464,77 @@ __global__ void cuda_v2_record_block_reduce_kernel(
     }
 }
 
+template <unsigned int BlockSize>
+__global__ void cuda_v4_batch_distance_block_reduce_kernel(
+    const float* dataset, const float* queries, std::uint64_t query_count,
+    std::uint64_t candidate_count, std::uint64_t dimension,
+    std::uint64_t blocks_per_query, CudaV2ReductionRecord* block_records) {
+    __shared__ CudaV2ReductionRecord shared[BlockSize];
+    const std::uint64_t linear_block = static_cast<std::uint64_t>(blockIdx.x);
+    const std::uint64_t query_index = linear_block / blocks_per_query;
+    const std::uint64_t candidate_block = linear_block % blocks_per_query;
+    const unsigned int lane = threadIdx.x;
+    const std::uint64_t candidate = candidate_block * BlockSize + lane;
+    CudaV2ReductionRecord record{};
+    if (query_index < query_count && candidate < candidate_count) {
+        const float* query = queries + query_index * dimension;
+        float accumulator = 0.0F;
+#pragma unroll 1
+        for (std::uint64_t j = 0; j < dimension; ++j) {
+            const float difference =
+                __fsub_rn(dataset[j * candidate_count + candidate], query[j]);
+            accumulator = __fmaf_rn(difference, difference, accumulator);
+        }
+        record.flags = kRecordPresent;
+        record.index = candidate;
+        if (isfinite(accumulator)) {
+            record.distance = accumulator;
+            record.flags |= kRecordFiniteMinimum;
+        } else {
+            record.flags |= kRecordNonfinite | kRecordDomainFailure;
+        }
+    }
+    shared[lane] = record;
+    __syncthreads();
+    for (unsigned int stride = BlockSize / 2U; stride > 0U; stride /= 2U) {
+        if (lane < stride) {
+            shared[lane] = combine_records(shared[lane], shared[lane + stride]);
+        }
+        __syncthreads();
+    }
+    if (lane == 0U) {
+        block_records[linear_block] = shared[0];
+    }
+}
+
+template <unsigned int BlockSize>
+__global__ void cuda_v4_batch_record_block_reduce_kernel(
+    const CudaV2ReductionRecord* input, std::uint64_t query_count,
+    std::uint64_t input_count_per_query,
+    std::uint64_t output_count_per_query, CudaV2ReductionRecord* output) {
+    __shared__ CudaV2ReductionRecord shared[BlockSize];
+    const std::uint64_t linear_block = static_cast<std::uint64_t>(blockIdx.x);
+    const std::uint64_t query_index = linear_block / output_count_per_query;
+    const std::uint64_t output_position = linear_block % output_count_per_query;
+    const unsigned int lane = threadIdx.x;
+    const std::uint64_t input_position =
+        output_position * BlockSize + lane;
+    shared[lane] =
+        query_index < query_count && input_position < input_count_per_query
+            ? input[query_index * input_count_per_query + input_position]
+            : CudaV2ReductionRecord{};
+    __syncthreads();
+    for (unsigned int stride = BlockSize / 2U; stride > 0U; stride /= 2U) {
+        if (lane < stride) {
+            shared[lane] = combine_records(shared[lane], shared[lane + stride]);
+        }
+        __syncthreads();
+    }
+    if (lane == 0U) {
+        output[query_index * output_count_per_query + output_position] = shared[0];
+    }
+}
+
 __global__ void cuda_v2_abi_probe_kernel(std::uint64_t* output) {
     if (blockIdx.x == 0U && threadIdx.x == 0U) {
         output[0] = static_cast<std::uint64_t>(sizeof(CudaV2ReductionRecord));
@@ -379,6 +585,66 @@ cudaError_t launch_record_stage(
         case 512U:
             cuda_v2_record_block_reduce_kernel<512U><<<grid, 512U, 0U, stream>>>(
                 input, input_count, output);
+            break;
+        default:
+            return cudaErrorInvalidConfiguration;
+    }
+    return cudaPeekAtLastError();
+}
+
+cudaError_t launch_batch_distance_stage(
+    std::uint32_t block_size, unsigned int grid, cudaStream_t stream,
+    const float* dataset, const float* queries, std::uint64_t query_count,
+    std::uint64_t candidate_count, std::uint64_t dimension,
+    std::uint64_t blocks_per_query, CudaV2ReductionRecord* output) {
+    switch (block_size) {
+        case 128U:
+            cuda_v4_batch_distance_block_reduce_kernel<128U>
+                <<<grid, 128U, 0U, stream>>>(
+                    dataset, queries, query_count, candidate_count, dimension,
+                    blocks_per_query, output);
+            break;
+        case 256U:
+            cuda_v4_batch_distance_block_reduce_kernel<256U>
+                <<<grid, 256U, 0U, stream>>>(
+                    dataset, queries, query_count, candidate_count, dimension,
+                    blocks_per_query, output);
+            break;
+        case 512U:
+            cuda_v4_batch_distance_block_reduce_kernel<512U>
+                <<<grid, 512U, 0U, stream>>>(
+                    dataset, queries, query_count, candidate_count, dimension,
+                    blocks_per_query, output);
+            break;
+        default:
+            return cudaErrorInvalidConfiguration;
+    }
+    return cudaPeekAtLastError();
+}
+
+cudaError_t launch_batch_record_stage(
+    std::uint32_t block_size, unsigned int grid, cudaStream_t stream,
+    const CudaV2ReductionRecord* input, std::uint64_t query_count,
+    std::uint64_t input_count_per_query,
+    std::uint64_t output_count_per_query, CudaV2ReductionRecord* output) {
+    switch (block_size) {
+        case 128U:
+            cuda_v4_batch_record_block_reduce_kernel<128U>
+                <<<grid, 128U, 0U, stream>>>(
+                    input, query_count, input_count_per_query,
+                    output_count_per_query, output);
+            break;
+        case 256U:
+            cuda_v4_batch_record_block_reduce_kernel<256U>
+                <<<grid, 256U, 0U, stream>>>(
+                    input, query_count, input_count_per_query,
+                    output_count_per_query, output);
+            break;
+        case 512U:
+            cuda_v4_batch_record_block_reduce_kernel<512U>
+                <<<grid, 512U, 0U, stream>>>(
+                    input, query_count, input_count_per_query,
+                    output_count_per_query, output);
             break;
         default:
             return cudaErrorInvalidConfiguration;
@@ -736,6 +1002,102 @@ std::string format_uuid(const cudaUUID_t& uuid) {
 
 }  // namespace
 
+namespace detail {
+
+struct CudaV2PreparedDatasetState {
+    int device_ordinal = 0;
+    std::uint64_t candidate_count = 0;
+    std::uint64_t dimension = 0;
+    DomainStatus domain_status = DomainStatus::not_applicable;
+    DeviceAllocation<float> device_dataset;
+
+    ~CudaV2PreparedDatasetState() { (void)cudaSetDevice(device_ordinal); }
+};
+
+struct CudaV2WorkspaceState {
+    int device_ordinal = 0;
+    std::uint64_t candidate_count = 0;
+    std::uint64_t dimension = 0;
+    std::uint64_t first_count = 0;
+    std::uint32_t threads_per_block = 0;
+    DeviceAllocation<float> device_query;
+    DeviceAllocation<CudaV2ReductionRecord> device_pairs_a;
+    DeviceAllocation<CudaV2ReductionRecord> device_pairs_b;
+    std::atomic_flag in_use = ATOMIC_FLAG_INIT;
+    std::atomic<bool> disabled{false};
+
+    ~CudaV2WorkspaceState() { (void)cudaSetDevice(device_ordinal); }
+};
+
+struct CudaV4BatchWorkspaceState {
+    int device_ordinal = 0;
+    std::uint64_t candidate_count = 0;
+    std::uint64_t dimension = 0;
+    std::uint64_t capacity = 0;
+    std::uint64_t first_count = 0;
+    std::uint32_t threads_per_block = 0;
+    DeviceAllocation<float> device_queries;
+    DeviceAllocation<CudaV2ReductionRecord> device_pairs_a;
+    DeviceAllocation<CudaV2ReductionRecord> device_pairs_b;
+    std::atomic_flag in_use = ATOMIC_FLAG_INIT;
+    std::atomic<bool> disabled{false};
+
+    ~CudaV4BatchWorkspaceState() { (void)cudaSetDevice(device_ordinal); }
+};
+
+struct CudaV2PreparedSearchAccess {
+    static ProductionOutcome run(
+        const CudaV2PreparedDataset& dataset, QueryView query,
+        CudaV2Workspace& workspace, const CudaV2Options& options,
+        CudaV2InjectedFailure injected_failure);
+};
+
+struct CudaV4BatchSearchAccess {
+    static BatchProductionOutcome run(
+        const CudaV2PreparedDataset& dataset, QueryBatchView queries,
+        CudaV4BatchWorkspace& workspace, const CudaV2Options& options,
+        CudaV2InjectedFailure injected_failure);
+};
+
+}  // namespace detail
+
+CudaV2PreparedDataset::CudaV2PreparedDataset() noexcept = default;
+CudaV2PreparedDataset::~CudaV2PreparedDataset() = default;
+CudaV2PreparedDataset::CudaV2PreparedDataset(CudaV2PreparedDataset&&) noexcept =
+    default;
+CudaV2PreparedDataset& CudaV2PreparedDataset::operator=(
+    CudaV2PreparedDataset&&) noexcept = default;
+
+bool CudaV2PreparedDataset::valid() const noexcept { return state_ != nullptr; }
+std::uint64_t CudaV2PreparedDataset::candidate_count() const noexcept {
+    return state_ != nullptr ? state_->candidate_count : 0U;
+}
+std::uint64_t CudaV2PreparedDataset::dimension() const noexcept {
+    return state_ != nullptr ? state_->dimension : 0U;
+}
+int CudaV2PreparedDataset::device_ordinal() const noexcept {
+    return state_ != nullptr ? state_->device_ordinal : -1;
+}
+
+CudaV2Workspace::CudaV2Workspace() noexcept = default;
+CudaV2Workspace::~CudaV2Workspace() = default;
+CudaV2Workspace::CudaV2Workspace(CudaV2Workspace&&) noexcept = default;
+CudaV2Workspace& CudaV2Workspace::operator=(CudaV2Workspace&&) noexcept = default;
+
+bool CudaV2Workspace::valid() const noexcept { return state_ != nullptr; }
+
+CudaV4BatchWorkspace::CudaV4BatchWorkspace() noexcept = default;
+CudaV4BatchWorkspace::~CudaV4BatchWorkspace() = default;
+CudaV4BatchWorkspace::CudaV4BatchWorkspace(
+    CudaV4BatchWorkspace&&) noexcept = default;
+CudaV4BatchWorkspace& CudaV4BatchWorkspace::operator=(
+    CudaV4BatchWorkspace&&) noexcept = default;
+
+bool CudaV4BatchWorkspace::valid() const noexcept { return state_ != nullptr; }
+std::uint64_t CudaV4BatchWorkspace::capacity() const noexcept {
+    return state_ != nullptr ? state_->capacity : 0U;
+}
+
 CudaV2DeviceInfo inspect_cuda_v2_device(int device_ordinal) {
     CudaV2DeviceInfo result;
     result.device_ordinal = device_ordinal;
@@ -818,6 +1180,690 @@ CudaV2EvidencedOutcome cuda_v2_search_float32_evidenced(
                        detail::CudaV2InjectedFailure::none);
 }
 
+CudaV2PreparedDatasetOutcome cuda_v2_prepare_dataset_float32(
+    DatasetView dataset, const CudaV2Options& options) {
+    CudaV2PreparedDatasetOutcome outcome;
+    const auto input = inspect_dataset_for_preparation(dataset);
+    outcome.invocation_status = input.invocation;
+    outcome.input_outcome = input.input;
+    outcome.domain_status = input.domain;
+    outcome.backend_detail = input.detail;
+    if (input.invocation != InvocationStatus::completed) {
+        return outcome;
+    }
+
+    int device_count = 0;
+    cudaError_t error = cudaGetDeviceCount(&device_count);
+    if (error != cudaSuccess) {
+        outcome.invocation_status = InvocationStatus::backend_failure;
+        outcome.domain_status = DomainStatus::unknown;
+        outcome.backend_detail = cuda_detail("cudaGetDeviceCount", error);
+        return outcome;
+    }
+    if (options.device_ordinal < 0 || options.device_ordinal >= device_count) {
+        outcome.invocation_status = InvocationStatus::api_misuse;
+        outcome.domain_status = DomainStatus::unknown;
+        outcome.backend_detail = "CUDA device ordinal is unavailable";
+        return outcome;
+    }
+    error = cudaSetDevice(options.device_ordinal);
+    if (error != cudaSuccess) {
+        outcome.invocation_status = InvocationStatus::backend_failure;
+        outcome.domain_status = DomainStatus::unknown;
+        outcome.backend_detail = cuda_detail("cudaSetDevice", error);
+        return outcome;
+    }
+    if (options.stream != nullptr) {
+        int stream_device = -1;
+        const cudaError_t stream_error =
+            cudaStreamGetDevice(options.stream, &stream_device);
+        if (stream_error != cudaSuccess ||
+            stream_device != options.device_ordinal) {
+            outcome.invocation_status = InvocationStatus::api_misuse;
+            outcome.domain_status = DomainStatus::unknown;
+            outcome.backend_detail = stream_error == cudaSuccess
+                                         ? "CUDA stream belongs to an incompatible device"
+                                         : cuda_detail("invalid CUDA stream", stream_error);
+            return outcome;
+        }
+    }
+
+    std::vector<float> host_soa_dataset;
+    std::string transform_detail;
+    if (!transform_aos_to_soa(dataset, host_soa_dataset, transform_detail,
+                              detail::S8TransposeImplementation::tile_32x32,
+                              nullptr)) {
+        outcome.invocation_status = InvocationStatus::resource_failure;
+        outcome.domain_status = DomainStatus::unknown;
+        outcome.backend_detail = std::move(transform_detail);
+        return outcome;
+    }
+
+    std::unique_ptr<detail::CudaV2PreparedDatasetState> state;
+    try {
+        state = std::make_unique<detail::CudaV2PreparedDatasetState>();
+    } catch (const std::bad_alloc&) {
+        outcome.invocation_status = InvocationStatus::resource_failure;
+        outcome.domain_status = DomainStatus::unknown;
+        outcome.backend_detail = "prepared dataset host allocation failed";
+        return outcome;
+    }
+    state->device_ordinal = options.device_ordinal;
+    state->candidate_count = dataset.candidate_count;
+    state->dimension = dataset.dimension;
+    state->domain_status = input.domain;
+    error = state->device_dataset.allocate(dataset.element_count);
+    if (error == cudaSuccess) {
+        error = cudaMemcpyAsync(state->device_dataset.get(), host_soa_dataset.data(),
+                                input.dataset_bytes, cudaMemcpyHostToDevice,
+                                options.stream);
+    }
+    if (error == cudaSuccess) {
+        error = cudaStreamSynchronize(options.stream);
+    }
+    if (error != cudaSuccess) {
+        outcome.invocation_status = error == cudaErrorMemoryAllocation
+                                        ? InvocationStatus::resource_failure
+                                        : InvocationStatus::backend_failure;
+        outcome.domain_status = DomainStatus::unknown;
+        outcome.backend_detail = cuda_detail("CUDA dataset preparation", error);
+        return outcome;
+    }
+
+    CudaV2PreparedDataset prepared;
+    prepared.state_ = std::move(state);
+    outcome.prepared_dataset.emplace(std::move(prepared));
+    outcome.invocation_status = InvocationStatus::completed;
+    outcome.backend_detail.clear();
+    return outcome;
+}
+
+CudaV2WorkspaceOutcome cuda_v2_create_workspace(
+    const CudaV2PreparedDataset& dataset, const CudaV2Options& options) {
+    CudaV2WorkspaceOutcome outcome;
+    if (dataset.state_ == nullptr) {
+        outcome.invocation_status = InvocationStatus::api_misuse;
+        outcome.backend_detail = "prepared dataset handle is empty";
+        return outcome;
+    }
+    if (!supported_block_size(options.threads_per_block)) {
+        outcome.invocation_status = InvocationStatus::api_misuse;
+        outcome.backend_detail =
+            "CUDA V2 block size must be one of 128, 256, or 512";
+        return outcome;
+    }
+    if (options.device_ordinal != dataset.state_->device_ordinal) {
+        outcome.invocation_status = InvocationStatus::api_misuse;
+        outcome.backend_detail = "prepared dataset belongs to another device";
+        return outcome;
+    }
+
+    cudaError_t error = cudaSetDevice(options.device_ordinal);
+    if (error != cudaSuccess) {
+        outcome.invocation_status = InvocationStatus::backend_failure;
+        outcome.backend_detail = cuda_detail("cudaSetDevice", error);
+        return outcome;
+    }
+    if (options.stream != nullptr) {
+        int stream_device = -1;
+        const cudaError_t stream_error =
+            cudaStreamGetDevice(options.stream, &stream_device);
+        if (stream_error != cudaSuccess ||
+            stream_device != options.device_ordinal) {
+            outcome.invocation_status = InvocationStatus::api_misuse;
+            outcome.backend_detail = stream_error == cudaSuccess
+                                         ? "CUDA stream belongs to an incompatible device"
+                                         : cuda_detail("invalid CUDA stream", stream_error);
+            return outcome;
+        }
+    }
+    cudaDeviceProp properties{};
+    error = cudaGetDeviceProperties(&properties, options.device_ordinal);
+    if (error != cudaSuccess) {
+        outcome.invocation_status = InvocationStatus::backend_failure;
+        outcome.backend_detail = cuda_detail("CUDA workspace validation", error);
+        return outcome;
+    }
+    if (properties.maxThreadsPerBlock <
+        static_cast<int>(options.threads_per_block)) {
+        outcome.invocation_status = InvocationStatus::api_misuse;
+        outcome.backend_detail =
+            "device does not support requested CUDA V2 block size";
+        return outcome;
+    }
+    const std::uint64_t first_count = ceiling_divide(
+        dataset.state_->candidate_count, options.threads_per_block);
+    if (first_count > static_cast<std::uint64_t>(properties.maxGridSize[0]) ||
+        first_count > static_cast<std::uint64_t>(
+                          std::numeric_limits<unsigned int>::max()) ||
+        first_count > static_cast<std::uint64_t>(
+                          std::numeric_limits<std::size_t>::max())) {
+        outcome.invocation_status = InvocationStatus::api_misuse;
+        outcome.backend_detail = "candidate count exceeds CUDA grid capacity";
+        return outcome;
+    }
+
+    std::unique_ptr<detail::CudaV2WorkspaceState> state;
+    try {
+        state = std::make_unique<detail::CudaV2WorkspaceState>();
+    } catch (const std::bad_alloc&) {
+        outcome.invocation_status = InvocationStatus::resource_failure;
+        outcome.backend_detail = "workspace host allocation failed";
+        return outcome;
+    }
+    state->device_ordinal = options.device_ordinal;
+    state->candidate_count = dataset.state_->candidate_count;
+    state->dimension = dataset.state_->dimension;
+    state->first_count = first_count;
+    state->threads_per_block = options.threads_per_block;
+    error = state->device_query.allocate(
+        static_cast<std::size_t>(state->dimension));
+    if (error == cudaSuccess) {
+        error = state->device_pairs_a.allocate(
+            static_cast<std::size_t>(first_count));
+    }
+    if (error == cudaSuccess) {
+        error = state->device_pairs_b.allocate(
+            static_cast<std::size_t>(first_count));
+    }
+    if (error != cudaSuccess) {
+        outcome.invocation_status = error == cudaErrorMemoryAllocation
+                                        ? InvocationStatus::resource_failure
+                                        : InvocationStatus::backend_failure;
+        outcome.backend_detail = cuda_detail("CUDA workspace allocation", error);
+        return outcome;
+    }
+
+    CudaV2Workspace workspace;
+    workspace.state_ = std::move(state);
+    outcome.workspace.emplace(std::move(workspace));
+    outcome.invocation_status = InvocationStatus::completed;
+    return outcome;
+}
+
+ProductionOutcome detail::CudaV2PreparedSearchAccess::run(
+    const CudaV2PreparedDataset& dataset, QueryView query,
+    CudaV2Workspace& workspace, const CudaV2Options& options,
+    detail::CudaV2InjectedFailure injected_failure) {
+    ProductionOutcome outcome;
+    if (dataset.state_ == nullptr || workspace.state_ == nullptr) {
+        outcome.invocation_status = InvocationStatus::api_misuse;
+        outcome.backend_detail = "prepared dataset or workspace handle is empty";
+        return outcome;
+    }
+    if (options.device_ordinal != dataset.state_->device_ordinal ||
+        options.device_ordinal != workspace.state_->device_ordinal ||
+        options.threads_per_block != workspace.state_->threads_per_block ||
+        dataset.state_->candidate_count != workspace.state_->candidate_count ||
+        dataset.state_->dimension != workspace.state_->dimension) {
+        outcome.invocation_status = InvocationStatus::api_misuse;
+        outcome.backend_detail = "prepared dataset, workspace, and options are incompatible";
+        return outcome;
+    }
+    if (workspace.state_->disabled.load(std::memory_order_acquire)) {
+        outcome.invocation_status = InvocationStatus::backend_failure;
+        outcome.domain_status = DomainStatus::unknown;
+        outcome.backend_detail =
+            "CUDA V2 workspace is disabled after a prior backend failure";
+        return outcome;
+    }
+    const auto input = inspect_prepared_query(
+        query, dataset.state_->dimension, dataset.state_->domain_status);
+    outcome.invocation_status = input.invocation;
+    outcome.input_outcome = input.input;
+    outcome.domain_status = input.domain;
+    outcome.backend_detail = input.detail;
+    if (input.invocation != InvocationStatus::completed) {
+        return outcome;
+    }
+    if (workspace.state_->in_use.test_and_set(std::memory_order_acquire)) {
+        outcome.invocation_status = InvocationStatus::api_misuse;
+        outcome.domain_status = DomainStatus::unknown;
+        outcome.backend_detail = "CUDA V2 workspace is already in use";
+        return outcome;
+    }
+    struct WorkspaceUseGuard {
+        std::atomic_flag& flag;
+        ~WorkspaceUseGuard() { flag.clear(std::memory_order_release); }
+    } use_guard{workspace.state_->in_use};
+
+    cudaError_t error = cudaSetDevice(options.device_ordinal);
+    if (error != cudaSuccess) {
+        outcome.invocation_status = InvocationStatus::backend_failure;
+        outcome.domain_status = DomainStatus::unknown;
+        outcome.backend_detail = cuda_detail("cudaSetDevice", error);
+        return outcome;
+    }
+    if (options.stream != nullptr) {
+        int stream_device = -1;
+        const cudaError_t stream_error =
+            cudaStreamGetDevice(options.stream, &stream_device);
+        if (stream_error != cudaSuccess ||
+            stream_device != options.device_ordinal) {
+            outcome.invocation_status = InvocationStatus::api_misuse;
+            outcome.domain_status = DomainStatus::unknown;
+            outcome.backend_detail = stream_error == cudaSuccess
+                                         ? "CUDA stream belongs to an incompatible device"
+                                         : cuda_detail("invalid CUDA stream", stream_error);
+            return outcome;
+        }
+    }
+    const auto fail_after_enqueue =
+        [&](const char* operation, cudaError_t operation_error,
+            bool inject_drain_failure = false) -> ProductionOutcome {
+        cudaError_t drain_error = cudaStreamSynchronize(options.stream);
+        if (inject_drain_failure) {
+            drain_error = cudaErrorUnknown;
+        }
+        outcome.invocation_status = InvocationStatus::backend_failure;
+        outcome.domain_status = DomainStatus::unknown;
+        outcome.backend_detail = cuda_detail(operation, operation_error);
+        if (drain_error != cudaSuccess) {
+            workspace.state_->disabled.store(true, std::memory_order_release);
+            outcome.backend_detail += "; workspace disabled: " +
+                                      cuda_detail("cudaStreamSynchronize",
+                                                  drain_error);
+        }
+        return outcome;
+    };
+    error = cudaMemcpyAsync(workspace.state_->device_query.get(), query.data,
+                            input.query_bytes, cudaMemcpyHostToDevice,
+                            options.stream);
+    if (error != cudaSuccess) {
+        outcome.invocation_status = InvocationStatus::backend_failure;
+        outcome.domain_status = DomainStatus::unknown;
+        outcome.backend_detail = cuda_detail("CUDA prepared query transfer", error);
+        return outcome;
+    }
+
+    (void)cudaGetLastError();
+    error = launch_distance_stage(
+        options.threads_per_block,
+        static_cast<unsigned int>(workspace.state_->first_count), options.stream,
+        dataset.state_->device_dataset.get(), workspace.state_->device_query.get(),
+        dataset.state_->candidate_count, dataset.state_->dimension,
+        workspace.state_->device_pairs_a.get(), nullptr, nullptr);
+    if (error == cudaSuccess &&
+        injected_failure == detail::CudaV2InjectedFailure::backend_launch) {
+        error = cudaErrorLaunchFailure;
+    }
+    CudaV2ReductionRecord* current = workspace.state_->device_pairs_a.get();
+    CudaV2ReductionRecord* next = workspace.state_->device_pairs_b.get();
+    std::uint64_t current_count = workspace.state_->first_count;
+    while (error == cudaSuccess && current_count > 1U) {
+        const std::uint64_t next_count =
+            ceiling_divide(current_count, options.threads_per_block);
+        error = launch_record_stage(
+            options.threads_per_block, static_cast<unsigned int>(next_count),
+            options.stream, current, current_count, next);
+        std::swap(current, next);
+        current_count = next_count;
+    }
+    if (error != cudaSuccess) {
+        return fail_after_enqueue("CUDA V2 kernel launch", error);
+    }
+
+    CudaV2ReductionRecord host_record{};
+    error = cudaMemcpyAsync(&host_record, current, sizeof(host_record),
+                            cudaMemcpyDeviceToHost, options.stream);
+    if (error != cudaSuccess) {
+        return fail_after_enqueue("CUDA prepared result transfer", error);
+    }
+    if (injected_failure ==
+        detail::CudaV2InjectedFailure::backend_synchronize) {
+        return fail_after_enqueue("injected CUDA synchronization failure",
+                                  cudaErrorUnknown, true);
+    }
+    error = cudaStreamSynchronize(options.stream);
+    if (error != cudaSuccess) {
+        outcome.invocation_status = InvocationStatus::backend_failure;
+        outcome.domain_status = DomainStatus::unknown;
+        workspace.state_->disabled.store(true, std::memory_order_release);
+        outcome.backend_detail = cuda_detail("cudaStreamSynchronize", error);
+        return outcome;
+    }
+
+    CudaV2EvidencedOutcome wrapper;
+    wrapper.production = std::move(outcome);
+    apply_final_record(wrapper, host_record);
+    return std::move(wrapper.production);
+}
+
+ProductionOutcome cuda_v2_search_prepared_float32(
+    const CudaV2PreparedDataset& dataset, QueryView query,
+    CudaV2Workspace& workspace, const CudaV2Options& options) {
+    return detail::CudaV2PreparedSearchAccess::run(
+        dataset, query, workspace, options,
+        detail::CudaV2InjectedFailure::none);
+}
+
+CudaV4BatchWorkspaceOutcome cuda_v4_create_batch_workspace(
+    const CudaV2PreparedDataset& dataset, std::uint64_t maximum_query_count,
+    const CudaV2Options& options) {
+    CudaV4BatchWorkspaceOutcome outcome;
+    if (dataset.state_ == nullptr) {
+        outcome.invocation_status = InvocationStatus::api_misuse;
+        outcome.backend_detail = "prepared dataset handle is empty";
+        return outcome;
+    }
+    if (maximum_query_count == 0U) {
+        outcome.invocation_status = InvocationStatus::api_misuse;
+        outcome.backend_detail = "batch workspace capacity is zero";
+        return outcome;
+    }
+    if (!supported_block_size(options.threads_per_block)) {
+        outcome.invocation_status = InvocationStatus::api_misuse;
+        outcome.backend_detail =
+            "CUDA V4 batch block size must be one of 128, 256, or 512";
+        return outcome;
+    }
+    if (options.device_ordinal != dataset.state_->device_ordinal) {
+        outcome.invocation_status = InvocationStatus::api_misuse;
+        outcome.backend_detail = "prepared dataset belongs to another device";
+        return outcome;
+    }
+
+    cudaError_t error = cudaSetDevice(options.device_ordinal);
+    if (error != cudaSuccess) {
+        outcome.invocation_status = InvocationStatus::backend_failure;
+        outcome.backend_detail = cuda_detail("cudaSetDevice", error);
+        return outcome;
+    }
+    if (options.stream != nullptr) {
+        int stream_device = -1;
+        const cudaError_t stream_error =
+            cudaStreamGetDevice(options.stream, &stream_device);
+        if (stream_error != cudaSuccess ||
+            stream_device != options.device_ordinal) {
+            outcome.invocation_status = InvocationStatus::api_misuse;
+            outcome.backend_detail = stream_error == cudaSuccess
+                                         ? "CUDA stream belongs to an incompatible device"
+                                         : cuda_detail("invalid CUDA stream", stream_error);
+            return outcome;
+        }
+    }
+    cudaDeviceProp properties{};
+    error = cudaGetDeviceProperties(&properties, options.device_ordinal);
+    if (error != cudaSuccess) {
+        outcome.invocation_status = InvocationStatus::backend_failure;
+        outcome.backend_detail = cuda_detail("CUDA batch workspace validation", error);
+        return outcome;
+    }
+    if (properties.maxThreadsPerBlock <
+        static_cast<int>(options.threads_per_block)) {
+        outcome.invocation_status = InvocationStatus::api_misuse;
+        outcome.backend_detail =
+            "device does not support requested CUDA V4 batch block size";
+        return outcome;
+    }
+    const std::uint64_t first_count = ceiling_divide(
+        dataset.state_->candidate_count, options.threads_per_block);
+    const auto maximum_size =
+        static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max());
+    if (maximum_query_count >
+            maximum_size / sizeof(float) / dataset.state_->dimension ||
+        maximum_query_count >
+            maximum_size / sizeof(CudaV2ReductionRecord) / first_count ||
+        maximum_query_count >
+            static_cast<std::uint64_t>(properties.maxGridSize[0]) / first_count ||
+        maximum_query_count >
+            static_cast<std::uint64_t>(
+                std::numeric_limits<unsigned int>::max()) /
+                first_count) {
+        outcome.invocation_status = InvocationStatus::api_misuse;
+        outcome.backend_detail =
+            "batch workspace capacity exceeds address or CUDA grid capacity";
+        return outcome;
+    }
+
+    std::unique_ptr<detail::CudaV4BatchWorkspaceState> state;
+    try {
+        state = std::make_unique<detail::CudaV4BatchWorkspaceState>();
+    } catch (const std::bad_alloc&) {
+        outcome.invocation_status = InvocationStatus::resource_failure;
+        outcome.backend_detail = "batch workspace host allocation failed";
+        return outcome;
+    }
+    state->device_ordinal = options.device_ordinal;
+    state->candidate_count = dataset.state_->candidate_count;
+    state->dimension = dataset.state_->dimension;
+    state->capacity = maximum_query_count;
+    state->first_count = first_count;
+    state->threads_per_block = options.threads_per_block;
+    const auto query_elements = static_cast<std::size_t>(
+        maximum_query_count * dataset.state_->dimension);
+    const auto pair_elements =
+        static_cast<std::size_t>(maximum_query_count * first_count);
+    error = state->device_queries.allocate(query_elements);
+    if (error == cudaSuccess) {
+        error = state->device_pairs_a.allocate(pair_elements);
+    }
+    if (error == cudaSuccess) {
+        error = state->device_pairs_b.allocate(pair_elements);
+    }
+    if (error != cudaSuccess) {
+        outcome.invocation_status = error == cudaErrorMemoryAllocation
+                                        ? InvocationStatus::resource_failure
+                                        : InvocationStatus::backend_failure;
+        outcome.backend_detail = cuda_detail("CUDA batch workspace allocation", error);
+        return outcome;
+    }
+
+    CudaV4BatchWorkspace workspace;
+    workspace.state_ = std::move(state);
+    outcome.workspace.emplace(std::move(workspace));
+    outcome.invocation_status = InvocationStatus::completed;
+    return outcome;
+}
+
+BatchProductionOutcome detail::CudaV4BatchSearchAccess::run(
+    const CudaV2PreparedDataset& dataset, QueryBatchView queries,
+    CudaV4BatchWorkspace& workspace, const CudaV2Options& options,
+    detail::CudaV2InjectedFailure injected_failure) {
+    BatchProductionOutcome outcome;
+    if (dataset.state_ == nullptr || workspace.state_ == nullptr) {
+        outcome.invocation_status = InvocationStatus::api_misuse;
+        outcome.backend_detail =
+            "prepared dataset or batch workspace handle is empty";
+        return outcome;
+    }
+    if (options.device_ordinal != dataset.state_->device_ordinal ||
+        options.device_ordinal != workspace.state_->device_ordinal ||
+        options.threads_per_block != workspace.state_->threads_per_block ||
+        dataset.state_->candidate_count != workspace.state_->candidate_count ||
+        dataset.state_->dimension != workspace.state_->dimension) {
+        outcome.invocation_status = InvocationStatus::api_misuse;
+        outcome.backend_detail =
+            "prepared dataset, batch workspace, and options are incompatible";
+        return outcome;
+    }
+    if (workspace.state_->disabled.load(std::memory_order_acquire)) {
+        outcome.invocation_status = InvocationStatus::backend_failure;
+        outcome.domain_status = DomainStatus::unknown;
+        outcome.backend_detail =
+            "CUDA V4 batch workspace is disabled after a prior backend failure";
+        return outcome;
+    }
+    if (queries.query_count > workspace.state_->capacity) {
+        outcome.invocation_status = InvocationStatus::api_misuse;
+        outcome.domain_status = DomainStatus::not_applicable;
+        outcome.backend_detail = "query count exceeds batch workspace capacity";
+        return outcome;
+    }
+    const auto input = inspect_prepared_query_batch(
+        queries, dataset.state_->dimension, dataset.state_->domain_status);
+    outcome.invocation_status = input.invocation;
+    outcome.input_outcome = input.input;
+    outcome.domain_status = input.domain;
+    outcome.backend_detail = input.detail;
+    if (input.invocation != InvocationStatus::completed) {
+        return outcome;
+    }
+    if (workspace.state_->in_use.test_and_set(std::memory_order_acquire)) {
+        outcome.invocation_status = InvocationStatus::api_misuse;
+        outcome.domain_status = DomainStatus::unknown;
+        outcome.backend_detail = "CUDA V4 batch workspace is already in use";
+        return outcome;
+    }
+    struct WorkspaceUseGuard {
+        std::atomic_flag& flag;
+        ~WorkspaceUseGuard() { flag.clear(std::memory_order_release); }
+    } use_guard{workspace.state_->in_use};
+
+    std::vector<CudaV2ReductionRecord> host_records;
+    try {
+        host_records.resize(static_cast<std::size_t>(queries.query_count));
+        outcome.results.reserve(static_cast<std::size_t>(queries.query_count));
+    } catch (const std::bad_alloc&) {
+        outcome.invocation_status = InvocationStatus::resource_failure;
+        outcome.domain_status = DomainStatus::unknown;
+        outcome.backend_detail = "batch result host allocation failed";
+        return outcome;
+    }
+
+    cudaError_t error = cudaSetDevice(options.device_ordinal);
+    if (error != cudaSuccess) {
+        outcome.invocation_status = InvocationStatus::backend_failure;
+        outcome.domain_status = DomainStatus::unknown;
+        outcome.backend_detail = cuda_detail("cudaSetDevice", error);
+        return outcome;
+    }
+    if (options.stream != nullptr) {
+        int stream_device = -1;
+        const cudaError_t stream_error =
+            cudaStreamGetDevice(options.stream, &stream_device);
+        if (stream_error != cudaSuccess ||
+            stream_device != options.device_ordinal) {
+            outcome.invocation_status = InvocationStatus::api_misuse;
+            outcome.domain_status = DomainStatus::unknown;
+            outcome.backend_detail = stream_error == cudaSuccess
+                                         ? "CUDA stream belongs to an incompatible device"
+                                         : cuda_detail("invalid CUDA stream", stream_error);
+            return outcome;
+        }
+    }
+    const auto fail_after_enqueue =
+        [&](const char* operation, cudaError_t operation_error,
+            bool inject_drain_failure = false) -> BatchProductionOutcome {
+        cudaError_t drain_error = cudaStreamSynchronize(options.stream);
+        if (inject_drain_failure) {
+            drain_error = cudaErrorUnknown;
+        }
+        outcome.invocation_status = InvocationStatus::backend_failure;
+        outcome.domain_status = DomainStatus::unknown;
+        outcome.results.clear();
+        outcome.backend_detail = cuda_detail(operation, operation_error);
+        if (drain_error != cudaSuccess) {
+            workspace.state_->disabled.store(true, std::memory_order_release);
+            outcome.backend_detail += "; batch workspace disabled: " +
+                                      cuda_detail("cudaStreamSynchronize",
+                                                  drain_error);
+        }
+        return outcome;
+    };
+
+    error = cudaMemcpyAsync(workspace.state_->device_queries.get(), queries.data,
+                            input.query_bytes, cudaMemcpyHostToDevice,
+                            options.stream);
+    if (error != cudaSuccess) {
+        outcome.invocation_status = InvocationStatus::backend_failure;
+        outcome.domain_status = DomainStatus::unknown;
+        outcome.backend_detail = cuda_detail("CUDA batch query transfer", error);
+        return outcome;
+    }
+
+    (void)cudaGetLastError();
+    const auto first_grid = static_cast<unsigned int>(
+        queries.query_count * workspace.state_->first_count);
+    error = launch_batch_distance_stage(
+        options.threads_per_block, first_grid, options.stream,
+        dataset.state_->device_dataset.get(),
+        workspace.state_->device_queries.get(), queries.query_count,
+        dataset.state_->candidate_count, dataset.state_->dimension,
+        workspace.state_->first_count, workspace.state_->device_pairs_a.get());
+    if (error == cudaSuccess &&
+        injected_failure == detail::CudaV2InjectedFailure::backend_launch) {
+        error = cudaErrorLaunchFailure;
+    }
+    CudaV2ReductionRecord* current = workspace.state_->device_pairs_a.get();
+    CudaV2ReductionRecord* next = workspace.state_->device_pairs_b.get();
+    std::uint64_t current_count = workspace.state_->first_count;
+    while (error == cudaSuccess && current_count > 1U) {
+        const std::uint64_t next_count =
+            ceiling_divide(current_count, options.threads_per_block);
+        const auto grid = static_cast<unsigned int>(queries.query_count * next_count);
+        error = launch_batch_record_stage(
+            options.threads_per_block, grid, options.stream, current,
+            queries.query_count, current_count, next_count, next);
+        std::swap(current, next);
+        current_count = next_count;
+    }
+    if (error != cudaSuccess) {
+        return fail_after_enqueue("CUDA V4 batch kernel launch", error);
+    }
+
+    error = cudaMemcpyAsync(
+        host_records.data(), current,
+        host_records.size() * sizeof(CudaV2ReductionRecord),
+        cudaMemcpyDeviceToHost, options.stream);
+    if (error != cudaSuccess) {
+        return fail_after_enqueue("CUDA batch result transfer", error);
+    }
+    if (injected_failure ==
+        detail::CudaV2InjectedFailure::backend_synchronize) {
+        return fail_after_enqueue("injected CUDA batch synchronization failure",
+                                  cudaErrorUnknown, true);
+    }
+    error = cudaStreamSynchronize(options.stream);
+    if (error != cudaSuccess) {
+        outcome.invocation_status = InvocationStatus::backend_failure;
+        outcome.domain_status = DomainStatus::unknown;
+        outcome.results.clear();
+        workspace.state_->disabled.store(true, std::memory_order_release);
+        outcome.backend_detail = cuda_detail("cudaStreamSynchronize", error);
+        return outcome;
+    }
+
+    for (const auto& record : host_records) {
+        if ((record.flags & kRecordPresent) == 0U) {
+            outcome.invocation_status = InvocationStatus::backend_failure;
+            outcome.domain_status = DomainStatus::unknown;
+            outcome.results.clear();
+            outcome.backend_detail =
+                "CUDA V4 batch reduction lost logical presence";
+            return outcome;
+        }
+        if ((record.flags & (kRecordNonfinite | kRecordDomainFailure)) != 0U) {
+            outcome.invocation_status = InvocationStatus::backend_failure;
+            outcome.domain_status = DomainStatus::valid_outside_approved_domain;
+            outcome.results.clear();
+            outcome.backend_detail =
+                "nonfinite CUDA candidate arithmetic propagated through V4 batch hierarchy";
+            return outcome;
+        }
+        if ((record.flags & kRecordFiniteMinimum) == 0U) {
+            outcome.invocation_status = InvocationStatus::backend_failure;
+            outcome.domain_status = DomainStatus::unknown;
+            outcome.results.clear();
+            outcome.backend_detail =
+                "CUDA V4 batch reduction produced no finite minimum";
+            return outcome;
+        }
+        outcome.results.push_back({record.index, record.distance});
+    }
+    outcome.invocation_status = InvocationStatus::completed;
+    outcome.backend_detail.clear();
+    return outcome;
+}
+
+BatchProductionOutcome cuda_v4_search_prepared_batch_float32(
+    const CudaV2PreparedDataset& dataset, QueryBatchView queries,
+    CudaV4BatchWorkspace& workspace, const CudaV2Options& options) {
+    return detail::CudaV4BatchSearchAccess::run(
+        dataset, queries, workspace, options,
+        detail::CudaV2InjectedFailure::none);
+}
+
 std::size_t cuda_v2_reduction_record_size() noexcept {
     return sizeof(CudaV2ReductionRecord);
 }
@@ -866,6 +1912,22 @@ CudaV2EvidencedOutcome cuda_v2_search_float32_for_testing(
     DatasetView dataset, QueryView query, const CudaV2Options& options,
     CudaV2InjectedFailure injected_failure) {
     return run_cuda_v2(dataset, query, options, true, injected_failure);
+}
+
+ProductionOutcome cuda_v2_search_prepared_float32_for_testing(
+    const CudaV2PreparedDataset& dataset, QueryView query,
+    CudaV2Workspace& workspace, const CudaV2Options& options,
+    CudaV2InjectedFailure injected_failure) {
+    return CudaV2PreparedSearchAccess::run(
+        dataset, query, workspace, options, injected_failure);
+}
+
+BatchProductionOutcome cuda_v4_search_prepared_batch_float32_for_testing(
+    const CudaV2PreparedDataset& dataset, QueryBatchView queries,
+    CudaV4BatchWorkspace& workspace, const CudaV2Options& options,
+    CudaV2InjectedFailure injected_failure) {
+    return CudaV4BatchSearchAccess::run(
+        dataset, queries, workspace, options, injected_failure);
 }
 
 CudaV2ReductionDiagnostics cuda_v2_reduce_diagnostics_for_testing(

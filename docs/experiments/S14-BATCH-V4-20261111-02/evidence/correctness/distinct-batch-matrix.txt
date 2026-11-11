@@ -1,0 +1,42 @@
+schema=S14-DISTINCT-BATCH-CORRECTNESS-v1
+revision=00e3207cc020a99f88b927865c213b7100cfb5de
+working_tree_state=clean
+generator_id=S14-DISTINCT-BATCH-v1
+case=N1024-D8-B1 block_size=128 distinct_queries=passed cpu_batch=passed sequential_prepared_v2=passed v4_batch=passed bitwise_equivalence=passed float64=passed
+case=N1024-D8-B8 block_size=128 distinct_queries=passed cpu_batch=passed sequential_prepared_v2=passed v4_batch=passed bitwise_equivalence=passed float64=passed
+case=N1024-D8-B32 block_size=128 distinct_queries=passed cpu_batch=passed sequential_prepared_v2=passed v4_batch=passed bitwise_equivalence=passed float64=passed
+case=N1024-D32-B1 block_size=128 distinct_queries=passed cpu_batch=passed sequential_prepared_v2=passed v4_batch=passed bitwise_equivalence=passed float64=passed
+case=N1024-D32-B8 block_size=128 distinct_queries=passed cpu_batch=passed sequential_prepared_v2=passed v4_batch=passed bitwise_equivalence=passed float64=passed
+case=N1024-D32-B32 block_size=128 distinct_queries=passed cpu_batch=passed sequential_prepared_v2=passed v4_batch=passed bitwise_equivalence=passed float64=passed
+case=N1024-D128-B1 block_size=256 distinct_queries=passed cpu_batch=passed sequential_prepared_v2=passed v4_batch=passed bitwise_equivalence=passed float64=passed
+case=N1024-D128-B8 block_size=256 distinct_queries=passed cpu_batch=passed sequential_prepared_v2=passed v4_batch=passed bitwise_equivalence=passed float64=passed
+case=N1024-D128-B32 block_size=256 distinct_queries=passed cpu_batch=passed sequential_prepared_v2=passed v4_batch=passed bitwise_equivalence=passed float64=passed
+case=N16384-D8-B1 block_size=128 distinct_queries=passed cpu_batch=passed sequential_prepared_v2=passed v4_batch=passed bitwise_equivalence=passed float64=passed
+case=N16384-D8-B8 block_size=128 distinct_queries=passed cpu_batch=passed sequential_prepared_v2=passed v4_batch=passed bitwise_equivalence=passed float64=passed
+case=N16384-D8-B32 block_size=128 distinct_queries=passed cpu_batch=passed sequential_prepared_v2=passed v4_batch=passed bitwise_equivalence=passed float64=passed
+case=N16384-D32-B1 block_size=256 distinct_queries=passed cpu_batch=passed sequential_prepared_v2=passed v4_batch=passed bitwise_equivalence=passed float64=passed
+case=N16384-D32-B8 block_size=256 distinct_queries=passed cpu_batch=passed sequential_prepared_v2=passed v4_batch=passed bitwise_equivalence=passed float64=passed
+case=N16384-D32-B32 block_size=256 distinct_queries=passed cpu_batch=passed sequential_prepared_v2=passed v4_batch=passed bitwise_equivalence=passed float64=passed
+case=N16384-D128-B1 block_size=128 distinct_queries=passed cpu_batch=passed sequential_prepared_v2=passed v4_batch=passed bitwise_equivalence=passed float64=passed
+case=N16384-D128-B8 block_size=128 distinct_queries=passed cpu_batch=passed sequential_prepared_v2=passed v4_batch=passed bitwise_equivalence=passed float64=passed
+case=N16384-D128-B32 block_size=128 distinct_queries=passed cpu_batch=passed sequential_prepared_v2=passed v4_batch=passed bitwise_equivalence=passed float64=passed
+case=N262144-D8-B1 block_size=512 distinct_queries=passed cpu_batch=passed sequential_prepared_v2=passed v4_batch=passed bitwise_equivalence=passed float64=passed
+case=N262144-D8-B8 block_size=512 distinct_queries=passed cpu_batch=passed sequential_prepared_v2=passed v4_batch=passed bitwise_equivalence=passed float64=passed
+case=N262144-D8-B32 block_size=512 distinct_queries=passed cpu_batch=passed sequential_prepared_v2=passed v4_batch=passed bitwise_equivalence=passed float64=passed
+case=N262144-D32-B1 block_size=128 distinct_queries=passed cpu_batch=passed sequential_prepared_v2=passed v4_batch=passed bitwise_equivalence=passed float64=passed
+case=N262144-D32-B8 block_size=128 distinct_queries=passed cpu_batch=passed sequential_prepared_v2=passed v4_batch=passed bitwise_equivalence=passed float64=passed
+case=N262144-D32-B32 block_size=128 distinct_queries=passed cpu_batch=passed sequential_prepared_v2=passed v4_batch=passed bitwise_equivalence=passed float64=passed
+case=N262144-D128-B1 block_size=512 distinct_queries=passed cpu_batch=passed sequential_prepared_v2=passed v4_batch=passed bitwise_equivalence=passed float64=passed
+case=N262144-D128-B8 block_size=512 distinct_queries=passed cpu_batch=passed sequential_prepared_v2=passed v4_batch=passed bitwise_equivalence=passed float64=passed
+case=N262144-D128-B32 block_size=512 distinct_queries=passed cpu_batch=passed sequential_prepared_v2=passed v4_batch=passed bitwise_equivalence=passed float64=passed
+case=N1048576-D8-B1 block_size=256 distinct_queries=passed cpu_batch=passed sequential_prepared_v2=passed v4_batch=passed bitwise_equivalence=passed float64=passed
+case=N1048576-D8-B8 block_size=256 distinct_queries=passed cpu_batch=passed sequential_prepared_v2=passed v4_batch=passed bitwise_equivalence=passed float64=passed
+case=N1048576-D8-B32 block_size=256 distinct_queries=passed cpu_batch=passed sequential_prepared_v2=passed v4_batch=passed bitwise_equivalence=passed float64=passed
+case=N1048576-D32-B1 block_size=128 distinct_queries=passed cpu_batch=passed sequential_prepared_v2=passed v4_batch=passed bitwise_equivalence=passed float64=passed
+case=N1048576-D32-B8 block_size=128 distinct_queries=passed cpu_batch=passed sequential_prepared_v2=passed v4_batch=passed bitwise_equivalence=passed float64=passed
+case=N1048576-D32-B32 block_size=128 distinct_queries=passed cpu_batch=passed sequential_prepared_v2=passed v4_batch=passed bitwise_equivalence=passed float64=passed
+case=N1048576-D128-B1 block_size=256 distinct_queries=passed cpu_batch=passed sequential_prepared_v2=passed v4_batch=passed bitwise_equivalence=passed float64=passed
+case=N1048576-D128-B8 block_size=256 distinct_queries=passed cpu_batch=passed sequential_prepared_v2=passed v4_batch=passed bitwise_equivalence=passed float64=passed
+case=N1048576-D128-B32 block_size=256 distinct_queries=passed cpu_batch=passed sequential_prepared_v2=passed v4_batch=passed bitwise_equivalence=passed float64=passed
+configurations=36 float64_queries=384 failed=0 blocked=0
+overall=passed

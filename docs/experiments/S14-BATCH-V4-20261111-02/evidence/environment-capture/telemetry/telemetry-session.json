@@ -1,0 +1,11 @@
+{
+  "schema_version": "S14-TELEMETRY-SESSION-v1",
+  "process_id": 12516,
+  "started_at": "2026-11-11T16:12:25.7839505+07:00",
+  "ended_at": "2026-11-11T16:53:03.6083882+07:00",
+  "interval_ms": 1000,
+  "query_timeout_ms": 900,
+  "attempted_samples": 2438,
+  "completed_samples": 2438,
+  "failed_samples": 0
+}

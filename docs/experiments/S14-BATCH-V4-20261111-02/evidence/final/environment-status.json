@@ -1,0 +1,14 @@
+{
+  "schema_version": "S14-BATCH-ENVIRONMENT-STATUS-v2",
+  "status": "accepted-for-analysis",
+  "reasons": [],
+  "metric_samples": 2438,
+  "process_samples": 2438,
+  "telemetry_attempts": 2438,
+  "metric_maximum_gap_ms": 1211,
+  "process_maximum_gap_ms": 1211,
+  "allowed_gap_ms": 3000,
+  "unauthorized_gpu_processes": [],
+  "hardware_thermal_slowdown_samples": 0,
+  "unsupported_hardware_thermal_slowdown_samples": 0
+}

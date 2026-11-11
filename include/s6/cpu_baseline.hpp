@@ -70,6 +70,13 @@ struct QueryView {
     std::size_t element_count = 0;
 };
 
+struct QueryBatchView {
+    const float* data = nullptr;
+    std::uint64_t query_count = 0;
+    std::uint64_t dimension = 0;
+    std::size_t element_count = 0;
+};
+
 struct SearchResult {
     std::uint64_t index = 0;
     float squared_distance = 0.0F;
@@ -80,6 +87,14 @@ struct ProductionOutcome {
     InputOutcome input_outcome = InputOutcome::not_applicable;
     DomainStatus domain_status = DomainStatus::not_applicable;
     std::optional<SearchResult> result;
+    std::string backend_detail;
+};
+
+struct BatchProductionOutcome {
+    InvocationStatus invocation_status = InvocationStatus::not_executed;
+    InputOutcome input_outcome = InputOutcome::not_applicable;
+    DomainStatus domain_status = DomainStatus::not_applicable;
+    std::vector<SearchResult> results;
     std::string backend_detail;
 };
 
@@ -224,6 +239,8 @@ struct ValidationReport {
 
 ArithmeticEnvironment inspect_arithmetic_environment() noexcept;
 ProductionOutcome cpu_search_float32(DatasetView dataset, QueryView query);
+BatchProductionOutcome cpu_search_batch_float32(DatasetView dataset,
+                                                 QueryBatchView queries);
 Float64Reference compute_float64_reference(DatasetView dataset, QueryView query);
 BoundEvaluation evaluate_ud001(std::uint64_t dimension, float distance32,
                                double distance64, bool exact_zero_expected);

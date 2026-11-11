@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="Win32-ninja"
+	tests="4"
+	failures="0"
+	disabled="0"
+	skipped="0"
+	hostname="DESKTOP-I7GBAM0"
+	time="28"
+	timestamp="2026-11-11T16:11:21"
+	>
+	<testcase name="s14.cpu_batch.functional" classname="s14.cpu_batch.functional" time="0.0125203" status="run">
+		<properties/>
+		<system-out>S14 CPU batch tests: PASS
+</system-out>
+	</testcase>
+	<testcase name="s7.cuda_v2.functional" classname="s7.cuda_v2.functional" time="1.01769" status="run">
+		<properties/>
+		<system-out>S7 CUDA V2 functional tests: PASS
+</system-out>
+	</testcase>
+	<testcase name="s7.cuda_v2.required_matrix" classname="s7.cuda_v2.required_matrix" time="10.5888" status="run">
+		<properties/>
+		<system-out>CUDA V2 matrix N=1024 D=8: PASS
+CUDA V2 matrix N=1024 D=32: PASS
+CUDA V2 matrix N=1024 D=128: PASS
+CUDA V2 matrix N=16384 D=8: PASS
+CUDA V2 matrix N=16384 D=32: PASS
+CUDA V2 matrix N=16384 D=128: PASS
+CUDA V2 matrix N=262144 D=8: PASS
+CUDA V2 matrix N=262144 D=32: PASS
+CUDA V2 matrix N=262144 D=128: PASS
+CUDA V2 matrix N=1048576 D=8: PASS
+CUDA V2 matrix N=1048576 D=32: PASS
+CUDA V2 matrix N=1048576 D=128: PASS
+S7 CUDA V2 required 12-case matrix: PASS
+</system-out>
+	</testcase>
+	<testcase name="s14.cuda_v4_batch.required_matrix" classname="s14.cuda_v4_batch.required_matrix" time="17.1969" status="run">
+		<properties/>
+		<system-out>S14 CUDA V4 batch matrix: PASS
+</system-out>
+	</testcase>
+</testsuite>

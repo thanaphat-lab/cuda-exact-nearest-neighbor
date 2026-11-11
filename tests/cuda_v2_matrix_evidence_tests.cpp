@@ -15,6 +15,7 @@
 #include <map>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -159,11 +160,26 @@ void run_case(std::uint64_t n, std::uint64_t d, std::ofstream& evidence,
     const s6::QueryView query_view{query.data(), d, query.size()};
     const auto v2 = s6::cuda_v2_search_float32_evidenced(
         dataset_view, query_view, {0, nullptr, block_size});
+    auto preparation = s6::cuda_v2_prepare_dataset_float32(
+        dataset_view, {0, nullptr, block_size});
+    require(preparation.invocation_status == s6::InvocationStatus::completed &&
+                preparation.prepared_dataset.has_value(),
+            "V2 matrix prepared dataset construction failed");
+    auto prepared = std::move(*preparation.prepared_dataset);
+    auto workspace_result = s6::cuda_v2_create_workspace(
+        prepared, {0, nullptr, block_size});
+    require(workspace_result.invocation_status == s6::InvocationStatus::completed &&
+                workspace_result.workspace.has_value(),
+            "V2 matrix workspace construction failed");
+    auto workspace = std::move(*workspace_result.workspace);
+    const auto prepared_v2 = s6::cuda_v2_search_prepared_float32(
+        prepared, query_view, workspace, {0, nullptr, block_size});
     const auto cpu = s6::cpu_search_float32(dataset_view, query_view);
     const auto v0 = s6::cuda_v0_search_float32_evidenced(dataset_view, query_view);
     const auto v1 = s6::cuda_v1_search_float32_evidenced(dataset_view, query_view);
     const auto reference = s6::compute_float64_reference(dataset_view, query_view);
-    require(v2.production.result && cpu.result && v0.production.result &&
+    require(v2.production.result && prepared_v2.result && cpu.result &&
+                v0.production.result &&
                 v1.production.result && reference.argmin_index,
             "V2 matrix production/reference invocation failed");
     require(v2.evidence.mapping_status == s6::EvidenceStatus::passed &&
@@ -226,11 +242,14 @@ void run_case(std::uint64_t n, std::uint64_t d, std::ofstream& evidence,
     require(independent_index == expected_index &&
                 *reference.argmin_index == expected_index &&
                 v2.production.result->index == expected_index &&
+                prepared_v2.result->index == expected_index &&
                 cpu.result->index == expected_index &&
                 v0.production.result->index == expected_index &&
                 v1.production.result->index == expected_index &&
                 bits(v2.production.result->squared_distance) ==
                     bits(independent_minimum) &&
+                bits(prepared_v2.result->squared_distance) ==
+                    bits(v2.production.result->squared_distance) &&
                 bits(v2.production.result->squared_distance) ==
                     bits(cpu.result->squared_distance) &&
                 bits(v2.production.result->squared_distance) ==
@@ -276,6 +295,7 @@ void run_case(std::uint64_t n, std::uint64_t d, std::ofstream& evidence,
              << "v1_v2_comparison_status=passed\n"
              << "candidate_coverage_status=passed\n"
              << "production_path_status=passed\n"
+             << "prepared_production_path_status=passed\n"
              << "graph_status=passed\n"
              << "arithmetic_environment_status=passed\n"
              << "float32_lexicographic_status=passed\n"
@@ -306,6 +326,7 @@ void run_case(std::uint64_t n, std::uint64_t d, std::ofstream& evidence,
              << " block_size=" << block_size << " mapping=passed overwrite=passed"
              << " independent_f32=passed independent_f64=passed"
              << " cpu_v2=passed v0_v2=passed v1_v2=passed"
+             << " prepared_v2=passed"
              << " ud001=passed ud002=passed candidate_retention=passed"
              << " graph_environment_status=passed correlation=passed"
              << " nn_verdict=accepted-unambiguous result_index="
