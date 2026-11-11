@@ -98,6 +98,12 @@ s10::Sift1mLoadResult load(const fs::path& root) {
         root, fs::path(S10_TEST_REPOSITORY_ROOT), kSchema);
 }
 
+s10::Sift1mLoadResult load_selected(
+    const fs::path& root, const std::vector<std::uint64_t>& ordinals) {
+    return s10::detail::load_sift1m_selected_for_testing(
+        root, fs::path(S10_TEST_REPOSITORY_ROOT), kSchema, ordinals);
+}
+
 void test_valid_order_signed_zero_and_hashes() {
     FixtureDirectory fixture("valid");
     write_valid_fixture(fixture.path);
@@ -139,6 +145,39 @@ void test_invalid_dimension() {
     write_fvecs(query_fixture.path / "sift_query.fvecs", query_values(), 4U);
     require(load(query_fixture.path).status == s10::Sift1mLoadStatus::invalid_dimension,
             "invalid query fvecs dimension was accepted");
+}
+
+void test_selected_queries_and_ordinal_validation() {
+    FixtureDirectory fixture("selected-queries");
+    write_valid_fixture(fixture.path);
+    const auto result = load_selected(fixture.path, {1U, 0U});
+    require(result.status == s10::Sift1mLoadStatus::loaded && result.dataset,
+            "selected query fixture did not load");
+    const auto& dataset = *result.dataset;
+    require(dataset.selected_query_ordinals ==
+                std::vector<std::uint64_t>({1U, 0U}) &&
+                dataset.selected_queries_aos ==
+                std::vector<float>({13.0F, 14.0F, 15.0F, -0.0F, 11.0F, 12.0F}),
+            "selected queries did not preserve requested ordinal order");
+    const auto query_one = dataset.selected_query_view(1U);
+    const auto query_zero = dataset.selected_query_view(0U);
+    require(query_one.data[0] == 13.0F && query_zero.data[1] == 11.0F &&
+                dataset.query[0] == 13.0F,
+            "selected query views or backward-compatible primary query are invalid");
+    bool missing_rejected = false;
+    try {
+        (void)dataset.selected_query_view(2U);
+    } catch (const std::out_of_range&) {
+        missing_rejected = true;
+    }
+    require(missing_rejected, "unselected query ordinal was accepted");
+    require(load_selected(fixture.path, {}).status ==
+                s10::Sift1mLoadStatus::invalid_size &&
+                load_selected(fixture.path, {0U, 0U}).status ==
+                s10::Sift1mLoadStatus::invalid_size &&
+                load_selected(fixture.path, {2U}).status ==
+                s10::Sift1mLoadStatus::invalid_size,
+            "empty, duplicate, or out-of-range selected query ordinals were accepted");
 }
 
 void test_missing_files() {
@@ -249,6 +288,7 @@ int main() {
     try {
         test_valid_order_signed_zero_and_hashes();
         test_invalid_dimension();
+        test_selected_queries_and_ordinal_validation();
         test_missing_files();
         test_arbitrary_float32_bits();
         test_truncated_file();

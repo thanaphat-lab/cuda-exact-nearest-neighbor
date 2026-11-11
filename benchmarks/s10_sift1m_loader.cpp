@@ -181,7 +181,8 @@ struct ParsedFile {
 
 ParsedFile parse_file(const fs::path& path, std::uint64_t records,
                       std::uint32_t dimension, bool retain_all,
-                      std::uint64_t selected_ordinal, bool check_all_finite) {
+                      const std::vector<std::uint64_t>& selected_ordinals,
+                      bool check_all_finite) {
     std::error_code error;
     if (!fs::exists(path) || !fs::is_regular_file(path)) {
         throw LoadError(Sift1mLoadStatus::missing_file,
@@ -208,7 +209,12 @@ ParsedFile parse_file(const fs::path& path, std::uint64_t records,
         }
         result.values.resize(static_cast<std::size_t>(records * dimension));
     } else {
-        result.selected.resize(dimension);
+        if (selected_ordinals.size() >
+            std::numeric_limits<std::size_t>::max() / dimension) {
+            throw LoadError(Sift1mLoadStatus::invalid_size,
+                            "selected query element count overflow");
+        }
+        result.selected.resize(selected_ordinals.size() * dimension);
     }
     std::vector<unsigned char> payload(static_cast<std::size_t>(dimension) * 4U);
     std::array<unsigned char, 4> header{};
@@ -220,8 +226,10 @@ ParsedFile parse_file(const fs::path& path, std::uint64_t records,
                             path.filename().string() + " contains an invalid dimension header");
         }
         read_exact(input, payload.data(), payload.size(), hash, "fvecs file");
-        const bool selected = retain_all || record == selected_ordinal;
-        if (!selected && !check_all_finite) continue;
+        const auto selected = std::find(selected_ordinals.begin(),
+                                        selected_ordinals.end(), record);
+        const bool retain_record = retain_all || selected != selected_ordinals.end();
+        if (!retain_record && !check_all_finite) continue;
         for (std::uint32_t column = 0U; column < dimension; ++column) {
             const auto value = little_float(payload.data() + column * 4U);
             if (!std::isfinite(value)) {
@@ -230,8 +238,10 @@ ParsedFile parse_file(const fs::path& path, std::uint64_t records,
             }
             if (retain_all) {
                 result.values[static_cast<std::size_t>(record * dimension + column)] = value;
-            } else if (record == selected_ordinal) {
-                result.selected[column] = value;
+            } else if (selected != selected_ordinals.end()) {
+                const auto selected_index = static_cast<std::size_t>(
+                    std::distance(selected_ordinals.begin(), selected));
+                result.selected[selected_index * dimension + column] = value;
             }
         }
     }
@@ -244,11 +254,20 @@ ParsedFile parse_file(const fs::path& path, std::uint64_t records,
 
 Sift1mLoadResult load_impl(const fs::path& dataset_root,
                            const fs::path& repository_root,
-                           const Sift1mSchema& schema) {
+                           const Sift1mSchema& schema,
+                           const std::vector<std::uint64_t>& query_ordinals) {
     try {
         if (schema.base_records == 0U || schema.query_records == 0U ||
-            schema.dimension == 0U || schema.query_ordinal >= schema.query_records) {
+            schema.dimension == 0U || query_ordinals.empty()) {
             throw LoadError(Sift1mLoadStatus::invalid_size, "invalid SIFT1M schema");
+        }
+        std::vector<std::uint64_t> sorted_ordinals = query_ordinals;
+        std::sort(sorted_ordinals.begin(), sorted_ordinals.end());
+        if (sorted_ordinals.back() >= schema.query_records ||
+            std::adjacent_find(sorted_ordinals.begin(), sorted_ordinals.end()) !=
+                sorted_ordinals.end()) {
+            throw LoadError(Sift1mLoadStatus::invalid_size,
+                            "selected query ordinals are duplicate or out of range");
         }
         const auto root = canonical_directory(dataset_root, Sift1mLoadStatus::invalid_path);
         const auto repository = fs::weakly_canonical(repository_root);
@@ -270,12 +289,15 @@ Sift1mLoadResult load_impl(const fs::path& dataset_root,
                             "dataset files must remain inside the external dataset root");
         }
         auto base = parse_file(base_path, schema.base_records, schema.dimension,
-                               true, 0U, true);
+                               true, {}, true);
         auto query = parse_file(query_path, schema.query_records, schema.dimension,
-                                false, schema.query_ordinal, true);
+                                false, query_ordinals, true);
         LoadedSift1m loaded;
         loaded.base_aos = std::move(base.values);
-        loaded.query = std::move(query.selected);
+        loaded.selected_queries_aos = std::move(query.selected);
+        loaded.selected_query_ordinals = query_ordinals;
+        loaded.query.assign(loaded.selected_queries_aos.begin(),
+                            loaded.selected_queries_aos.begin() + schema.dimension);
         loaded.base_records = schema.base_records;
         loaded.dimension = schema.dimension;
         loaded.base_sha256 = std::move(base.sha256);
@@ -308,8 +330,31 @@ s6::QueryView LoadedSift1m::query_view() const {
     return {query.data(), dimension, query.size()};
 }
 
+s6::QueryView LoadedSift1m::selected_query_view(
+    std::uint64_t query_ordinal) const {
+    const auto found = std::find(selected_query_ordinals.begin(),
+                                 selected_query_ordinals.end(), query_ordinal);
+    if (found == selected_query_ordinals.end() || dimension == 0U) {
+        throw std::out_of_range("SIFT1M query ordinal was not selected");
+    }
+    const auto index = static_cast<std::size_t>(
+        std::distance(selected_query_ordinals.begin(), found));
+    const auto offset = index * static_cast<std::size_t>(dimension);
+    return {selected_queries_aos.data() + offset, dimension,
+            static_cast<std::size_t>(dimension)};
+}
+
 Sift1mLoadResult load_sift1m(const fs::path& dataset_root) {
-    return load_impl(dataset_root, fs::path(S10_REPOSITORY_ROOT), Sift1mSchema{});
+    const Sift1mSchema schema;
+    return load_impl(dataset_root, fs::path(S10_REPOSITORY_ROOT), schema,
+                     {schema.query_ordinal});
+}
+
+Sift1mLoadResult load_sift1m_selected(
+    const fs::path& dataset_root,
+    const std::vector<std::uint64_t>& query_ordinals) {
+    return load_impl(dataset_root, fs::path(S10_REPOSITORY_ROOT),
+                     Sift1mSchema{}, query_ordinals);
 }
 
 const char* sift1m_load_status_name(Sift1mLoadStatus status) noexcept {
@@ -354,7 +399,15 @@ std::string sha256_bytes(std::string_view bytes) {
 Sift1mLoadResult load_sift1m_for_testing(const fs::path& dataset_root,
                                          const fs::path& repository_root,
                                          const Sift1mSchema& schema) {
-    return load_impl(dataset_root, repository_root, schema);
+    return load_impl(dataset_root, repository_root, schema,
+                     {schema.query_ordinal});
+}
+
+Sift1mLoadResult load_sift1m_selected_for_testing(
+    const fs::path& dataset_root, const fs::path& repository_root,
+    const Sift1mSchema& schema,
+    const std::vector<std::uint64_t>& query_ordinals) {
+    return load_impl(dataset_root, repository_root, schema, query_ordinals);
 }
 
 }  // namespace detail

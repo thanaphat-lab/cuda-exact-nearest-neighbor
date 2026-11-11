@@ -35,6 +35,8 @@ struct Sift1mSchema {
 struct LoadedSift1m {
     std::vector<float> base_aos;
     std::vector<float> query;
+    std::vector<float> selected_queries_aos;
+    std::vector<std::uint64_t> selected_query_ordinals;
     std::uint64_t base_records = 0U;
     std::uint32_t dimension = 0U;
     std::string base_sha256;
@@ -44,6 +46,7 @@ struct LoadedSift1m {
 
     s6::DatasetView prefix(std::uint64_t candidate_count) const;
     s6::QueryView query_view() const;
+    s6::QueryView selected_query_view(std::uint64_t query_ordinal) const;
 };
 
 struct Sift1mLoadResult {
@@ -53,6 +56,9 @@ struct Sift1mLoadResult {
 };
 
 Sift1mLoadResult load_sift1m(const std::filesystem::path& dataset_root);
+Sift1mLoadResult load_sift1m_selected(
+    const std::filesystem::path& dataset_root,
+    const std::vector<std::uint64_t>& query_ordinals);
 const char* sift1m_load_status_name(Sift1mLoadStatus status) noexcept;
 
 namespace detail {
@@ -64,6 +70,11 @@ Sift1mLoadResult load_sift1m_for_testing(
     const std::filesystem::path& dataset_root,
     const std::filesystem::path& repository_root,
     const Sift1mSchema& schema);
+Sift1mLoadResult load_sift1m_selected_for_testing(
+    const std::filesystem::path& dataset_root,
+    const std::filesystem::path& repository_root,
+    const Sift1mSchema& schema,
+    const std::vector<std::uint64_t>& query_ordinals);
 
 }  // namespace detail
 

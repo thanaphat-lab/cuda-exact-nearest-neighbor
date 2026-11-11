@@ -111,6 +111,10 @@ set(S6_EVIDENCE_INPUTS
     scripts/run-s14-batch-benchmarks.ps1
     scripts/capture-s14-telemetry.ps1
     scripts/analyze-s14-batch-benchmarks.mjs
+    benchmarks/s15_public_sift1m_benchmark.cpp
+    benchmarks/config/s15-public-sift1m.json
+    scripts/run-s15-public-sift1m.ps1
+    scripts/analyze-s15-public-sift1m.mjs
     benchmarks/s10_sift1m_loader.hpp
     benchmarks/s10_sift1m_loader.cpp
     benchmarks/s10_sift1m.cpp
@@ -395,6 +399,20 @@ target_compile_definitions(s10_sift1m PRIVATE
 target_compile_options(s10_sift1m PRIVATE /W4 /WX /fp:strict /permissive-)
 add_dependencies(s10_sift1m s6_verify_source_identity)
 
+add_executable(s15_public_sift1m_benchmark
+    benchmarks/s15_public_sift1m_benchmark.cpp)
+target_include_directories(s15_public_sift1m_benchmark PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks
+    ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(s15_public_sift1m_benchmark PRIVATE
+    s10_sift1m_io s6_cpu_evidence s7_cuda_v2)
+target_compile_definitions(s15_public_sift1m_benchmark PRIVATE
+    S15_BENCHMARK_REVISION="${S6_BUILD_REVISION}"
+    S15_BENCHMARK_TREE_STATE="${S6_WORKTREE_STATE}")
+target_compile_options(s15_public_sift1m_benchmark PRIVATE
+    /W4 /WX /fp:strict /permissive-)
+add_dependencies(s15_public_sift1m_benchmark s6_verify_source_identity)
+
 if(BUILD_TESTING)
     add_executable(s6_cpu_tests tests/cpu_baseline_tests.cpp)
     target_link_libraries(s6_cpu_tests PRIVATE s6_cpu_evidence)
@@ -473,6 +491,7 @@ if(BUILD_TESTING)
     s6_add_cpu_evidence_artifacts(s6_cpu_matrix_tests)
     s6_add_cpu_evidence_artifacts(s6_cpu_evidence_tests)
     s6_add_cpu_evidence_artifacts(s10_sift1m)
+    s6_add_cpu_evidence_artifacts(s15_public_sift1m_benchmark)
 
     set(S6_FIXTURE_EVIDENCE
         "${CMAKE_CURRENT_BINARY_DIR}/evidence/s6_cpu_fixtures.status.txt")
@@ -795,6 +814,8 @@ if(BUILD_TESTING)
         "${CMAKE_CURRENT_BINARY_DIR}/evidence/s13-benchmark-integrity")
     set(S14_BATCH_BENCHMARK_INTEGRITY_ROOT
         "${CMAKE_CURRENT_BINARY_DIR}/evidence/s14-batch-benchmark-integrity")
+    set(S15_BENCHMARK_INTEGRITY_ROOT
+        "${CMAKE_CURRENT_BINARY_DIR}/evidence/s15-benchmark-integrity")
     add_executable(s10_sift1m_loader_tests tests/s10_sift1m_loader_tests.cpp)
     target_link_libraries(s10_sift1m_loader_tests PRIVATE s10_sift1m_io)
     target_compile_definitions(s10_sift1m_loader_tests PRIVATE
@@ -855,6 +876,24 @@ if(BUILD_TESTING)
     set_tests_properties(s14.batch_benchmark.integrity
         s14.batch_analysis.integrity s14.batch_orchestration.integrity
         s14.telemetry_collector.integrity
+        PROPERTIES TIMEOUT 120)
+    add_test(NAME s15.benchmark.integrity
+        COMMAND s15_public_sift1m_benchmark --self-test
+            ${S15_BENCHMARK_INTEGRITY_ROOT})
+    add_test(NAME s15.analysis.integrity
+        COMMAND ${S7_NODE_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/scripts/analyze-s15-public-sift1m.mjs
+            --self-test)
+    add_test(NAME s15.orchestration.integrity
+        COMMAND ${S10_PWSH_EXECUTABLE} -NoProfile -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/scripts/run-s15-public-sift1m.ps1
+            -Mode SelfTest)
+    add_test(NAME s15.telemetry.integrity
+        COMMAND ${S10_PWSH_EXECUTABLE} -NoProfile -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/scripts/capture-s14-telemetry.ps1
+            -Mode SelfTest)
+    set_tests_properties(s15.benchmark.integrity s15.analysis.integrity
+        s15.orchestration.integrity s15.telemetry.integrity
         PROPERTIES TIMEOUT 120)
     add_test(NAME s7.benchmark.integrity
         COMMAND s7_benchmark --self-test ${S7_BENCHMARK_INTEGRITY_ROOT})

@@ -1,0 +1,115 @@
+{
+  "schema_version": "S15-PUBLIC-SIFT1M-CONFIG-v1",
+  "experiment_id_source": "owner-supplied runner argument",
+  "expected_revision_source": "owner-supplied runner argument",
+  "approved_design": {
+    "id": "S15PublicSift1mBenchmarkDesignDecision-v1.0",
+    "path": "docs/design/S15PublicSift1mBenchmarkDesignDecision-v1.0.md",
+    "approved_candidate_sha256": "4d91b8a659b94100654077988491a4a1b00a1405c067bfad508324bd267e0b16",
+    "synchronized_sha256": "80b3984924d53f83323e85706d8a3138ce047664ec4d8b5649c2efd6393747df",
+    "approval_record": "docs/governance/S15PublicSift1mBenchmarkApprovalRecord.md"
+  },
+  "approved_numerical_policy": {
+    "id": "S6-CONSOLIDATED-NUMERICAL-POLICY-v1.0",
+    "sha256": "503aa6b2c97567d814a9316fb0f2f9890d5472aea2bcf1f928ac505c29d1aa39"
+  },
+  "workload": {
+    "class": "single-query-primary-public-dataset",
+    "dataset": "INRIA TexMex ANN_SIFT1M",
+    "homepage": "http://corpus-texmex.irisa.fr/",
+    "archive_url": "ftp://ftp.irisa.fr/local/texmex/corpus/sift.tar.gz",
+    "base_file": {
+      "name": "sift_base.fvecs",
+      "bytes": 516000000,
+      "sha256": "21f66e2975057b5728ba56de1c825bac4f4d89d596609ae985741c6242631816"
+    },
+    "query_file": {
+      "name": "sift_query.fvecs",
+      "bytes": 5160000,
+      "sha256": "f7fc9be140accdfd64116c2fa2365ecdb69b8f084970c6b0532db5ff79ac8fdc"
+    },
+    "candidate_counts": [1024, 16384, 262144, 1000000],
+    "dimension": 128,
+    "query_formula": "q[k]=floor(k*9999/31), k in [0,31]",
+    "query_ordinals": [0, 322, 645, 967, 1290, 1612, 1935, 2257, 2580, 2902, 3225, 3548, 3870, 4193, 4515, 4838, 5160, 5483, 5805, 6128, 6450, 6773, 7096, 7418, 7741, 8063, 8386, 8708, 9031, 9353, 9676, 9999],
+    "layout": "original-float32-aos",
+    "normalization": "none",
+    "query_validation": "all 10000 query records must contain finite Float32 values"
+  },
+  "v2_block_mapping": {
+    "1024": 256,
+    "16384": 128,
+    "262144": 512,
+    "1000000": 256,
+    "retuning": "prohibited",
+    "endpoint_1000000_provenance": "approved carry-forward; not independently tuned for N=1000000"
+  },
+  "lanes": ["CPU-E2E-RAW", "BND-KERNEL", "BND-E2E-RAW", "BND-E2E-PREP"],
+  "construction_distributions": [
+    "COST-PREP-DATASET-CONSTRUCTION",
+    "COST-V2-WORKSPACE-CONSTRUCTION",
+    "COST-PREPARED-READY-CONSTRUCTION"
+  ],
+  "sampling": {
+    "warmups": 10,
+    "measured_repetitions": 100,
+    "percentile_method": "linear_n_minus_1",
+    "bootstrap_resamples": 2000,
+    "bootstrap_confidence": 0.95,
+    "run_order": "construction first; four lanes rotate by (workload_ordinal+iteration) mod 4",
+    "outlier_exclusion": "none"
+  },
+  "timing_boundaries": {
+    "CPU-E2E-RAW": "CPU Float32 production call entry through synchronous host result return; loaded data/query already available",
+    "BND-KERNEL": "CUDA events around the complete V2 production kernel sequence with device-resident dataset, query, result and workspace",
+    "BND-E2E-RAW": "V2 raw one-shot validation, conversion, transient allocation, transfers, kernels, synchronization and call-owned cleanup",
+    "BND-E2E-PREP": "V2 prepared synchronous per-query validation, transfer, kernels, result transfer, synchronization and per-search cleanup; persistent construction/destruction excluded",
+    "COST-PREP-DATASET-CONSTRUCTION": "prepared dataset API call; persistent destruction excluded",
+    "COST-V2-WORKSPACE-CONSTRUCTION": "V2 workspace API call; persistent destruction excluded",
+    "COST-PREPARED-READY-CONSTRUCTION": "dataset preparation entry through workspace construction return; persistent destruction excluded"
+  },
+  "correctness_gate": {
+    "workloads": 128,
+    "production_results": 384,
+    "methods": ["cpu-f32", "v2-raw", "v2-prepared"],
+    "bitwise_float32_equivalence": true,
+    "matching_clean_revision_required_for_performance": true
+  },
+  "hypotheses": [
+    {"id": "H1", "reference": "CPU-E2E-RAW", "candidate": "BND-E2E-PREP", "statement": "Prepared V2 E2E latency is lower than CPU Raw E2E latency for every workload"},
+    {"id": "H2", "reference": "CPU-E2E-RAW", "candidate": "BND-E2E-RAW", "statement": "Raw V2 E2E latency is lower than CPU Raw E2E latency for every workload"},
+    {"id": "H3", "reference": "BND-E2E-RAW", "candidate": "BND-E2E-PREP", "statement": "Prepared V2 E2E latency is lower than Raw V2 E2E latency for every workload"}
+  ],
+  "ratio_rule": {
+    "speedup": "median(reference)/median(candidate)",
+    "conservative_interval": "[reference_ci_low/candidate_ci_high,reference_ci_high/candidate_ci_low]",
+    "supported": "ci_low>1",
+    "rejected": "ci_high<1",
+    "inconclusive": "interval includes 1",
+    "universal_supported": "all 128 workloads supported",
+    "universal_rejected": "at least one workload rejected",
+    "universal_inconclusive": "none rejected and at least one inconclusive"
+  },
+  "break_even": {
+    "point": "floor(median(ready)/(median(reference)-median(prepared)))+1 when denominator>0",
+    "conservative": "floor(ready_ci_high/(reference_ci_low-prepared_ci_high))+1 when denominator>0",
+    "persistent_resource_destruction": "excluded; not complete lifetime cost"
+  },
+  "environment_policy": {
+    "telemetry_required": true,
+    "telemetry_interval_ms": 1000,
+    "maximum_accepted_start_gap_ms": 3000,
+    "telemetry_query_timeout_ms": 900,
+    "experiment_process_names": ["s15_public_sift1m_benchmark.exe"],
+    "incomplete_or_contaminated_action": "retain samples and force performance interpretations inconclusive"
+  },
+  "preflight": {
+    "schema": "S15-PREFLIGHT-NON-PERFORMANCE-v1",
+    "maximum_invocations": 28,
+    "query_ordinal": 0,
+    "automatic_retries": 0,
+    "performance_evidence": false
+  },
+  "fast_math": "disabled",
+  "historical_evidence_policy": "S10 through S14 evidence is immutable; S15 writes only to fresh output directories"
+}
