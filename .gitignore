@@ -7,6 +7,8 @@ CMakeCache.txt
 cmake_install.cmake
 CTestTestfile.cmake
 *.ninja
+!/docs/experiments/S14-BATCH-V4-20261111-02/evidence/environment-capture/CMakeCache.txt
+!/docs/experiments/S14-BATCH-V4-20261111-02/evidence/environment-capture/build.ninja
 .ninja_*
 compile_commands.json
 *.o

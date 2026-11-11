@@ -1,0 +1,11 @@
+﻿{
+    "schema_version":  "S7-ENVIRONMENT-APPROVAL-v1",
+    "experiment_id":  "S14-BATCH-V4-20261111-02",
+    "expected_gpu_uuid":  "GPU-6119f54a-ff96-d0a6-df23-0b48a8bd991f",
+    "approved_gpu_process_names":  [
+
+                                   ],
+    "owner_environment_ready":  true,
+    "power_clock_settings_unchanged":  true,
+    "notes":  "Owner-approved S14 replacement run; no competing GPU processes; unchanged power and clock settings."
+}

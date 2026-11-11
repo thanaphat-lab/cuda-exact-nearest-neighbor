@@ -1,0 +1,15 @@
+{
+  "schema_version": "S14-BENCHMARK-INTERVAL-v1",
+  "benchmark_started_at": "2026-11-11T16:12:26.4987086+07:00",
+  "benchmark_ended_at": "2026-11-11T16:52:59.8795445+07:00",
+  "benchmark_pid": 3108,
+  "benchmark_exit_code": 0,
+  "telemetry_pid": 12516,
+  "telemetry_exit_code": 0,
+  "telemetry_exited_before_benchmark_end": false,
+  "telemetry_exited_before_stop_signal": false,
+  "telemetry_forced_termination": false,
+  "telemetry_interval_ms": 1000,
+  "maximum_telemetry_gap_ms": 3000,
+  "telemetry_query_timeout_ms": 900
+}

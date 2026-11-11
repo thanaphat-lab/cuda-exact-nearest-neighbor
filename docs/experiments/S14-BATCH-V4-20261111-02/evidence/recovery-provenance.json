@@ -1,0 +1,15 @@
+{
+    "schema_version":  "S14-RECOVERY-PROVENANCE-v1",
+    "experiment_id":  "S14-BATCH-V4-20261111-02",
+    "recovery_type":  "analysis-only",
+    "benchmark_revision":  "00e3207cc020a99f88b927865c213b7100cfb5de",
+    "analyzer_revision":  "d9fd6613a9e089300bb92bf7fef407ccdbeec682",
+    "source_directory":  "D:\\ku\\Parallel Project\\build-s14-fix-clean-00e3207-sm86\\s14-final-02",
+    "recovery_directory":  "D:\\ku\\Parallel Project\\build-s14-fix-clean-00e3207-sm86\\s14-recovery-d9fd661-01",
+    "original_file_count":  30,
+    "original_sha256_mismatches":  0,
+    "raw_samples":  21600,
+    "environment_status":  "accepted-for-analysis",
+    "performance_rerun":  false,
+    "original_evidence_modified":  false
+}

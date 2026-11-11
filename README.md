@@ -81,9 +81,17 @@ Each reported configuration used 10 warm-ups followed by 100 retained measuremen
 
 S10 additionally demonstrates the public INRIA TexMex ANN_SIFT1M dataset. Its results are exploratory and remain separate from the formally accepted S7 evidence; the S7/S8 conclusions above still apply only to their deterministic synthetic workloads.
 
+S14 separately evaluates the optional V4 batch path on the deterministic synthetic workload. Its accepted-for-analysis evidence is secondary batch evidence and does not replace the primary single-query results.
+
 ## S10 SIFT1M exploratory results
 
 The [S10 exploratory report](docs/experiments/S10-SIFT1M-Exploratory/ExploratoryResultsReport.md) records the external public-dataset provenance, 20/20 correctness gate, existing CPU/GPU Raw E2E and V0–V3 kernel-only medians, clean analyzer-fix verification, and limitations. Its explicit status is **EXPLORATORY / VALID-UNREVIEWED**: the performance benchmark was not rerun, no formal performance acceptance is claimed, and bulky measurements and dataset bytes remain outside Git.
+
+## S14 optional V4 batch results
+
+[`S14-BATCH-V4-20261111-02`](docs/experiments/S14-BATCH-V4-20261111-02/FinalExperimentReport.md) is bound to clean benchmark revision `00e3207cc020a99f88b927865c213b7100cfb5de`; recovered analysis is separately bound to analyzer revision `d9fd6613a9e089300bb92bf7fef407ccdbeec682` and did not rerun performance. Correctness passed all 36 batch configurations, the environment was `accepted-for-analysis`, and all 21,600 raw samples are archived in the repository evidence packet.
+
+Under the unchanged `optional-all-36` rule, H1 (V4 Batch versus CPU Batch) was **rejected** with 35 supported and 1 rejected configuration. H2 (V4 Batch versus sequential Prepared V2) was **rejected** with 28 supported, 2 rejected, and 6 inconclusive configurations. These per-configuration counts are not aggregate acceptance. See the [S14 evidence index](docs/experiments/S14-BATCH-V4-20261111-02/EVIDENCE_INDEX.md) for provenance and integrity details. The [S15 handoff](docs/experiments/S14-BATCH-V4-20261111-02/S15Handoff.md) is planning only; S15 implementation has not started.
 
 ## Timing boundaries
 
@@ -144,8 +152,8 @@ See the [S8 final report](docs/experiments/S8-TRANSPOSE-AB-20261104-01/FinalExpe
 - S7/S8 measurements cover deterministic synthetic single-query workloads; S10 adds one exploratory SIFT1M query across four candidate prefixes, not a broader public-dataset acceptance campaign.
 - Results come from one Windows laptop environment and one RTX 3060 Laptop GPU. Hardware-specific block choices and performance are not universal constants.
 - Raw one-shot GPU calls repeatedly allocate, transpose, transfer, synchronize, and clean up. Future separately evaluated APIs could reuse prepared/device-resident datasets and persistent workspaces.
-- Batch-query evaluation is secondary and has not been reported. It may better amortize preprocessing and transfer costs, but requires separate correctness and performance evidence.
-- V4 remains optional and unevaluated.
+- Batch-query evaluation is secondary. S14 reports it separately with matching correctness and performance evidence.
+- V4 remains optional; S14 evaluates it without changing V0-V3 core acceptance.
 - S7's full 257-file evidence archive is stored outside Git; the compact committed packet is reviewable but omits bulky raw samples, binaries, and telemetry. A second independent backup remains an Owner action.
 - S8's compact correctness packet cannot independently replay omitted candidate-level binary/disassembly checks, although it preserves the original correctness receipt and matrix verdicts.
 
@@ -160,6 +168,9 @@ See the [S8 final report](docs/experiments/S8-TRANSPOSE-AB-20261104-01/FinalExpe
 - [S8 final experiment report](docs/experiments/S8-TRANSPOSE-AB-20261104-01/FinalExperimentReport.md)
 - [S8 evidence index](docs/experiments/S8-TRANSPOSE-AB-20261104-01/EVIDENCE_INDEX.md)
 - [S10 SIFT1M exploratory report](docs/experiments/S10-SIFT1M-Exploratory/ExploratoryResultsReport.md)
+- [S14 final experiment report](docs/experiments/S14-BATCH-V4-20261111-02/FinalExperimentReport.md)
+- [S14 evidence index](docs/experiments/S14-BATCH-V4-20261111-02/EVIDENCE_INDEX.md)
+- [S15 planning handoff](docs/experiments/S14-BATCH-V4-20261111-02/S15Handoff.md)
 - [Canonical project specification](docs/specifications/FinalProjectSpecification-v1.0.md)
 - [Approved numerical policy](docs/specifications/S6-CONSOLIDATED-NUMERICAL-POLICY-v1.0.md)
 - [Approved implementation design](docs/design/S6ApprovedImplementationDesign-v1.0.md)
