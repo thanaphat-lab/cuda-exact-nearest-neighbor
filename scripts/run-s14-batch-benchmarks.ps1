@@ -19,10 +19,78 @@ function Require-Value([bool]$Condition, [string]$Message) {
     if (-not $Condition) { throw $Message }
 }
 
+function Assert-NonemptyArtifact([string]$Path, [string]$Message) {
+    Require-Value ((Test-Path -LiteralPath $Path) -and
+        (Get-Item -LiteralPath $Path).Length -gt 0) $Message
+}
+
 function Add-CommandRecord([string]$Path, [string]$Stage, [string[]]$Command) {
     [ordered]@{ captured_at = [DateTimeOffset]::Now.ToString('o'); stage = $Stage;
         command = $Command } | ConvertTo-Json -Compress |
         Add-Content -LiteralPath $Path -Encoding utf8
+}
+
+function Add-CommandResult([string]$Path, [string]$Stage,
+        [DateTimeOffset]$StartedAt, [DateTimeOffset]$EndedAt, [int]$ExitCode,
+        [string[]]$Artifacts) {
+    $artifactRecords = @($Artifacts | ForEach-Object {
+        [ordered]@{
+            path = $_
+            exists = Test-Path -LiteralPath $_
+            length = if (Test-Path -LiteralPath $_) {
+                (Get-Item -LiteralPath $_).Length
+            } else { $null }
+            sha256 = if (Test-Path -LiteralPath $_) {
+                (Get-FileHash -Algorithm SHA256 -LiteralPath $_).Hash.ToLowerInvariant()
+            } else { $null }
+        }
+    })
+    [ordered]@{
+        schema_version = 'S14-COMMAND-RESULT-v1'
+        stage = $Stage
+        started_at = $StartedAt.ToString('o')
+        ended_at = $EndedAt.ToString('o')
+        exit_code = $ExitCode
+        artifacts = $artifactRecords
+    } | ConvertTo-Json -Compress -Depth 6 |
+        Add-Content -LiteralPath $Path -Encoding utf8
+}
+
+function New-Process([string]$FilePath, [string[]]$Arguments,
+        [string]$StandardErrorPath = '') {
+    $info = [Diagnostics.ProcessStartInfo]::new()
+    $info.FileName = $FilePath
+    $info.UseShellExecute = $false
+    $info.CreateNoWindow = $true
+    if (-not [string]::IsNullOrWhiteSpace($StandardErrorPath)) {
+        $info.RedirectStandardError = $true
+    }
+    foreach ($argument in $Arguments) { [void]$info.ArgumentList.Add($argument) }
+    $process = [Diagnostics.Process]::new()
+    $process.StartInfo = $info
+    if (-not $process.Start()) { throw "Failed to start $FilePath." }
+    return $process
+}
+
+function New-OrchestrationRecord([string[]]$EffectiveArguments,
+        [string]$ResolvedBuildDirectory, [string]$ResolvedOutputDirectory,
+        [string]$ResolvedApprovalPath, [string]$ConfigSha256,
+        [string]$ApprovalSha256) {
+    [ordered]@{
+        schema_version = 'S14-ORCHESTRATION-COMMAND-v1'
+        captured_at = [DateTimeOffset]::Now.ToString('o')
+        executable = (Get-Process -Id $PID).Path
+        script = $PSCommandPath
+        arguments = $EffectiveArguments
+        working_directory = (Get-Location).Path
+        resolved_build_directory = $ResolvedBuildDirectory
+        resolved_output_directory = $ResolvedOutputDirectory
+        resolved_config_path = $configPath
+        resolved_environment_approval = $ResolvedApprovalPath
+        runner_sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $PSCommandPath).Hash.ToLowerInvariant()
+        config_sha256 = $ConfigSha256
+        environment_approval_sha256 = $ApprovalSha256
+    }
 }
 
 function Assert-S14Matrix([string]$MatrixText) {
@@ -47,7 +115,7 @@ function Assert-S14Matrix([string]$MatrixText) {
     }
 }
 
-Require-Value ($config.schema_version -eq 'S14-BATCH-EXPERIMENT-CONFIG-v1') `
+Require-Value ($config.schema_version -eq 'S14-BATCH-EXPERIMENT-CONFIG-v2') `
     'Unsupported S14 experiment configuration schema.'
 Require-Value (($config.workload.candidate_counts -join ',') -eq `
     '1024,16384,262144,1048576' -and `
@@ -64,6 +132,20 @@ Require-Value ($config.kernel_only -match 'omitted') `
 Require-Value ($config.break_even.persistent_resource_destruction -match `
     'excluded.*not complete lifetime') `
     'S14 must disclose excluded persistent-resource destruction.'
+Require-Value ($config.environment_policy.telemetry_required -eq $true -and
+    [int]$config.environment_policy.telemetry_interval_ms -eq 1000 -and
+    [int]$config.environment_policy.maximum_telemetry_gap_intervals -eq 3) `
+    'S14 telemetry interval and maximum-gap policy mismatch.'
+$maximumTelemetryGapMs = [int]$config.environment_policy.telemetry_interval_ms *
+    [int]$config.environment_policy.maximum_telemetry_gap_intervals
+$telemetryQueryTimeoutMs = [int]$config.environment_policy.telemetry_query_timeout_ms
+Require-Value ($telemetryQueryTimeoutMs -gt 0 -and
+    $telemetryQueryTimeoutMs -lt [int]$config.environment_policy.telemetry_interval_ms -and
+    $telemetryQueryTimeoutMs -lt $maximumTelemetryGapMs) `
+    'S14 telemetry query timeout must be positive and below the interval and maximum gap.'
+Require-Value ($config.environment_policy.telemetry_incomplete_action -eq
+    'retain-samples-and-mark-hypotheses-inconclusive') `
+    'S14 incomplete telemetry must retain samples and mark performance inconclusive.'
 
 $freezePath = Join-Path $repositoryRoot $config.frozen_v2_configuration.path
 Require-Value (Test-Path -LiteralPath $freezePath) 'The immutable S7 V2 freeze is missing.'
@@ -75,6 +157,18 @@ $policyPath = Join-Path $repositoryRoot `
 $policyHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $policyPath).Hash.ToLowerInvariant()
 Require-Value ($policyHash -eq $config.approved_numerical_policy.sha256) `
     'Approved numerical-policy hash mismatch.'
+$designPath = Join-Path $repositoryRoot $config.approved_design.path
+$designApprovalPath = Join-Path $repositoryRoot $config.approved_design.approval_record
+Require-Value ((Test-Path -LiteralPath $designPath) -and
+    (Test-Path -LiteralPath $designApprovalPath)) `
+    'Approved S14 design or approval record is missing.'
+$designHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $designPath).Hash.ToLowerInvariant()
+Require-Value ($designHash -eq $config.approved_design.sha256) `
+    'Approved S14 design hash mismatch.'
+$designApprovalText = Get-Content -Raw -LiteralPath $designApprovalPath
+Require-Value ($designApprovalText.Contains($config.approved_design.approval_id) -and
+    $designApprovalText.Contains($designHash)) `
+    'S14 approval record does not bind the configured design hash and approval ID.'
 
 if ($Mode -eq 'SelfTest') {
     $validRows = foreach ($candidateCount in $config.workload.candidate_counts) {
@@ -93,6 +187,24 @@ if ($Mode -eq 'SelfTest') {
     try { Assert-S14Matrix (($validRows -replace 'v4_batch=passed', 'v4_batch=failed') -join "`n") }
     catch { $rejected = $true }
     Require-Value $rejected 'S14 matrix self-test accepted a failed V4 marker.'
+    $record = New-OrchestrationRecord @('-Mode', 'Final', '-BuildDirectory',
+        'D:\path with spaces\build') 'D:\path with spaces\build' 'D:\out' '' `
+        ('a' * 64) ''
+    Require-Value ($record.arguments.Count -eq 4 -and
+        $record.arguments[3] -eq 'D:\path with spaces\build' -and
+        $record.schema_version -eq 'S14-ORCHESTRATION-COMMAND-v1') `
+        'S14 structured orchestration record self-test failed.'
+    $temporaryArtifact = [IO.Path]::GetTempFileName()
+    try {
+        'evidence' | Set-Content -LiteralPath $temporaryArtifact -Encoding utf8
+        Assert-NonemptyArtifact $temporaryArtifact 'Nonempty artifact was rejected.'
+        $missingRejected = $false
+        try { Assert-NonemptyArtifact ($temporaryArtifact + '.missing') 'expected' }
+        catch { $missingRejected = $true }
+        Require-Value $missingRejected 'Missing prerequisite artifact was accepted.'
+    } finally {
+        Remove-Item -LiteralPath $temporaryArtifact -Force -ErrorAction SilentlyContinue
+    }
     Write-Output 'S14 batch orchestration self-test: passed'
     return
 }
@@ -161,6 +273,32 @@ New-Item -ItemType Directory -Path $environmentDirectory | Out-Null
 New-Item -ItemType Directory -Path $correctnessDirectory | Out-Null
 $commandsPath = Join-Path $environmentDirectory 'commands.jsonl'
 Set-Content -LiteralPath $commandsPath -Value $null -Encoding utf8
+$commandResultsPath = Join-Path $environmentDirectory 'command-results.jsonl'
+Set-Content -LiteralPath $commandResultsPath -Value $null -Encoding utf8
+$resolvedApprovalForRecord = ''
+$approvalHashForRecord = ''
+if (-not [string]::IsNullOrWhiteSpace($EnvironmentApproval) -and
+        (Test-Path -LiteralPath $EnvironmentApproval)) {
+    $resolvedApprovalForRecord = (Resolve-Path $EnvironmentApproval).Path
+    $approvalHashForRecord = (Get-FileHash -Algorithm SHA256 -LiteralPath `
+        $resolvedApprovalForRecord).Hash.ToLowerInvariant()
+}
+$effectiveArguments = @('-Mode', $Mode, '-BuildDirectory', $buildRoot,
+    '-OutputDirectory', $outputRoot, '-ExpectedRevision', $head,
+    '-ExperimentId', $ExperimentId)
+if (-not [string]::IsNullOrWhiteSpace($resolvedApprovalForRecord)) {
+    $effectiveArguments += @('-EnvironmentApproval', $resolvedApprovalForRecord)
+}
+$orchestrationRecord = New-OrchestrationRecord $effectiveArguments $buildRoot `
+    $outputRoot $resolvedApprovalForRecord $configHash $approvalHashForRecord
+$orchestrationRecord | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath `
+    (Join-Path $environmentDirectory 'orchestration-command.json') -Encoding utf8
+$displayArguments = @($effectiveArguments | ForEach-Object {
+    "'" + ([string]$_).Replace("'", "''") + "'"
+})
+("& '{0}' {1}" -f $PSCommandPath, ($displayArguments -join ' ')) |
+    Set-Content -LiteralPath (Join-Path $environmentDirectory `
+        'orchestration-command.txt') -Encoding utf8
 
 $cmakeEntry = $cache | Where-Object { $_ -like 'CMAKE_COMMAND:INTERNAL=*' } |
     Select-Object -First 1
@@ -168,15 +306,31 @@ Require-Value ($null -ne $cmakeEntry) 'CMake command is missing from CMakeCache.
 $cmakePath = $cmakeEntry.Substring($cmakeEntry.IndexOf('=') + 1)
 $ctest = Join-Path (Split-Path -Parent $cmakePath) 'ctest.exe'
 Require-Value (Test-Path -LiteralPath $ctest) 'ctest.exe could not be located.'
-$ctestArguments = @('--test-dir', $buildRoot, '--output-on-failure', '-R',
+$ctestLog = Join-Path $environmentDirectory 'prerequisite-ctest.log'
+$ctestJunit = Join-Path $environmentDirectory 'prerequisite-ctest.junit.xml'
+$ctestArguments = @('--test-dir', $buildRoot, '--output-on-failure',
+    '--output-log', $ctestLog, '--output-junit', $ctestJunit, '-R',
     '^(s14\.cpu_batch\.functional|s7\.cuda_v2\.(functional|required_matrix)|s14\.cuda_v4_batch\.required_matrix)$')
 Add-CommandRecord $commandsPath 's14-prerequisite-ctest' (@($ctest) + $ctestArguments)
+$ctestStartedAt = [DateTimeOffset]::Now
 & $ctest @ctestArguments
-if ($LASTEXITCODE -ne 0) { throw 'S14 prerequisite correctness tests failed.' }
+$ctestExitCode = $LASTEXITCODE
+$ctestEndedAt = [DateTimeOffset]::Now
+Add-CommandResult $commandResultsPath 's14-prerequisite-ctest' $ctestStartedAt `
+    $ctestEndedAt $ctestExitCode @($ctestLog, $ctestJunit)
+Assert-NonemptyArtifact $ctestLog 'S14 prerequisite CTest log is missing or empty.'
+Assert-NonemptyArtifact $ctestJunit `
+    'S14 prerequisite CTest JUnit report is missing or empty.'
+if ($ctestExitCode -ne 0) { throw 'S14 prerequisite correctness tests failed.' }
 Add-CommandRecord $commandsPath 's14-distinct-batch-correctness' `
     (@($benchmark, '--verify', $correctnessDirectory, $freezePath) + $commonOptions)
+$correctnessStartedAt = [DateTimeOffset]::Now
 & $benchmark --verify $correctnessDirectory $freezePath @commonOptions
-if ($LASTEXITCODE -ne 0) { throw 'S14 distinct-query correctness failed.' }
+$correctnessExitCode = $LASTEXITCODE
+$correctnessEndedAt = [DateTimeOffset]::Now
+Add-CommandResult $commandResultsPath 's14-distinct-batch-correctness' `
+    $correctnessStartedAt $correctnessEndedAt $correctnessExitCode @()
+if ($correctnessExitCode -ne 0) { throw 'S14 distinct-query correctness failed.' }
 $matrixPath = Join-Path $correctnessDirectory 'distinct-batch-matrix.txt'
 Assert-S14Matrix (Get-Content -Raw -LiteralPath $matrixPath)
 $gatePath = Join-Path $correctnessDirectory 'correctness-gate.json'
@@ -224,12 +378,14 @@ Copy-Item -LiteralPath $freezePath -Destination `
     (Join-Path $environmentDirectory 'v2-tuning-freeze.csv')
 Copy-Item -LiteralPath $approvalPath -Destination `
     (Join-Path $environmentDirectory 'environment-approval.json')
+Copy-Item -LiteralPath $designPath -Destination `
+    (Join-Path $environmentDirectory 'approved-design.md')
+Copy-Item -LiteralPath $designApprovalPath -Destination `
+    (Join-Path $environmentDirectory 'design-approval-record.md')
 Copy-Item -LiteralPath $cachePath -Destination `
     (Join-Path $environmentDirectory 'CMakeCache.txt')
 Copy-Item -LiteralPath $ninjaPath -Destination `
     (Join-Path $environmentDirectory 'build.ninja')
-$MyInvocation.Line | Set-Content -LiteralPath `
-    (Join-Path $environmentDirectory 'orchestration-command.txt') -Encoding utf8
 $computer = Get-CimInstance Win32_ComputerSystem
 $processor = Get-CimInstance Win32_Processor | Select-Object -First 1
 $operatingSystem = Get-CimInstance Win32_OperatingSystem
@@ -259,6 +415,9 @@ $cudaCompiler = ($cache | Where-Object { $_ -match '^CMAKE_CUDA_COMPILER:' } |
     cuda_architecture = $cudaArchitecture; build_flags = $buildFlags
     fast_math = 'disabled-verified'; config_sha256 = $configHash
     freeze_sha256 = $freezeHash
+    approved_design_id = [string]$config.approved_design.id
+    approved_design_sha256 = $designHash
+    design_approval_id = [string]$config.approved_design.approval_id
     dataset_validation = 'included in CPU batch E2E; excluded from prepared GPU lanes'
     persistent_resource_destruction = 'excluded; not complete lifetime cost'
 } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath `
@@ -266,76 +425,115 @@ $cudaCompiler = ($cache | Where-Object { $_ -match '^CMAKE_CUDA_COMPILER:' } |
 
 $telemetryDirectory = Join-Path $environmentDirectory 'telemetry'
 $telemetryStop = Join-Path $environmentDirectory 'stop-telemetry.signal'
-$telemetryScript = Join-Path $PSScriptRoot 'capture-s7-telemetry.ps1'
+$telemetryScript = Join-Path $PSScriptRoot 'capture-s14-telemetry.ps1'
 $telemetryErrors = Join-Path $environmentDirectory 'telemetry-launch-errors.log'
 $pwsh = (Get-Process -Id $PID).Path
-$quote = { param([string]$Value) '"' + $Value.Replace('"', '\"') + '"' }
-$telemetryArguments = '-NoProfile -File {0} -NvidiaSmi {1} -OutputDirectory {2} ' +
-    '-StopSignal {3} -IntervalMilliseconds {4}'
-$telemetryArguments = $telemetryArguments -f (& $quote $telemetryScript),
-    (& $quote $nvidiaSmi.Source), (& $quote $telemetryDirectory),
-    (& $quote $telemetryStop), [string]$config.environment_policy.telemetry_interval_ms
-$telemetryProcess = Start-Process -FilePath $pwsh -ArgumentList $telemetryArguments `
-    -RedirectStandardError $telemetryErrors -WindowStyle Hidden -PassThru
-Start-Sleep -Milliseconds ([int]$config.environment_policy.telemetry_interval_ms + 250)
-Require-Value (-not $telemetryProcess.HasExited) 'Telemetry helper failed during startup.'
-
-New-Item -ItemType Directory -Path $finalDirectory | Out-Null
-try {
-    Add-CommandRecord $commandsPath 's14-final-benchmark' `
-        (@($benchmark, '--run', $finalDirectory, $freezePath) + $commonOptions +
-            @('--correctness-reference', $gatePath))
-    & $benchmark --run $finalDirectory $freezePath @commonOptions `
-        --correctness-reference $gatePath
-    if ($LASTEXITCODE -ne 0) { throw 'S14 final benchmark execution failed.' }
-    Copy-Item -LiteralPath $gatePath -Destination `
-        (Join-Path $finalDirectory 'correctness-gate.json')
-} finally {
-    New-Item -ItemType File -Path $telemetryStop | Out-Null
-    if (-not $telemetryProcess.WaitForExit(15000)) {
-        Stop-Process -Id $telemetryProcess.Id -Force
+$telemetryArguments = @('-NoProfile', '-File', $telemetryScript,
+    '-NvidiaSmi', $nvidiaSmi.Source, '-OutputDirectory', $telemetryDirectory,
+    '-StopSignal', $telemetryStop, '-IntervalMilliseconds',
+    [string]$config.environment_policy.telemetry_interval_ms,
+    '-QueryTimeoutMilliseconds', [string]$telemetryQueryTimeoutMs)
+Add-CommandRecord $commandsPath 's14-telemetry-collector' `
+    (@($pwsh) + $telemetryArguments)
+$telemetryStartedAt = [DateTimeOffset]::Now
+$telemetryProcess = New-Process $pwsh $telemetryArguments $telemetryErrors
+$readyPath = Join-Path $telemetryDirectory 'telemetry-ready.json'
+$readyDeadline = [DateTimeOffset]::Now.AddSeconds(10)
+while (-not (Test-Path -LiteralPath $readyPath) -and
+        [DateTimeOffset]::Now -lt $readyDeadline -and
+        -not $telemetryProcess.HasExited) {
+    Start-Sleep -Milliseconds 100
+}
+if (-not (Test-Path -LiteralPath $readyPath) -or $telemetryProcess.HasExited) {
+    New-Item -ItemType File -Force -Path $telemetryStop | Out-Null
+    if (-not $telemetryProcess.HasExited -and
+            -not $telemetryProcess.WaitForExit(5000)) {
+        $telemetryProcess.Kill($true)
         $telemetryProcess.WaitForExit()
     }
+    $telemetryProcess.StandardError.ReadToEnd() |
+        Set-Content -LiteralPath $telemetryErrors -Encoding utf8
+    throw 'Telemetry helper did not produce a complete ready sample before measurement.'
+}
+
+New-Item -ItemType Directory -Path $finalDirectory | Out-Null
+$benchmarkArguments = @('--run', $finalDirectory, $freezePath) + $commonOptions +
+    @('--correctness-reference', $gatePath)
+$benchmarkStartedAt = $null
+$benchmarkEndedAt = $null
+$benchmarkExitCode = $null
+$benchmarkProcess = $null
+$telemetryExitedBeforeBenchmarkEnd = $false
+$telemetryExitedBeforeStopSignal = $false
+$telemetryForcedTermination = $false
+try {
+    Add-CommandRecord $commandsPath 's14-final-benchmark' `
+        (@($benchmark) + $benchmarkArguments)
+    $benchmarkStartedAt = [DateTimeOffset]::Now
+    $benchmarkProcess = New-Process $benchmark $benchmarkArguments
+    $benchmarkProcess.WaitForExit()
+    $benchmarkExitCode = $benchmarkProcess.ExitCode
+    $benchmarkEndedAt = [DateTimeOffset]::Now
+    $telemetryExitedBeforeBenchmarkEnd = $telemetryProcess.HasExited
+    if (-not $telemetryExitedBeforeBenchmarkEnd) {
+        Start-Sleep -Milliseconds ($maximumTelemetryGapMs + 250)
+    }
+    $telemetryExitedBeforeStopSignal = $telemetryProcess.HasExited
+    if ($benchmarkExitCode -eq 0) {
+        Copy-Item -LiteralPath $gatePath -Destination `
+            (Join-Path $finalDirectory 'correctness-gate.json')
+    }
+} finally {
+    New-Item -ItemType File -Force -Path $telemetryStop | Out-Null
+    if (-not $telemetryProcess.WaitForExit(15000)) {
+        $telemetryForcedTermination = $true
+        $telemetryProcess.Kill($true)
+        $telemetryProcess.WaitForExit()
+    }
+    $telemetryProcess.StandardError.ReadToEnd() |
+        Set-Content -LiteralPath $telemetryErrors -Encoding utf8
     & $nvidiaSmi.Source -q -x | Set-Content -LiteralPath `
         (Join-Path $environmentDirectory 'nvidia-smi-after.xml') -Encoding utf8
 }
-
-$captureErrors = @(Get-Content -LiteralPath `
-    (Join-Path $telemetryDirectory 'telemetry-errors.log') | Where-Object {
-        -not [string]::IsNullOrWhiteSpace($_)
-    })
-Require-Value ($captureErrors.Count -eq 0) `
-    "Telemetry capture errors: $($captureErrors -join '; ')"
-$processRows = @(Get-Content -LiteralPath `
-    (Join-Path $telemetryDirectory 'gpu-processes.jsonl') | Where-Object {
-        -not [string]::IsNullOrWhiteSpace($_)
-    } | ForEach-Object { $_ | ConvertFrom-Json })
-$internalProcesses = @('s14_batch_benchmark.exe', 's7_cuda_v2_tests.exe',
-    's7_cuda_v2_matrix_tests.exe', 's14_cuda_v4_batch_matrix_tests.exe')
-$unauthorizedDuring = @($processRows | Where-Object { -not $_.no_processes } |
-    ForEach-Object { ([IO.Path]::GetFileName([string]$_.process_name)).ToLowerInvariant() } |
-    Where-Object { $_ -notin $approvedProcessNames -and $_ -notin $internalProcesses } |
-    Sort-Object -Unique)
-$metricRows = @(Get-Content -LiteralPath `
-    (Join-Path $telemetryDirectory 'gpu-telemetry.jsonl') | Where-Object {
-        -not [string]::IsNullOrWhiteSpace($_)
-    } | ForEach-Object { $_ | ConvertFrom-Json })
-Require-Value ($metricRows.Count -gt 0) 'Telemetry produced no metric samples.'
-$thermalRows = @($metricRows | Where-Object {
-    ([string]$_.hardware_thermal_slowdown).Trim().ToLowerInvariant() -notin `
-        @('not active', 'no', '0', 'n/a')
-})
-$environmentStatus = if ($unauthorizedDuring.Count -eq 0 -and $thermalRows.Count -eq 0) {
-    'accepted-for-analysis'
-} else { 'retain-samples-mark-hypotheses-inconclusive' }
+$telemetryExitCode = $telemetryProcess.ExitCode
+$telemetryEndedAt = [DateTimeOffset]::Now
+Add-CommandResult $commandResultsPath 's14-telemetry-collector' `
+    $telemetryStartedAt $telemetryEndedAt $telemetryExitCode @(
+        (Join-Path $telemetryDirectory 'telemetry-attempts.jsonl'),
+        (Join-Path $telemetryDirectory 'gpu-telemetry.jsonl'),
+        (Join-Path $telemetryDirectory 'gpu-processes.jsonl'),
+        (Join-Path $telemetryDirectory 'telemetry-errors.log'),
+        (Join-Path $telemetryDirectory 'telemetry-session.json'))
+Add-CommandResult $commandResultsPath 's14-final-benchmark' $benchmarkStartedAt `
+    $benchmarkEndedAt ([int]$benchmarkExitCode) @()
 [ordered]@{
-    schema_version = 'S14-BATCH-ENVIRONMENT-STATUS-v1'; status = $environmentStatus
-    unauthorized_gpu_processes = $unauthorizedDuring
-    hardware_thermal_slowdown_samples = $thermalRows.Count
+    schema_version = 'S14-BENCHMARK-INTERVAL-v1'
+    benchmark_started_at = $benchmarkStartedAt.ToString('o')
+    benchmark_ended_at = $benchmarkEndedAt.ToString('o')
+    benchmark_pid = $benchmarkProcess.Id
+    benchmark_exit_code = $benchmarkExitCode
+    telemetry_pid = $telemetryProcess.Id
+    telemetry_exit_code = $telemetryExitCode
+    telemetry_exited_before_benchmark_end = $telemetryExitedBeforeBenchmarkEnd
+    telemetry_exited_before_stop_signal = $telemetryExitedBeforeStopSignal
+    telemetry_forced_termination = $telemetryForcedTermination
+    telemetry_interval_ms = [int]$config.environment_policy.telemetry_interval_ms
+    maximum_telemetry_gap_ms = $maximumTelemetryGapMs
+    telemetry_query_timeout_ms = $telemetryQueryTimeoutMs
 } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath `
-    (Join-Path $finalDirectory 'environment-status.json') -Encoding utf8
+    (Join-Path $environmentDirectory 'benchmark-interval.json') -Encoding utf8
+if ($benchmarkExitCode -ne 0) { throw 'S14 final benchmark execution failed.' }
 
 $analyzer = Join-Path $PSScriptRoot 'analyze-s14-batch-benchmarks.mjs'
 Add-CommandRecord $commandsPath 's14-analysis' @('node', $analyzer, $finalDirectory)
+$analysisStartedAt = [DateTimeOffset]::Now
 node $analyzer $finalDirectory
-if ($LASTEXITCODE -ne 0) { throw 'S14 batch benchmark analysis failed.' }
+$analysisExitCode = $LASTEXITCODE
+$analysisEndedAt = [DateTimeOffset]::Now
+Add-CommandResult $commandResultsPath 's14-analysis' $analysisStartedAt `
+    $analysisEndedAt $analysisExitCode @(
+        (Join-Path $finalDirectory 'environment-status.json'),
+        (Join-Path $finalDirectory 'summary.json'),
+        (Join-Path $finalDirectory 'comparisons.json'),
+        (Join-Path $finalDirectory 'break-even.json'))
+if ($analysisExitCode -ne 0) { throw 'S14 batch benchmark analysis failed.' }

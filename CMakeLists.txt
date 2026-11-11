@@ -109,6 +109,7 @@ set(S6_EVIDENCE_INPUTS
     benchmarks/s14_batch_benchmark.cpp
     benchmarks/config/s14-batch-v4.json
     scripts/run-s14-batch-benchmarks.ps1
+    scripts/capture-s14-telemetry.ps1
     scripts/analyze-s14-batch-benchmarks.mjs
     benchmarks/s10_sift1m_loader.hpp
     benchmarks/s10_sift1m_loader.cpp
@@ -847,8 +848,13 @@ if(BUILD_TESTING)
         COMMAND ${S10_PWSH_EXECUTABLE} -NoProfile -File
             ${CMAKE_CURRENT_SOURCE_DIR}/scripts/run-s14-batch-benchmarks.ps1
             -Mode SelfTest)
+    add_test(NAME s14.telemetry_collector.integrity
+        COMMAND ${S10_PWSH_EXECUTABLE} -NoProfile -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/scripts/capture-s14-telemetry.ps1
+            -Mode SelfTest)
     set_tests_properties(s14.batch_benchmark.integrity
         s14.batch_analysis.integrity s14.batch_orchestration.integrity
+        s14.telemetry_collector.integrity
         PROPERTIES TIMEOUT 120)
     add_test(NAME s7.benchmark.integrity
         COMMAND s7_benchmark --self-test ${S7_BENCHMARK_INTEGRITY_ROOT})

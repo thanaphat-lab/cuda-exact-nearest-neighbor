@@ -1,8 +1,14 @@
 {
-  "schema_version": "S14-BATCH-EXPERIMENT-CONFIG-v1",
+  "schema_version": "S14-BATCH-EXPERIMENT-CONFIG-v2",
   "experiment_id_source": "owner-supplied runner argument",
   "expected_revision_source": "owner-supplied runner argument",
-  "approved_design": "S14 Batch Benchmark Design",
+  "approved_design": {
+    "id": "S14BatchBenchmarkDesignDecision-v1.0",
+    "path": "docs/design/S14BatchBenchmarkDesignDecision-v1.0.md",
+    "sha256": "ff75b8f7462ff6177536ccc24b014300b66d31e97485c475dc0515e76b518664",
+    "approval_id": "S14-EVIDENCE-REMEDIATION-OWNER-APPROVAL-001",
+    "approval_record": "docs/governance/S14BatchBenchmarkApprovalRecord.md"
+  },
   "approved_numerical_policy": {
     "id": "S6-CONSOLIDATED-NUMERICAL-POLICY-v1.0",
     "sha256": "503aa6b2c97567d814a9316fb0f2f9890d5472aea2bcf1f928ac505c29d1aa39"
@@ -89,6 +95,11 @@
   "environment_policy": {
     "telemetry_required": true,
     "telemetry_interval_ms": 1000,
+    "maximum_telemetry_gap_intervals": 3,
+    "telemetry_query_timeout_ms": 900,
+    "telemetry_clock": "monotonic-for-cadence; wall-clock-for-correlation",
+    "experiment_process_names": ["s14_batch_benchmark.exe"],
+    "telemetry_incomplete_action": "retain-samples-and-mark-hypotheses-inconclusive",
     "unauthorized_gpu_process_action_before_measurement": "fail",
     "unauthorized_gpu_process_action_during_measurement": "retain-samples-and-mark-inconclusive",
     "hardware_thermal_slowdown_treatment": "retain-samples-and-mark-inconclusive",
