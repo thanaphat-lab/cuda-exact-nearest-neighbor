@@ -1,7 +1,7 @@
 # Decision Register
 
 Status: Canonical decision-status record\
-Milestone: S6 — Approved numerical policy and implementation design\
+Milestone: S15 — Approved public SIFT1M benchmark design; S6 contracts retained\
 Last updated: 2026-11-11 (Asia/Bangkok)
 
 ## 1. Approved decisions
@@ -37,6 +37,7 @@ Last updated: 2026-11-11 (Asia/Bangkok)
 | DR-027 | UD-005's V0–V3 API, ownership, CPU/Float64, layout, reduction, timing and verification architecture is approved. COND-01 governs full-warp participation, masks, safe shuffle sources and hierarchy ties. COND-02 separates associative finite lexicographic argmin from associative nonfinite/domain-failure aggregation: real nonfinite candidates remain logically present, never enter the ordinary floating comparator and propagate failure status through the complete hierarchy. No mandatory failing-index selection rule is established. The proposed 16-byte transport record remains subject to ABI verification. V4 is deferred. | `S6-DESIGN-OWNER-APPROVAL-001`, COND-01, COND-02 | REQ-S-001–REQ-S-003, REQ-N-001–REQ-N-006, REQ-I-001–REQ-I-003, REQ-O-001–REQ-O-006; AC-001–AC-016 |
 | DR-028 | S6 design documentation and future implementation integration use the approved focused-branch/PR process, and the Project Owner alone performs Squash & Merge into `main`. Codex may not merge or enable auto-merge. Branch deletion remains an Owner decision. | `S6-DESIGN-OWNER-APPROVAL-001`; DR-018 | Repository governance only |
 | DR-029 | `S14-EVIDENCE-REMEDIATION-OWNER-APPROVAL-001` prospectively approves the S14 batch evidence-integrity design bound to SHA-256 `ff75b8f7462ff6177536ccc24b014300b66d31e97485c475dc0515e76b518664`: 1,000 ms telemetry cadence, 3,000 ms maximum gap, 900 ms bounded query timeout, independent lifecycle/continuity validation, fail-safe inconclusive treatment for incomplete telemetry, blocking treatment for malformed or identity-mismatched evidence, structured command/CTest provenance, and preservation of the prior run as historical-audit-limited. It does not retrospectively approve the historical experiment or authorize a replacement run. | Project Owner, 2026-11-11; [S14BatchBenchmarkApprovalRecord.md](S14BatchBenchmarkApprovalRecord.md) | REQ-B-005, REQ-R-001–REQ-R-004; optional V4 evidence only |
+| DR-030 | The Project Owner approved all 12 decisions in `S15PublicSift1mBenchmarkDesignDecision-v1.0`, bound to approved candidate SHA-256 `4d91b8a659b94100654077988491a4a1b00a1405c067bfad508324bd267e0b16`, and authorized S15 implementation plus correctness/integrity verification. The design keeps Evidence Acceptance, per-workload outcomes, per-N descriptive results and universal-all-128 H1–H3 outcomes distinct; treats Prepared V2 as steady-state reuse with construction/break-even context; and preserves the bounded non-performance preflight. Formal performance benchmark execution requires separate Owner approval. No official approval ID was assigned. | Project Owner, 2026-11-11 (Asia/Bangkok); [S15PublicSift1mBenchmarkApprovalRecord.md](S15PublicSift1mBenchmarkApprovalRecord.md) | REQ-W-001, REQ-S-001–REQ-S-003, REQ-N-001–REQ-N-006, REQ-B-001–REQ-B-008, REQ-R-001–REQ-R-004; AC-005–AC-015 as applicable |
 
 ## 2. Resolved open decisions
 
@@ -66,7 +67,7 @@ These items are intentionally unresolved. Proposed values, defaults, library beh
 - Unambiguous contract checks that do not depend on unresolved implementation decisions may still pass or fail independently.
 - Performance measurements may not receive performance acceptance until the complete applicable correctness matrix is accepted for the matching revision, working-tree state, build, workload, arithmetic environment and variant.
 - Design approval closes implementation-choice status only. It does not pass AC-001–AC-016 or establish actual ABI, compiler, device, correctness or performance behavior.
-- Design approval authorizes no repository or runtime action. Documentation editing and each Git/GitHub stage require their applicable separate authorization. Only the Project Owner performs Squash & Merge into `main`; Codex may not merge or enable auto-merge.
+- Design approval alone authorizes no repository or runtime action unless explicit Owner approval evidence states otherwise. DR-030 separately authorizes S15 implementation and correctness/integrity verification but not formal performance benchmark execution. Documentation editing and each Git/GitHub stage require their applicable separate authorization. Only the Project Owner performs Squash & Merge into `main`; Codex may not merge or enable auto-merge.
 
 ## 5. Change history
 
@@ -77,3 +78,4 @@ These items are intentionally unresolved. Proposed values, defaults, library beh
 | 2026-10-28 | Recorded the approved S6 policy carrier and resolved UD-001–UD-003 at the policy-decision level. Kept UD-004 open and UD-005 partially resolved. No runtime gate was marked passed. |
 | 2026-10-29 | Recorded `S6-DESIGN-OWNER-APPROVAL-001`, design-level closure of UD-005, approved UD-004 methodology, controlling COND-01–03, deferred V4 and retained all runtime gates as not executed or blocked. |
 | 2026-11-11 | Recorded prospective S14 evidence-integrity approval DR-029, including telemetry continuity/lifecycle controls and historical-audit-limited treatment. No replacement performance run was authorized or executed. |
+| 2026-11-11 | Recorded S15 public SIFT1M design approval DR-030, the exact approved candidate hash, all 12 design decisions, implementation and correctness/integrity authorization, and the separate Owner gate for formal performance benchmark execution. |

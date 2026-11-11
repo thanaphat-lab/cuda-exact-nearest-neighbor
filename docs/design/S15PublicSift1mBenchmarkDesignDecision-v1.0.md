@@ -1,26 +1,27 @@
 # S15 Public SIFT1M Benchmark Design Decision v1.0
 
-Status: **PROPOSED — awaiting Project Owner approval; not authorized for implementation or execution**  
-Prepared against repository baseline: `4113b0705759` (`main`, clean when audited)  
-Prepared date: 2026-11-11 (Asia/Bangkok)  
-Workload: primary single-query public-dataset experiment  
-Dataset: INRIA TexMex ANN_SIFT1M  
-Numerical policy: `S6-CONSOLIDATED-NUMERICAL-POLICY-v1.0`  
+Status: **APPROVED — implementation and correctness/integrity verification authorized; formal performance benchmark requires separate Owner approval**\
+Approval record: [S15PublicSift1mBenchmarkApprovalRecord.md](../governance/S15PublicSift1mBenchmarkApprovalRecord.md)\
+Approval date: 2026-11-11 (Asia/Bangkok)\
+Approved candidate design SHA-256: `4d91b8a659b94100654077988491a4a1b00a1405c067bfad508324bd267e0b16`\
+Prepared against repository baseline: `4113b0705759` (`main`, clean when audited)\
+Prepared date: 2026-11-11 (Asia/Bangkok)\
+Workload: primary single-query public-dataset experiment\
+Dataset: INRIA TexMex ANN_SIFT1M\
+Numerical policy: `S6-CONSOLIDATED-NUMERICAL-POLICY-v1.0`\
 Numerical-policy SHA-256: `503aa6b2c97567d814a9316fb0f2f9890d5472aea2bcf1f928ac505c29d1aa39`
 
 ## 1. Decision requested and authority boundary
 
-This document proposes a formal S15 experiment design for single-query exact
-nearest-neighbor search on the public SIFT1M dataset. It is a design proposal,
-not an approved acceptance rule, implementation authorization, correctness
-receipt, benchmark result, or performance claim.
+This document is the Owner-approved S15 experiment design for single-query
+exact nearest-neighbor search on the public SIFT1M dataset. Design approval is
+not a correctness receipt, benchmark result, or performance claim.
 
-The Project Owner is asked to approve, reject, or amend the choices identified
-in Section 14 before implementation. Approval of this document would authorize
-only the later separately scoped implementation work that the Owner requests.
-It would not by itself authorize a benchmark run, dependency or environment
-change, dataset download, Git/GitHub mutation, or amendment of the canonical
-project specification.
+The Project Owner explicitly confirmed all 12 decisions in Section 14 and
+authorized S15 implementation and correctness/integrity verification on
+2026-11-11 (Asia/Bangkok). This approval does not authorize the formal
+performance benchmark, dependency or environment changes, dataset download,
+Git/GitHub mutation, or amendment of the canonical project specification.
 
 S15 supplements the required seeded synthetic evidence. Public SIFT1M has a
 fixed dimension and only 1,000,000 base vectors, so it cannot satisfy or replace
@@ -161,7 +162,7 @@ The expanded, configuration-bound list is:
 `0, 322, 645, 967, 1290, 1612, 1935, 2257, 2580, 2902, 3225, 3548, 3870, 4193, 4515, 4838, 5160, 5483, 5805, 6128, 6450, 6773, 7096, 7418, 7741, 8063, 8386, 8708, 9031, 9353, 9676, 9999`.
 
 This retains query 0 for an explicitly limited S10 bridge while covering the
-full public query-file order. The ordinal list is a proposed experiment-design
+full public query-file order. The ordinal list is an approved experiment-design
 choice, not a claim of statistical representativeness of all possible query
 distributions. The configuration must carry both the formula and expanded list;
 the runner must reject any mismatch, duplicate, or out-of-range ordinal.
@@ -186,13 +187,13 @@ No V0, V1, V3, V4, batch API, throughput claim, or cross-hardware claim is in
 scope. S15 answers a public-data V2 reuse question; it does not replace the
 synthetic V0-V3 core evidence.
 
-No S15 tuning is proposed. Recommend the predeclared V2 block mapping
+No S15 tuning is approved. The approved predeclared V2 block mapping is
 `{1024:256, 16384:128, 262144:512, 1000000:256}` for `D=128`. The first three
 values are the exact matching S7 frozen selections. The 1,000,000 value is a
-proposed carry-forward of the S7 1,048,576/D128 selection and the historical
+approved carry-forward of the S7 1,048,576/D128 selection and the historical
 S10 value; it is not represented as independently tuned for 1,000,000.
-Owner approval of this mapping is required. Retuning or selection from S15 final
-samples is prohibited.
+Owner approval of this mapping is recorded. Retuning or selection from S15
+final samples is prohibited.
 
 ### 4.4 Construction distributions
 
@@ -222,7 +223,7 @@ For all 128 workloads, the gate must retain separate results for:
 - CUDA V2 Raw production; and
 - CUDA V2 Prepared production using the same immutable prepared prefix.
 
-The minimum proposed matrix is 384 production-result checks. For every
+The approved minimum matrix is 384 production-result checks. For every
 workload, evidence must demonstrate:
 
 - exhaustive candidate coverage and smallest-index equal-computed-distance
@@ -365,7 +366,7 @@ configuration, statistical criteria, block sizes, tuning decisions, or
 hypotheses requires a new Owner-reviewed design revision rather than an
 automatic preflight adjustment.
 
-## 8. Speedups, hypotheses, and proposed performance rules
+## 8. Speedups, hypotheses, and approved S15 performance rules
 
 ### 8.1 Speedup calculation
 
@@ -401,7 +402,7 @@ Acceptance.
 - **H3:** Prepared V2 E2E latency is lower than Raw V2 E2E latency for every one
   of the 128 workloads.
 
-For each universal hypothesis, recommend:
+For each universal hypothesis, the approved rule is:
 
 - `supported` only if all 128 per-workload comparisons are supported;
 - `rejected` if at least one per-workload comparison is rejected; and
@@ -409,8 +410,8 @@ For each universal hypothesis, recommend:
 
 Always report the supported/rejected/inconclusive counts by `N` and query and
 the complete decision table. Counts never override the universal rule. This is
-a proposed S15 interpretation requiring explicit Owner approval; it is not a
-new canonical speedup requirement. When Evidence Acceptance passes, a Universal
+an approved S15-specific interpretation; it is not a new canonical speedup
+requirement. When Evidence Acceptance passes, a Universal
 Hypothesis Outcome of `rejected` is a valid completed S15 result, just as a
 universal `supported` or `inconclusive` outcome is; favorability is not an
 evidence gate.
@@ -448,10 +449,10 @@ not assumed. Download/acquisition remains an external Owner action. Dataset
 bytes must remain outside Git and must not be redistributed in the evidence
 packet.
 
-Recommend that Owner approval promote the following S10-recorded extracted-file
-identities to required S15 configuration values:
+Owner approval establishes the following S10-recorded extracted-file identities
+as required S15 configuration values:
 
-| File | Required bytes | Proposed required SHA-256 |
+| File | Required bytes | Approved required SHA-256 |
 |---|---:|---|
 | `sift_base.fvecs` | 516,000,000 | `21f66e2975057b5728ba56de1c825bac4f4d89d596609ae985741c6242631816` |
 | `sift_query.fvecs` | 5,160,000 | `f7fc9be140accdfd64116c2fa2365ecdb69b8f084970c6b0532db5ff79ac8fdc` |
@@ -511,11 +512,11 @@ No `acceptance.json` or equivalent final receipt may be published until the
 analyzer independently validates the full packet. Runner-authored status is
 input evidence, not the final authority.
 
-## 11. Required implementation changes after approval
+## 11. Authorized implementation scope
 
 No CUDA production algorithm or public API change appears necessary. The
 existing CPU, Raw V2, prepared-dataset, workspace, and Prepared V2 operations
-cover the proposed lanes. The experiment infrastructure does require changes:
+cover the approved lanes. The experiment infrastructure requires these changes:
 
 1. Add an S15 configuration carrying approved hashes, query formula/list,
    sizes, V2 mapping, hypotheses, statistics, timing, and telemetry policy.
@@ -535,9 +536,11 @@ cover the proposed lanes. The experiment infrastructure does require changes:
 7. Create a new S15 evidence/report directory only after a separately
    authorized execution. Do not modify S10-S14 evidence.
 
-Implementation remains stopped pending Owner approval. Any discovery that a
-CUDA production or public API change is actually required must return to the
-Owner as scope expansion before modification.
+Implementation and correctness/integrity verification are authorized within
+this approved scope. Any discovery that a CUDA production or public API change
+is actually required must return to the Owner as scope expansion before
+modification. Formal performance benchmark execution remains unauthorized
+until the Owner separately approves it.
 
 ## 12. Alternatives considered
 
@@ -587,53 +590,53 @@ base rows, and is not the recorded seeded synthetic generator. Rejected.
 | Repeatedly hashing/parsing large files contaminates timing | Inflated or incomparable latency | Complete loading/validation/hashing before timed regions; record boundaries explicitly |
 | Prepared setup is hidden | Misleading steady-state claim | Report three construction distributions and separate break-even tables |
 | Persistent destruction is excluded | Break-even is not lifetime-complete | Label every setup/amortization result accordingly |
-| Carry-forward block size is not exact-size tuning | Configuration may not be optimal at 1,000,000 | Require explicit Owner approval; state provenance; prohibit optimality claims |
+| Carry-forward block size is not exact-size tuning | Configuration may not be optimal at 1,000,000 | Preserve recorded Owner approval and provenance; prohibit optimality claims |
 | Long execution increases environmental drift | Wider or biased distributions | Use S14 telemetry continuity/lifecycle controls and deterministic rotation |
 | Historical S10/S14 evidence is accidentally rebound | Invalid provenance claim | New schemas, output directory, experiment ID, packet manifest, and immutable-history policy |
 | Loader generalization regresses S10 | Existing integrity path changes | Backward-compatible API and regression tests; do not alter historical artifacts |
 
-## 14. Explicit Owner approval items
+## 14. Owner-approved decisions
 
-Implementation must not start until the Owner records decisions for all items:
+The Project Owner explicitly approved all 12 decisions on 2026-11-11
+(Asia/Bangkok):
 
-1. **Experiment status:** approve S15 as a formal public-dataset experiment
+1. **Experiment status:** S15 is approved as a formal public-dataset experiment
    supplementing, not replacing, synthetic core acceptance.
-2. **Question and scope:** approve CPU Float32, V2 Raw, V2 Prepared, V2 kernel,
+2. **Question and scope:** CPU Float32, V2 Raw, V2 Prepared, V2 kernel,
    construction costs, and exclusion of V0/V1/V3/V4/batch.
-3. **Matrix:** approve `N={1024,16384,262144,1000000}`, `D=128`, and the
+3. **Matrix:** `N={1024,16384,262144,1000000}`, `D=128`, and the
    32-query formula plus expanded ordinal list.
-4. **V2 configuration:** approve `{1024:256,16384:128,262144:512,1000000:256}`
+4. **V2 configuration:** `{1024:256,16384:128,262144:512,1000000:256}`
    and the 1,000,000 carry-forward limitation, with no S15 retuning.
-5. **Correctness gate:** approve the 128-workload/384-production-check matrix,
+5. **Correctness gate:** the 128-workload/384-production-check matrix,
    required S6 evidence, bitwise equivalence, and matching-identity rule.
-6. **Timing and sampling:** approve the four timing lanes, three construction
+6. **Timing and sampling:** the four timing lanes, three construction
    distributions, deterministic rotation, 10/100 counts, percentile method,
    and 2,000-resample 95% median bootstrap.
-7. **Performance interpretation:** approve H1-H3, speedup/interval formulas,
+7. **Performance interpretation:** H1-H3, speedup/interval formulas,
    and universal-all-128 outcome rule. This remains S15-specific and does not
    amend the absence of a canonical required speedup.
-8. **Break-even:** approve the point/conservative formulas and explicit
+8. **Break-even:** the point/conservative formulas and explicit
    exclusion of persistent-resource destruction.
-9. **Dataset identity:** approve the two recorded extracted-file byte counts and
+9. **Dataset identity:** the two recorded extracted-file byte counts and
    SHA-256 values as mandatory S15 inputs and the external/no-redistribution
    policy.
-10. **Integrity policy:** approve reuse of S14 telemetry, lifecycle, command,
+10. **Integrity policy:** reuse of S14 telemetry, lifecycle, command,
     prerequisite-log, blocking, and environment-inconclusive controls for S15.
-11. **Implementation scope:** approve new S15 config/harness/runner/analyzer/tests
+11. **Implementation scope:** new S15 config/harness/runner/analyzer/tests
     plus backward-compatible loader extension, with no CUDA production/API
     change unless separately escalated.
-12. **Future execution boundary:** confirm that design/implementation approval
+12. **Future execution boundary:** design/implementation approval
     does not authorize the formal benchmark; a clean exact-revision run requires
     separate Owner authorization after integrity and correctness verification.
 
-## 15. Approval status and resume point
+## 15. Approval status and authorization boundary
 
-Current status: **awaiting Owner review**.
+Current status: **Owner-approved**.
 
 No implementation, build, test, correctness run, hardware probe, or benchmark
-was performed while preparing this design. No existing S10-S14 evidence was
-modified. After Owner approval, resume with a separately scoped implementation
-request in an Owner-prepared worktree, implement the smallest S15-only changes,
-run CPU-only integrity tests and applicable correctness checks, and stop again
-before any formal performance execution unless that execution is explicitly
-authorized.
+was performed while preparing or synchronizing this design. No existing S10-S14
+evidence was modified. S15 implementation and correctness/integrity
+verification are authorized in an Owner-prepared worktree. Formal performance
+benchmark execution requires separate explicit Owner approval and remains
+unauthorized by this design approval.
