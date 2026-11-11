@@ -41,3 +41,6 @@ docs/experiments/S7-ACCEPT-20261103-01/evidence/** whitespace=cr-at-eol
 
 # Preserve S8 experimental evidence byte-for-byte
 docs/experiments/S8-TRANSPOSE-AB-20261104-01/evidence/** -text whitespace=cr-at-eol
+
+# Preserve S14 benchmark evidence byte-for-byte.
+docs/experiments/S14-BATCH-V4-20261111-02/evidence/** -text
