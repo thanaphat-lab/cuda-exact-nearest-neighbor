@@ -9,6 +9,19 @@ function sha256(file) {
   return createHash("sha256").update(fs.readFileSync(file)).digest("hex");
 }
 
+function decodeUtf8Json(bytes) {
+  const text = Buffer.isBuffer(bytes) ? bytes.toString("utf8") : String(bytes);
+  return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
+}
+
+function parseUtf8Json(bytes) {
+  return JSON.parse(decodeUtf8Json(bytes));
+}
+
+function readJson(file) {
+  return parseUtf8Json(fs.readFileSync(file));
+}
+
 function parseCsv(file) {
   const text = fs.readFileSync(file, "utf8").trim();
   if (!text) fail(`empty CSV: ${file}`);
@@ -25,7 +38,7 @@ function parseCsv(file) {
 
 function readJsonLines(file) {
   if (!fs.existsSync(file)) return [];
-  return fs.readFileSync(file, "utf8").split(/\r?\n/).filter(line => line.trim())
+  return decodeUtf8Json(fs.readFileSync(file)).split(/\r?\n/).filter(line => line.trim())
     .map((line, index) => {
       try { return JSON.parse(line); }
       catch { fail(`invalid JSONL row ${index + 1} in ${file}`); }
@@ -309,10 +322,9 @@ function validateEnvironment(directory, manifest) {
   const telemetry = path.join(capture, "telemetry");
   const readText = name => fs.existsSync(path.join(telemetry, name))
     ? fs.readFileSync(path.join(telemetry, name), "utf8") : "";
-  const config = JSON.parse(fs.readFileSync(path.join(capture, "experiment-config.json")));
-  const approval = JSON.parse(fs.readFileSync(path.join(capture,
-    "environment-approval.json")));
-  const environment = JSON.parse(fs.readFileSync(path.join(capture, "environment.json")));
+  const config = readJson(path.join(capture, "experiment-config.json"));
+  const approval = readJson(path.join(capture, "environment-approval.json"));
+  const environment = readJson(path.join(capture, "environment.json"));
   if (environment.revision !== manifest.revision ||
       environment.working_tree_state !== "clean" ||
       environment.config_sha256 !== manifest.experiment_config_sha256 ||
@@ -333,14 +345,14 @@ function validateEnvironment(directory, manifest) {
     config,
     approval,
     environment,
-    interval: JSON.parse(fs.readFileSync(path.join(capture, "benchmark-interval.json"))),
+    interval: readJson(path.join(capture, "benchmark-interval.json")),
     attempts: readJsonLines(path.join(telemetry, "telemetry-attempts.jsonl")),
     metrics: readJsonLines(path.join(telemetry, "gpu-telemetry.jsonl")),
     processes: readJsonLines(path.join(telemetry, "gpu-processes.jsonl")),
     ready: fs.existsSync(path.join(telemetry, "telemetry-ready.json"))
-      ? JSON.parse(fs.readFileSync(path.join(telemetry, "telemetry-ready.json"))) : null,
+      ? readJson(path.join(telemetry, "telemetry-ready.json")) : null,
     session: fs.existsSync(path.join(telemetry, "telemetry-session.json"))
-      ? JSON.parse(fs.readFileSync(path.join(telemetry, "telemetry-session.json"))) : null,
+      ? readJson(path.join(telemetry, "telemetry-session.json")) : null,
     captureErrors: readText("telemetry-errors.log"),
     launchErrors: fs.existsSync(path.join(capture, "telemetry-launch-errors.log"))
       ? fs.readFileSync(path.join(capture, "telemetry-launch-errors.log"), "utf8") : ""
@@ -619,7 +631,7 @@ function writeCsv(file, rows, fields) {
 }
 
 function analyze(directory) {
-  const manifest = JSON.parse(fs.readFileSync(path.join(directory, "manifest.json"), "utf8"));
+  const manifest = readJson(path.join(directory, "manifest.json"));
   if (manifest.schema_version !== "S14-BATCH-BENCHMARK-MANIFEST-v1") {
     fail("manifest schema mismatch");
   }
@@ -632,7 +644,7 @@ function analyze(directory) {
   const environmentStatus = validateEnvironment(directory, manifest);
   fs.writeFileSync(path.join(directory, "environment-status.json"),
     JSON.stringify(environmentStatus, null, 2) + "\n");
-  const gate = JSON.parse(fs.readFileSync(path.join(directory, "correctness-gate.json"), "utf8"));
+  const gate = readJson(path.join(directory, "correctness-gate.json"));
   if (!fs.existsSync(manifest.freeze_path)) fail("manifest freeze path is unavailable");
   const freezeRows = parseCsv(manifest.freeze_path);
   const rows = parseCsv(path.join(directory, "raw_samples.csv"));
@@ -700,6 +712,14 @@ function analyze(directory) {
 }
 
 function selfTest() {
+  const bomJson = Buffer.concat([
+    Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from('{"bom":"accepted"}', "utf8")]);
+  let malformedBomRejected = false;
+  try { parseUtf8Json(Buffer.from("\ufeffnot-json", "utf8")); }
+  catch { malformedBomRejected = true; }
+  if (parseUtf8Json(bomJson).bom !== "accepted" || !malformedBomRejected) {
+    fail("UTF-8 BOM JSON self-test failed");
+  }
   if (percentile([1, 2, 3, 4, 5], 0.5) !== 3 ||
       Math.abs(percentile([1, 2, 3, 4, 5], 0.05) - 1.2) > 1e-12) {
     fail("percentile self-test failed");
