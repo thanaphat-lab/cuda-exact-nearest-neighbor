@@ -3,9 +3,9 @@
 **Status:** ACCEPTED — direct evidence verified and accepted by the Project Owner\
 **Acceptance date:** 2026-11-12 (Asia/Bangkok)\
 **Accepting role:** Project Owner\
-**Scope:** Prospective S15 provenance recovery only; do not alter S10–S14 historical evidence.  
-**Target repository:** `D:\ku\Parallel Project`  
-**Source revision at reported investigation:** `bc7748a4eb973808015c0e14e06f3ec505bb5059`  
+**Scope:** Prospective S15 provenance recovery only; do not alter S10–S14 historical evidence.
+**Target repository:** `D:\ku\Parallel Project`
+**Source revision at reported investigation:** `bc7748a4eb973808015c0e14e06f3ec505bb5059`
 **Evidence basis:** Direct verification of the identified Codex execution transcript, its SHA-256 and cited records, plus corroboration against the retained external dataset files; Project Owner acceptance was explicitly supplied on 2026-11-12 (Asia/Bangkok).
 
 ## 1. Purpose and provenance boundary
@@ -27,15 +27,15 @@ The transcript exists at the recorded path. Its SHA-256 and the cited acquisitio
 
 ## 3. Acquisition
 
-**Source URL:** `ftp://ftp.irisa.fr/local/texmex/corpus/sift.tar.gz`  
-**Method / tool:** FTP, `curl.exe` invoked from PowerShell  
-**Observed invocation time (UTC):** `2026-11-05T12:31:31.930Z`  
-**Observed successful completion time (UTC):** `2026-11-05T12:33:55.215Z`  
+**Source URL:** `ftp://ftp.irisa.fr/local/texmex/corpus/sift.tar.gz`
+**Method / tool:** FTP, `curl.exe` invoked from PowerShell
+**Observed invocation time (UTC):** `2026-11-05T12:31:31.930Z`
+**Observed successful completion time (UTC):** `2026-11-05T12:33:55.215Z`
 **Accepted `DatasetAcquiredAt` semantics:** the observed successful-completion time above; **not** server-issued acquisition time.\
-**Recorded exit code:** `0`  
-**FTP response:** `226`  
-**Downloaded archive bytes:** `168280445`  
-**Archive SHA-256:** `92f1270c5e3a0cb46b89983e72b0511e4df065c31a9fa0276d8c9b1fca5bc81a`  
+**Recorded exit code:** `0`
+**FTP response:** `226`
+**Downloaded archive bytes:** `168280445`
+**Archive SHA-256:** `92f1270c5e3a0cb46b89983e72b0511e4df065c31a9fa0276d8c9b1fca5bc81a`
 **Upstream/local MD5, reported equal:** `b23d1b3b2ee8469d819b61ca900ef0ed`
 
 Exact recovered PowerShell command (historical record; **do not execute**):
@@ -46,11 +46,11 @@ $target = 'D:\datasets\sift1m'; $partial = Join-Path $target 'sift.tar.gz.part';
 
 ## 4. Extraction
 
-**Tool:** `tar` invoked from PowerShell  
-**Observed invocation time (UTC):** `2026-11-05T12:46:57.913Z`  
-**Observed successful completion time (UTC):** `2026-11-05T12:48:41.704Z`  
+**Tool:** `tar` invoked from PowerShell
+**Observed invocation time (UTC):** `2026-11-05T12:46:57.913Z`
+**Observed successful completion time (UTC):** `2026-11-05T12:48:41.704Z`
 **Extracted-file creation time (UTC, verified):** `2026-11-05T12:48:39Z`\
-**Recorded exit code:** `0`  
+**Recorded exit code:** `0`
 **Verified result:** all four extracted SHA-256 values matched their corresponding archive members (`MATCH_EXTRACTED=True`).
 
 Exact recovered PowerShell command (historical record; **do not execute**):

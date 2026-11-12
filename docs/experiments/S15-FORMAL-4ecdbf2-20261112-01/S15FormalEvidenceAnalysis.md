@@ -1,11 +1,11 @@
 # S15 Formal Evidence Analysis and Root-Cause Investigation
 
-Status: **ANALYSIS COMPLETE — official experiment disposition remains `INCOMPLETE / environment inconclusive`**  
-Analysis date: 2026-11-12 (Asia/Bangkok)  
-Formal experiment: `S15-FORMAL-4ecdbf2-20261112-01`  
-Evidence packet: `D:\temp\s15-formal-4ecdbf2-20261112`  
-Source revision: `4ecdbf20b53c57239b8e9b0904f7b2c33d289881`  
-Branch observed read-only: `feature/s15-public-sift1m`  
+Status: **ANALYSIS COMPLETE — official experiment disposition remains `INCOMPLETE / environment inconclusive`**
+Analysis date: 2026-11-12 (Asia/Bangkok)
+Formal experiment: `S15-FORMAL-4ecdbf2-20261112-01`
+Evidence packet: `D:\temp\s15-formal-4ecdbf2-20261112`
+Source revision: `4ecdbf20b53c57239b8e9b0904f7b2c33d289881`
+Branch observed read-only: `feature/s15-public-sift1m`
 
 ## 1. Executive finding
 
