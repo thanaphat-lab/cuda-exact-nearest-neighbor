@@ -1,0 +1,151 @@
+{
+  "schema_version": "V5-PRIMARY-COMPARISONS-v1",
+  "definition": "CPU Batch Raw median / GPU V5 Raw median",
+  "conservative_95_ci": "[CPU_ci_low/GPU_ci_high,CPU_ci_high/GPU_ci_low]",
+  "workloads": [
+    {
+      "N": 1024,
+      "B": 8,
+      "query_tile": 1,
+      "block_size": 128,
+      "cpu_raw_median_ns": 2139600,
+      "gpu_v5_raw_median_ns": 1686450,
+      "speedup": 1.2687005247709686,
+      "speedup_ci_low": 1.2020642997571411,
+      "speedup_ci_high": 1.3808415508054144,
+      "outcome": "PASS"
+    },
+    {
+      "N": 1024,
+      "B": 32,
+      "query_tile": 1,
+      "block_size": 128,
+      "cpu_raw_median_ns": 5954400,
+      "gpu_v5_raw_median_ns": 1493950,
+      "speedup": 3.985675558084273,
+      "speedup_ci_low": 3.8033986928104575,
+      "speedup_ci_high": 4.161501318447998,
+      "outcome": "PASS"
+    },
+    {
+      "N": 1024,
+      "B": 128,
+      "query_tile": 4,
+      "block_size": 128,
+      "cpu_raw_median_ns": 22852300,
+      "gpu_v5_raw_median_ns": 1647900,
+      "speedup": 13.867528369439894,
+      "speedup_ci_low": 13.355465490523304,
+      "speedup_ci_high": 14.279772797527045,
+      "outcome": "PASS"
+    },
+    {
+      "N": 16384,
+      "B": 8,
+      "query_tile": 1,
+      "block_size": 256,
+      "cpu_raw_median_ns": 29052000,
+      "gpu_v5_raw_median_ns": 39298850,
+      "speedup": 0.7392582734609282,
+      "speedup_ci_low": 0.7120028569280505,
+      "speedup_ci_high": 0.7756209706152362,
+      "outcome": "FAIL"
+    },
+    {
+      "N": 16384,
+      "B": 32,
+      "query_tile": 1,
+      "block_size": 128,
+      "cpu_raw_median_ns": 98976250,
+      "gpu_v5_raw_median_ns": 44879350,
+      "speedup": 2.205385104730795,
+      "speedup_ci_low": 2.125572397768498,
+      "speedup_ci_high": 2.2881594314762848,
+      "outcome": "PASS"
+    },
+    {
+      "N": 16384,
+      "B": 128,
+      "query_tile": 1,
+      "block_size": 128,
+      "cpu_raw_median_ns": 371287800,
+      "gpu_v5_raw_median_ns": 51405800,
+      "speedup": 7.222683043547615,
+      "speedup_ci_low": 5.982283728961119,
+      "speedup_ci_high": 8.062106542809525,
+      "outcome": "PASS"
+    },
+    {
+      "N": 262144,
+      "B": 8,
+      "query_tile": 8,
+      "block_size": 512,
+      "cpu_raw_median_ns": 484078700,
+      "gpu_v5_raw_median_ns": 709194100,
+      "speedup": 0.6825757574689355,
+      "speedup_ci_low": 0.6647699928479601,
+      "speedup_ci_high": 0.7506786019655385,
+      "outcome": "FAIL"
+    },
+    {
+      "N": 262144,
+      "B": 32,
+      "query_tile": 1,
+      "block_size": 512,
+      "cpu_raw_median_ns": 1620687700,
+      "gpu_v5_raw_median_ns": 751777700,
+      "speedup": 2.1558070956347866,
+      "speedup_ci_low": 2.0885236320878224,
+      "speedup_ci_high": 2.57631455996021,
+      "outcome": "PASS"
+    },
+    {
+      "N": 262144,
+      "B": 128,
+      "query_tile": 1,
+      "block_size": 512,
+      "cpu_raw_median_ns": 6228947350,
+      "gpu_v5_raw_median_ns": 863181500,
+      "speedup": 7.216266046016973,
+      "speedup_ci_low": 6.809213559230306,
+      "speedup_ci_high": 7.548793468620633,
+      "outcome": "PASS"
+    },
+    {
+      "N": 1000000,
+      "B": 8,
+      "query_tile": 1,
+      "block_size": 512,
+      "cpu_raw_median_ns": 2085655500,
+      "gpu_v5_raw_median_ns": 1589081250,
+      "speedup": 1.3124914160304892,
+      "speedup_ci_low": 1.2719688644139566,
+      "speedup_ci_high": 1.370188335418316,
+      "outcome": "PASS"
+    },
+    {
+      "N": 1000000,
+      "B": 32,
+      "query_tile": 1,
+      "block_size": 512,
+      "cpu_raw_median_ns": 6474069950,
+      "gpu_v5_raw_median_ns": 1549684500,
+      "speedup": 4.177669680505935,
+      "speedup_ci_low": 4.0967143186072015,
+      "speedup_ci_high": 4.2835684457245895,
+      "outcome": "PASS"
+    },
+    {
+      "N": 1000000,
+      "B": 128,
+      "query_tile": 4,
+      "block_size": 512,
+      "cpu_raw_median_ns": 24231209800,
+      "gpu_v5_raw_median_ns": 1704169900,
+      "speedup": 14.218775839193029,
+      "speedup_ci_low": 13.701788303428316,
+      "speedup_ci_high": 15.06909219130667,
+      "outcome": "PASS"
+    }
+  ]
+}

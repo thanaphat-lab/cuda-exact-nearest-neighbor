@@ -1,0 +1,100 @@
+{
+  "schema_version": "V5-ANALYSIS-MANIFEST-v1",
+  "files": [
+    {
+      "path": "manifest.json",
+      "sha256": "8adee24a68dd50bd8d8042909d3533b740a51d01446fc81f055346c4a20662ee",
+      "bytes": 2516
+    },
+    {
+      "path": "experiment-config.json",
+      "sha256": "8ac84503f525559cc40f01506f8a89f93c55273079adcb7e0ad2eeaae8b3615f",
+      "bytes": 5548
+    },
+    {
+      "path": "policy-approval.json",
+      "sha256": "eb400f92db641269bd74db92acc66d3248b070586c02c573513111cd820bf991",
+      "bytes": 563
+    },
+    {
+      "path": "correctness-gate.json",
+      "sha256": "66c8673a3ff13f5f00c692edd9a57777d96b69892ff49e9ac9e2b88e470964fe",
+      "bytes": 541
+    },
+    {
+      "path": "environment.json",
+      "sha256": "dc8702912b765687585fb8918f6fed604c83c4fff77b7a6fe66d22226fcd3a1b",
+      "bytes": 2103
+    },
+    {
+      "path": "benchmark-interval.json",
+      "sha256": "b3f8b3b8de0ca4a1d72df3f5c02bb910dcfaacb22f8febcba359dc72a97e1ec2",
+      "bytes": 182
+    },
+    {
+      "path": "raw_samples.csv",
+      "sha256": "cb8944cd9a4e8851da7ca3561b1e79dad48b3d332059bd3919f61428a1666a0b",
+      "bytes": 1982276
+    },
+    {
+      "path": "telemetry/telemetry-attempts.jsonl",
+      "sha256": "e0e4c2aabec2e939088c883d279ca0da942cf172168ce120d4cb308374ed2c02",
+      "bytes": 4787012
+    },
+    {
+      "path": "telemetry/gpu-telemetry.jsonl",
+      "sha256": "6a649a5488e0bcb49d4948e5223cb2461d8b8b62592c3ba33390564453a1b90f",
+      "bytes": 3348935
+    },
+    {
+      "path": "telemetry/gpu-processes.jsonl",
+      "sha256": "76cbff740837e7ea8b46393fc96e683722902ace253a3824236a46bfdeec0a8c",
+      "bytes": 2578866
+    },
+    {
+      "path": "telemetry/telemetry-errors.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "telemetry/telemetry-session.json",
+      "sha256": "7795ccff0ea3a79fca21876dee729344fe2876688a7f2ee78c45d08f6bf26d2b",
+      "bytes": 319
+    },
+    {
+      "path": "summary.csv",
+      "sha256": "0769e881f6e4b4947ea009c0c9f5604ab7e5d801f0f11279b5739781ad9d39a6",
+      "bytes": 8982
+    },
+    {
+      "path": "summary.json",
+      "sha256": "5d5179c8b333ec83018e0448ffdb9b64fb83c9cca6c62b02cc6eb4d718e6a3fa",
+      "bytes": 29691
+    },
+    {
+      "path": "primary-comparisons.json",
+      "sha256": "bd4d63b63149713b5601e1d60bab5f386c70252fbbe307023e1c651ad9542061",
+      "bytes": 4068
+    },
+    {
+      "path": "secondary-results.json",
+      "sha256": "5f08f14ef4c7144f0829a104bf393b1677b95d12b8d11ae308bd5fead7c3b7ab",
+      "bytes": 28466
+    },
+    {
+      "path": "acceptance.json",
+      "sha256": "d9e4d72fffb0bf91ee434937c75cee5a3717862c492e893a72a985b40b707979",
+      "bytes": 341
+    },
+    {
+      "path": "diagnostic-summary.json",
+      "sha256": "7072e3006d32c18d95e0f277db03468a01f091692310f9974b76b01b41b62dd7",
+      "bytes": 39095
+    },
+    {
+      "path": "tuning-freeze.csv",
+      "sha256": "f2ce774a86901a9f8885bf73fda433c7f3f719490421054b85e232e56575d246",
+      "bytes": 328
+    }
+  ]
+}

@@ -17,6 +17,7 @@ Effective date: 2026-11-12 (Asia/Bangkok)
 | Experiment-design approval evidence | [S15PublicSift1mBenchmarkApprovalRecord.md](S15PublicSift1mBenchmarkApprovalRecord.md) | Exact approved candidate SHA-256, all 12 confirmed decisions, approval date and role, implementation/correctness-integrity authorization, absence of an assigned approval ID, and the separate Owner gate for formal performance benchmark execution. |
 | Dataset-provenance acceptance evidence | [S15DatasetProvenanceRecoveryRecord.md](S15DatasetProvenanceRecoveryRecord.md) | Transcript-bound recovery of the public SIFT1M acquisition and extraction invocations, observed timestamps, archive and extracted-file identities, preserved historical unknowns, and Project Owner acceptance for prospective S15 use. It does not alter S10–S14 evidence or authorize formal performance execution. |
 | V5 approval evidence | [V5BatchOptimizationApprovalRecord.md](V5BatchOptimizationApprovalRecord.md) | Records the conversational November 12, 2026 Owner approval and V5-B authorization, its optional/secondary scope and the subsequently supplied frozen V5-A experiment requirements, while distinguishing newly selected engineering details and prospective policy proposals. It is not a hash-bound design carrier and assigns no approval ID. |
+| Observed V5 Formal evidence | [V5 Formal Results Report](../experiments/V5-BATCH-FORMAL-20261112-02/ResultsReport.md) and retained [evidence](../experiments/V5-BATCH-FORMAL-20261112-02/evidence/) | Final result for `V5-FORMAL-20261112-02` at revision `f2e10d8f620b1fbd45403aae3b0c1c60eb815236`: primary `FAIL`, 10/12 mandatory workloads passed, 2/12 failed, and all non-performance gates accepted. This optional/secondary V5 evidence does not alter V0-V4, historical evidence, or the primary Single Query designation. |
 | 2 | [DecisionRegister.md](DecisionRegister.md) | Status and history of approved, design-resolved, measurement-dependent and unresolved decisions. It records but does not override the specification or numerical policy. |
 | Operational | [DevelopmentAndMergePolicy.md](DevelopmentAndMergePolicy.md) | Approved branch, pull-request, human-review, CI, merge, and emergency process. It governs repository operation but cannot amend project semantics. |
 | 3 | [AcceptanceCriteria.md](../requirements/AcceptanceCriteria.md) | Observable gates derived from the approved specification. |
@@ -55,6 +56,13 @@ telemetry requirements are frozen as recorded there. The bootstrap PRNG seed,
 exact candidate/lane rotation, and certain schema details remain prospective
 policy proposals; Diagnostic and Formal execution require an Owner approval
 binding their exact configured values.
+
+The final observed V5 Formal evidence is retained under
+`docs/experiments/V5-BATCH-FORMAL-20261112-02/`. Its primary outcome is `FAIL`:
+10 of 12 mandatory workloads passed and 2 failed, while completeness, identity,
+correctness, telemetry, and environment gates were accepted. The frozen result
+is evidence for the optional/secondary V5 Batch experiment only; it does not
+change the historical V0-V4 taxonomy or the primary Single Query workload.
 
 ## 2. Statement classes
 
