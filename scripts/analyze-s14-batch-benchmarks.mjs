@@ -166,6 +166,32 @@ function evaluateEnvironment(data) {
         row.process_status !== "completed") {
       addReason("telemetry-attempt-failed", {first_sequence: row.sequence});
     }
+    const correctedFields = ["metric_normal_completion_duration_ms",
+      "metric_cleanup_duration_ms", "metric_cleanup_status",
+      "process_normal_completion_duration_ms", "process_cleanup_duration_ms",
+      "process_cleanup_status"];
+    const correctedCount = correctedFields.filter(field => field in row).length;
+    if (correctedCount !== 0 && correctedCount !== correctedFields.length) {
+      fail("partial corrected telemetry deadline accounting");
+    }
+    if (correctedCount === correctedFields.length) {
+      for (const prefix of ["metric", "process"]) {
+        const normal = row[`${prefix}_normal_completion_duration_ms`];
+        const cleanup = finiteNonnegative(row[`${prefix}_cleanup_duration_ms`],
+          `${prefix} cleanup duration`);
+        const cleanupStatus = row[`${prefix}_cleanup_status`];
+        if (row[`${prefix}_status`] === "completed") {
+          if (!Number.isFinite(Number(normal)) || Number(normal) < 0 ||
+              Number(normal) > policy.telemetry_query_timeout_ms || cleanup !== 0 ||
+              cleanupStatus !== "not-required") {
+            fail("completed telemetry query violates corrected deadline accounting");
+          }
+        } else if (normal !== null ||
+            !["completed", "failed"].includes(cleanupStatus)) {
+          fail("timed-out telemetry query violates corrected cleanup accounting");
+        }
+      }
+    }
   }
   if (session && (session.completed_samples !==
         attempts.filter(row => row.status === "completed").length ||

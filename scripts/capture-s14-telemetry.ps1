@@ -19,7 +19,9 @@ function Write-JsonLine([string]$Path, [object]$Value) {
 
 function Invoke-BoundedProcess([string]$FilePath, [string[]]$Arguments,
         [int]$TimeoutMilliseconds) {
-    $start = [Diagnostics.Stopwatch]::GetTimestamp()
+    # The approved deadline begins at the subprocess start request. Cleanup is
+    # evidence, but it is not part of a falsely successful normal completion.
+    $watch = [Diagnostics.Stopwatch]::StartNew()
     $info = [Diagnostics.ProcessStartInfo]::new()
     $info.FileName = $FilePath
     $info.UseShellExecute = $false
@@ -31,21 +33,63 @@ function Invoke-BoundedProcess([string]$FilePath, [string[]]$Arguments,
     }
     $process = [Diagnostics.Process]::new()
     $process.StartInfo = $info
-    if (-not $process.Start()) { throw "Failed to start $FilePath." }
-    $completed = $process.WaitForExit($TimeoutMilliseconds)
-    if (-not $completed) {
-        try { $process.Kill($true) } catch { }
-        $process.WaitForExit()
+    $started = $false
+    $completed = $false
+    $stdoutTask = $null
+    $stderrTask = $null
+    try {
+        $started = $process.Start()
+        if (-not $started) { throw "Failed to start $FilePath." }
+        $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+        $stderrTask = $process.StandardError.ReadToEndAsync()
+        $remaining = [Math]::Max(0, $TimeoutMilliseconds -
+            [int][Math]::Ceiling($watch.Elapsed.TotalMilliseconds))
+        $completed = $process.WaitForExit($remaining)
+        if ($completed) {
+            $remaining = [Math]::Max(0, $TimeoutMilliseconds -
+                [int][Math]::Ceiling($watch.Elapsed.TotalMilliseconds))
+            $completed = $stdoutTask.Wait($remaining)
+            if ($completed) {
+                $remaining = [Math]::Max(0, $TimeoutMilliseconds -
+                    [int][Math]::Ceiling($watch.Elapsed.TotalMilliseconds))
+                $completed = $stderrTask.Wait($remaining)
+            }
+        }
+    } catch {
+        if (-not $started) { throw }
+        $completed = $false
     }
-    $stdout = $process.StandardOutput.ReadToEnd()
-    $stderr = $process.StandardError.ReadToEnd()
-    $duration = ([Diagnostics.Stopwatch]::GetTimestamp() - $start) * 1000.0 /
-        [Diagnostics.Stopwatch]::Frequency
+    $deadlineDuration = $watch.Elapsed.TotalMilliseconds
+    $completed = $completed -and $deadlineDuration -le $TimeoutMilliseconds
+    $cleanupDuration = 0.0
+    $cleanupStatus = 'not-required'
+    if (-not $completed) {
+        $cleanupWatch = [Diagnostics.Stopwatch]::StartNew()
+        $cleanupStatus = 'completed'
+        try { if (-not $process.HasExited) { $process.Kill($true) } }
+            catch { $cleanupStatus = 'failed' }
+        try { $process.WaitForExit() } catch { $cleanupStatus = 'failed' }
+        try { if ($null -ne $stdoutTask) { $stdoutTask.Wait() } }
+            catch { $cleanupStatus = 'failed' }
+        try { if ($null -ne $stderrTask) { $stderrTask.Wait() } }
+            catch { $cleanupStatus = 'failed' }
+        $cleanupDuration = $cleanupWatch.Elapsed.TotalMilliseconds
+    }
+    $stdout = if ($null -ne $stdoutTask -and $stdoutTask.IsCompletedSuccessfully) {
+        $stdoutTask.Result
+    } else { '' }
+    $stderr = if ($null -ne $stderrTask -and $stderrTask.IsCompletedSuccessfully) {
+        $stderrTask.Result
+    } else { '' }
     [pscustomobject]@{
         status = if (-not $completed) { 'timeout' }
             elseif ($process.ExitCode -ne 0) { 'failed' } else { 'completed' }
         exit_code = if ($completed) { $process.ExitCode } else { $null }
-        duration_ms = $duration
+        duration_ms = $deadlineDuration
+        normal_completion_duration_ms = if ($completed) { $deadlineDuration }
+            else { $null }
+        cleanup_duration_ms = $cleanupDuration
+        cleanup_status = $cleanupStatus
         stdout = $stdout
         stderr = $stderr
     }
@@ -63,6 +107,12 @@ if ($Mode -eq 'SelfTest') {
         'Start-Sleep -Milliseconds 1000') 100
     if ($timedOut.status -ne 'timeout') {
         throw 'S14 bounded-process timeout self-test failed.'
+    }
+    if ($null -ne $timedOut.normal_completion_duration_ms -or
+            $timedOut.cleanup_duration_ms -lt 0 -or
+            $timedOut.cleanup_status -ne 'completed' -or
+            $timedOut.duration_ms -gt 250) {
+        throw 'S14 bounded-process deadline/cleanup accounting self-test failed.'
     }
     Write-Output 'S14 telemetry collector self-test: passed'
     return
@@ -200,9 +250,17 @@ try {
             metric_status = $metric.status
             metric_exit_code = $metric.exit_code
             metric_duration_ms = $metric.duration_ms
+            metric_normal_completion_duration_ms =
+                $metric.normal_completion_duration_ms
+            metric_cleanup_duration_ms = $metric.cleanup_duration_ms
+            metric_cleanup_status = $metric.cleanup_status
             process_status = $process.status
             process_exit_code = $process.exit_code
             process_duration_ms = $process.duration_ms
+            process_normal_completion_duration_ms =
+                $process.normal_completion_duration_ms
+            process_cleanup_duration_ms = $process.cleanup_duration_ms
+            process_cleanup_status = $process.cleanup_status
             status = $attemptStatus
         })
         if ($attemptStatus -eq 'completed') {

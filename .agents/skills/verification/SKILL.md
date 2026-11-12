@@ -25,7 +25,11 @@ Discover commands from repository configuration or authoritative instructions. N
 5. Classify every check as planned, passed, failed, skipped, or blocked and retain exact command/result evidence.
 6. If a required GPU or compatible CUDA environment is unavailable, mark GPU-dependent verification `blocked`; never mark it passed or treat a CPU-only substitute as equivalent.
 
+For the Owner-approved optional/secondary V5 Batch Optimization experiment, Codex may add and debug non-performance correctness and integrity tests and execute permitted non-GPU checks. Codex must not execute GPU diagnostics, GPU tests, preflight, or formal benchmarks; record those as requiring separate Owner authorization and execution, never as passed. The November 12, 2026 V5-A audit and Owner approval need not be repeated merely because concrete API or kernel details were left to routine engineering judgment. Do not invent a V5 design carrier, approval ID, signed record, or historical approval of those details.
+
 Correctness must be accepted before performance can be accepted for the relevant revision and configuration.
+
+The V5 actor restriction does not alter the approved correctness or numerical criteria, applicable CPU baselines, timing boundaries, confidence intervals, telemetry policy, or evidence-acceptance rules. A material change to any of those requires Owner review.
 
 ## Development-loop behavior
 

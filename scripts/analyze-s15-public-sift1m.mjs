@@ -323,6 +323,29 @@ function evaluateEnvironment(directory, manifest, config) {
     if (row.status!=="completed" || row.metric_status!=="completed" || row.process_status!=="completed") add("telemetry-query-failed-or-timeout");
     if(Number(row.metric_duration_ms)>900 || Number(row.process_duration_ms)>900)
       add("telemetry-query-duration-exceeded-timeout-policy");
+    const correctedFields=["metric_normal_completion_duration_ms",
+      "metric_cleanup_duration_ms","metric_cleanup_status",
+      "process_normal_completion_duration_ms","process_cleanup_duration_ms",
+      "process_cleanup_status"];
+    const correctedCount=correctedFields.filter(field=>field in row).length;
+    if(correctedCount!==0&&correctedCount!==correctedFields.length)
+      fail("partial corrected telemetry deadline accounting");
+    if(correctedCount===correctedFields.length){
+      for(const prefix of ["metric","process"]){
+        const normal=row[`${prefix}_normal_completion_duration_ms`];
+        const cleanup=Number(row[`${prefix}_cleanup_duration_ms`]);
+        const cleanupStatus=row[`${prefix}_cleanup_status`];
+        if(!Number.isFinite(cleanup)||cleanup<0)
+          fail("malformed corrected telemetry cleanup duration");
+        if(row[`${prefix}_status`]==="completed"){
+          if(!Number.isFinite(Number(normal))||Number(normal)<0||Number(normal)>900||
+              cleanup!==0||cleanupStatus!=="not-required")
+            fail("completed telemetry query violates corrected deadline accounting");
+        }else if(normal!==null||!["completed","failed"].includes(cleanupStatus)){
+          fail("timed-out telemetry query violates corrected cleanup accounting");
+        }
+      }
+    }
   }
   const expectedUuid=String(environment.gpu_snapshot?.[0]??"").split(",")[1]?.trim()
     .toLowerCase().replace(/^gpu-/,"").replaceAll("-","");

@@ -1,0 +1,102 @@
+{
+  "schema_version": "V5-BATCH-OPTIMIZATION-CONFIG-v1-PROPOSED",
+  "experiment_policy_status": "PROPOSED / NOT OWNER-APPROVED",
+  "activation": "diagnostic and formal modes require a separate Owner policy-approval file binding this config SHA-256",
+  "approval_record": "docs/governance/V5BatchOptimizationApprovalRecord.md",
+  "workload": {
+    "class": "optional-secondary-batch-optimization",
+    "dataset": "INRIA TexMex ANN_SIFT1M",
+    "candidate_counts": [1024, 16384, 262144, 1000000],
+    "dimension": 128,
+    "batch_sizes": [8, 32, 128],
+    "mandatory_workloads": 12,
+    "query_buffer_count": 128,
+    "query_formula": "q[k]=floor(k*9999/127), k=0..127",
+    "prefix_policy": "B=8 and B=32 use prefixes of the same ordered 128-query buffer; B=128 uses the complete buffer",
+    "base_file": {
+      "name": "sift_base.fvecs",
+      "bytes": 516000000,
+      "sha256": "21f66e2975057b5728ba56de1c825bac4f4d89d596609ae985741c6242631816"
+    },
+    "query_file": {
+      "name": "sift_query.fvecs",
+      "bytes": 5160000,
+      "sha256": "f7fc9be140accdfd64116c2fa2365ecdb69b8f084970c6b0532db5ff79ac8fdc"
+    }
+  },
+  "cpu_baseline": "cpu_search_batch_float32",
+  "candidate_space": {
+    "query_tiles": [1, 4, 8],
+    "block_sizes": [128, 256, 512],
+    "configurations_per_workload": 9,
+    "diagnostic_selection": "lowest valid Prepared E2E median per (N,B); ties select smaller query_tile, then smaller block_size",
+    "freeze_before_formal": true
+  },
+  "sampling": {
+    "warmups": 10,
+    "measured_repetitions": 100,
+    "bootstrap_resamples": 2000,
+    "bootstrap_confidence": 0.95,
+    "percentile_method": "linear_n_minus_1",
+    "outlier_exclusion": "none"
+  },
+  "proposed_policy": {
+    "status": "PROPOSED / NOT OWNER-APPROVED",
+    "bootstrap_prng": "FNV-1a-32 identity mix initialized with seed 2166136261, then Numerical-Recipes LCG state=1664525*state+1013904223 modulo 2^32",
+    "bootstrap_identity": "boundary|N|B|query_tile|block_size",
+    "diagnostic_candidate_order": "for workload ordinal w and iteration i, visit all nine lexicographically ordered (query_tile,block_size) candidates in cyclic order beginning at (w+i) mod 9",
+    "formal_lane_order": "for workload ordinal w and iteration i, visit CPU Raw, V5 Raw, V5 Prepared, and V5 Kernel in cyclic order beginning at (w+i) mod 4",
+    "schema_family": "V5-BATCH-*-v1 with explicit phase, revision, tree state, config/freeze/correctness identity, timing boundary, and environment identity fields"
+  },
+  "timing_boundaries": {
+    "CPU-BATCH-RAW": "existing CPU Float32 batch API entry through synchronous host result return; dataset and query validation included",
+    "V5-BATCH-RAW": "V5 raw one-shot API entry through synchronous host batch result return, including validation, layout construction, allocations, transfers, kernels, synchronization, and call-owned cleanup",
+    "V5-BATCH-PREPARED": "V5 prepared synchronous API entry through host result return with prepared dataset and compatible workspace reused; validation, query/result transfers, kernels, and synchronization included; persistent destruction excluded",
+    "V5-BATCH-KERNEL": "CUDA events after query H2D and before result D2H around the complete V5 distance and final-reduction kernel sequence on device-resident prepared state",
+    "V5-PREPARED-DATASET-CONSTRUCTION": "V5 dataset preparation entry through synchronous return; persistent destruction excluded",
+    "V5-WORKSPACE-CONSTRUCTION": "V5 workspace construction entry through synchronous return; persistent destruction excluded",
+    "V5-PREPARED-READY-CONSTRUCTION": "V5 dataset preparation entry through compatible workspace construction return; persistent destruction excluded"
+  },
+  "primary_comparison": {
+    "speedup": "CPU Batch Raw median / GPU V5 Raw median",
+    "conservative_95_ci": "[CPU_ci_low/GPU_ci_high, CPU_ci_high/GPU_ci_low]",
+    "workload_pass": "lower 95% CI > 1.0",
+    "experiment_pass": "all 12 workloads pass and completeness, identity, correctness, telemetry, and environment gates are accepted"
+  },
+  "secondary_results": [
+    "V5-BATCH-PREPARED",
+    "V5-BATCH-KERNEL",
+    "V5-PREPARED-DATASET-CONSTRUCTION",
+    "V5-WORKSPACE-CONSTRUCTION",
+    "V5-PREPARED-READY-CONSTRUCTION",
+    "amortization",
+    "break-even"
+  ],
+  "break_even": {
+    "point": "floor(median(prepared-ready)/(median(CPU Raw)-median(V5 Prepared)))+1 when denominator>0",
+    "conservative": "floor(prepared-ready_ci_high/(CPU Raw_ci_low-V5 Prepared_ci_high))+1 when denominator>0",
+    "unit": "batches; total queries = batches*B",
+    "persistent_resource_destruction": "excluded; not a complete lifetime cost"
+  },
+  "correctness_gate": {
+    "required_before_diagnostic_or_formal": true,
+    "all_12_workloads_required": true,
+    "all_9_candidates_per_workload_required_before_selection": true,
+    "v5_methods_per_candidate": ["raw", "prepared"],
+    "cpu_float32": true,
+    "gpu_float32": true,
+    "float64_reference": true,
+    "argmin_distance_and_ambiguity_separate": true,
+    "matching_clean_revision_required": true
+  },
+  "environment_policy": {
+    "telemetry_required": true,
+    "telemetry_interval_ms": 1000,
+    "maximum_accepted_start_gap_ms": 3000,
+    "telemetry_query_timeout_ms": 900,
+    "experiment_process_names": ["v5_batch_benchmark.exe"],
+    "incomplete_or_contaminated_action": "reject evidence; never assign PASS"
+  },
+  "fast_math": "disabled",
+  "historical_evidence_policy": "S14/S15 inputs may be reused when compatible; historical results and artifacts are immutable"
+}
