@@ -1,7 +1,7 @@
 # V5 Batch Formal Results Report
 
-Status: **FINAL — primary outcome `FAIL`**  
-Experiment: `V5-FORMAL-20261112-02`  
+Status: **FINAL — primary outcome `FAIL`**
+Experiment: `V5-FORMAL-20261112-02`
 Formal artifact source: `D:\v5-formal-20261112-02`
 
 ## 1. Identity and scope
