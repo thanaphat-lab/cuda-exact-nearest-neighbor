@@ -1,0 +1,14 @@
+{
+  "schema_version": "V5-ENVIRONMENT-v1",
+  "status": "accepted",
+  "revision": "f2e10d8f620b1fbd45403aae3b0c1c60eb815236",
+  "experiment_config_sha256": "8ac84503f525559cc40f01506f8a89f93c55273079adcb7e0ad2eeaae8b3615f",
+  "fast_math": "disabled",
+  "cuda_architecture": "86",
+  "build_flags": "\"D:\\NVIDIA GPU Computing Toolkit\\CUDA\\v13.3\\bin\\nvcc.exe\" -forward-unknown-to-host-compiler -I\"D:\\ku\\Parallel Project\\include\" -isystem \"D:\\NVIDIA GPU Computing Toolkit\\CUDA\\v13.3\\include\" -isystem \"D:\\NVIDIA GPU Computing Toolkit\\CUDA\\v13.3\\include\\cccl\" -D_WINDOWS -Xcompiler=\" /EHsc\" -Xcompiler=\"-O2 -Ob2\" -DNDEBUG -std=c++17 \"--generate-code=arch=compute_86,code=[compute_86,sm_86]\" -Xcompiler=-MD --ftz=false --fmad=true --prec-div=true --prec-sqrt=true --generate-line-info -Xcompiler=/W4 -Xcompiler=/WX -Xcompiler=/wd4211 -Xcompiler=/fp:strict -Xcompiler=/permissive- -x cu -c \"D:\\ku\\Parallel Project\\src\\cuda_v5.cu\" -o CMakeFiles\\cuda_v5.dir\\src\\cuda_v5.cu.obj -Xcompiler=-FdCMakeFiles\\cuda_v5.dir\\cuda_v5.pdb,-FS || C:\\PROGRA~1\\MIB055~1\\18\\COMMUN~1\\VC\\Tools\\MSVC\\1451~1.362\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DV5_BENCHMARK_REVISION=\\\"f2e10d8f620b1fbd45403aae3b0c1c60eb815236\\\" -DV5_BENCHMARK_TREE_STATE=\\\"clean\\\" -I\"D:\\ku\\Parallel Project\\benchmarks\" -I\"D:\\ku\\Parallel Project\\include\" -I\"D:\\ku\\Parallel Project\\build-v5-b-local-sm86\\generated\" -external:I\"D:\\NVIDIA GPU Computing Toolkit\\CUDA\\v13.3\\include\" -external:I\"D:\\NVIDIA GPU Computing Toolkit\\CUDA\\v13.3\\include\\cccl\" -external:W0 /DWIN32 /D_WINDOWS /EHsc /O2 /Ob2 /DNDEBUG -std:c++17 -MD /W4 /WX /fp:strict /permissive- /FoCMakeFiles\\v5_batch_benchmark.dir\\benchmarks\\v5_batch_benchmark.cpp.obj /FdCMakeFiles\\v5_batch_benchmark.dir\\ /FS -c \"D:\\ku\\Parallel Project\\benchmarks\\v5_batch_benchmark.cpp\"",
+  "gpu_name": "NVIDIA GeForce RTX 3060 Laptop GPU",
+  "gpu_uuid": "GPU-6119f54a-ff96-d0a6-df23-0b48a8bd991f",
+  "driver_version": "617.14",
+  "memory_total_mib": "6144",
+  "pre_measurement_compute_process_count": 0
+}

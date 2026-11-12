@@ -1,8 +1,8 @@
 # Source of Truth
 
 Status: Canonical governance record\
-Milestone: S15 — Approved public SIFT1M benchmark design; S6 contracts retained\
-Effective date: 2026-11-11 (Asia/Bangkok)
+Milestone: S15 — Accepted public SIFT1M dataset provenance; S6 contracts retained\
+Effective date: 2026-11-12 (Asia/Bangkok)
 
 ## 1. Canonical sources
 
@@ -15,6 +15,9 @@ Effective date: 2026-11-11 (Asia/Bangkok)
 | Design approval evidence | [S6DesignApprovalRecord.md](S6DesignApprovalRecord.md) | Approval ID, source manifest, COND-01–03, scope, provenance limitations and authorization boundary. |
 | Approved experiment design | [S15PublicSift1mBenchmarkDesignDecision-v1.0.md](../design/S15PublicSift1mBenchmarkDesignDecision-v1.0.md) | Owner-approved formal public SIFT1M single-query experiment matrix, correctness prerequisite, timing/statistical method, performance interpretation, dataset identity and evidence-integrity design. It supplements rather than replaces required synthetic core evidence and does not authorize formal performance execution. |
 | Experiment-design approval evidence | [S15PublicSift1mBenchmarkApprovalRecord.md](S15PublicSift1mBenchmarkApprovalRecord.md) | Exact approved candidate SHA-256, all 12 confirmed decisions, approval date and role, implementation/correctness-integrity authorization, absence of an assigned approval ID, and the separate Owner gate for formal performance benchmark execution. |
+| Dataset-provenance acceptance evidence | [S15DatasetProvenanceRecoveryRecord.md](S15DatasetProvenanceRecoveryRecord.md) | Transcript-bound recovery of the public SIFT1M acquisition and extraction invocations, observed timestamps, archive and extracted-file identities, preserved historical unknowns, and Project Owner acceptance for prospective S15 use. It does not alter S10–S14 evidence or authorize formal performance execution. |
+| V5 approval evidence | [V5BatchOptimizationApprovalRecord.md](V5BatchOptimizationApprovalRecord.md) | Records the conversational November 12, 2026 Owner approval and V5-B authorization, its optional/secondary scope and the subsequently supplied frozen V5-A experiment requirements, while distinguishing newly selected engineering details and prospective policy proposals. It is not a hash-bound design carrier and assigns no approval ID. |
+| Observed V5 Formal evidence | [V5 Formal Results Report](../experiments/V5-BATCH-FORMAL-20261112-02/ResultsReport.md) and retained [evidence](../experiments/V5-BATCH-FORMAL-20261112-02/evidence/) | Final result for `V5-FORMAL-20261112-02` at revision `f2e10d8f620b1fbd45403aae3b0c1c60eb815236`: primary `FAIL`, 10/12 mandatory workloads passed, 2/12 failed, and all non-performance gates accepted. This optional/secondary V5 evidence does not alter V0-V4, historical evidence, or the primary Single Query designation. |
 | 2 | [DecisionRegister.md](DecisionRegister.md) | Status and history of approved, design-resolved, measurement-dependent and unresolved decisions. It records but does not override the specification or numerical policy. |
 | Operational | [DevelopmentAndMergePolicy.md](DevelopmentAndMergePolicy.md) | Approved branch, pull-request, human-review, CI, merge, and emergency process. It governs repository operation but cannot amend project semantics. |
 | 3 | [AcceptanceCriteria.md](../requirements/AcceptanceCriteria.md) | Observable gates derived from the approved specification. |
@@ -35,6 +38,31 @@ authorizes implementation and correctness/integrity verification, and retains a
 separate explicit Owner gate for formal performance benchmark execution. It
 does not amend the canonical S6 numerical policy or replace synthetic V0–V3
 core evidence.
+
+The S15 dataset provenance recovery record is the accepted source for the
+prospective S15 acquisition and extraction history. The Project Owner accepted
+it on 2026-11-12 (Asia/Bangkok) after direct verification of the identified
+Codex transcript, its SHA-256 and cited records, and corroboration against the
+retained external files. Historical executable identities and the server-issued
+acquisition timestamp remain explicitly unknown. This acceptance does not pass
+revision-bound runtime gates or authorize the formal performance benchmark.
+
+The V5 approval record preserves the Owner-reported V5-A audit approval and
+V5-B authorization without manufacturing a design carrier, checksum, or
+approval identifier. The canonical specification and S6 numerical policy
+continue to control. The recovered workload, query-selection, candidate-space,
+sampling, confidence-interval, acceptance, timing, selection/freeze, and
+telemetry requirements are frozen as recorded there. The bootstrap PRNG seed,
+exact candidate/lane rotation, and certain schema details remain prospective
+policy proposals; Diagnostic and Formal execution require an Owner approval
+binding their exact configured values.
+
+The final observed V5 Formal evidence is retained under
+`docs/experiments/V5-BATCH-FORMAL-20261112-02/`. Its primary outcome is `FAIL`:
+10 of 12 mandatory workloads passed and 2 failed, while completeness, identity,
+correctness, telemetry, and environment gates were accepted. The frozen result
+is evidence for the optional/secondary V5 Batch experiment only; it does not
+change the historical V0-V4 taxonomy or the primary Single Query workload.
 
 ## 2. Statement classes
 

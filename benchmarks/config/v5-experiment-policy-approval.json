@@ -1,0 +1,9 @@
+{
+    "schema_version":  "V5-EXPERIMENT-POLICY-APPROVAL-v1",
+    "status":  "OWNER-APPROVED",
+    "approved_at":  "2026-11-12T05:02:07Z",
+    "approved_by_role":  "Project Owner",
+    "experiment_config_sha256":  "8ac84503f525559cc40f01506f8a89f93c55273079adcb7e0ad2eeaae8b3615f",
+    "approved_proposed_policy_sha256":  "14b681ac466267e90e35e89430cc0374a3f799e75f1bd3ccc6030e3ab08dd730",
+    "note":  "This template is inert. Copy it outside historical evidence, complete it, and bind the exact proposed policy before Diagnostic or Formal execution."
+}

@@ -16,6 +16,8 @@ Coordinate one continuous local development loop. Specialist skills provide focu
 
 The Owner's scoped change request authorizes ordinary repository-local edits plus checked-in build, test, validation, benchmark, and debug commands needed to complete that scope. It does not authorize scope expansion, contract changes, dependency installation, environment changes, destructive actions, or Git/GitHub mutations.
 
+For the optional/secondary V5 Batch Optimization experiment, the November 12, 2026 V5-A audit and Owner approval already authorize implementation within the approved scope. Do not repeat the audit or seek renewed approval only because concrete APIs, kernel structure, or other routine engineering details were not prescribed. Codex may select and document such details when compatible with approved numerical and experimental contracts; this does not make them historically approved. Do not invent a V5 design carrier, approval ID, or signed record. V5 does not redefine V0-V4 or the primary single-query designation.
+
 ## Lean development loop
 
 Use [workflow-state.json](references/workflow-state.json) as the compact policy model:
@@ -31,6 +33,8 @@ After validation:
 - Route material correctness or design risk to a read-only ChatGPT review. Findings return to the same working loop when the fix is in scope.
 - Bypass a separate review stage for routine changes already covered by approved contracts and design.
 - Hand the final diff and evidence to the Owner. Codex and ChatGPT never perform Git or GitHub mutations.
+
+For V5, Codex may implement and debug the approved work, including non-performance correctness and integrity test code and permitted non-GPU execution. Codex must not execute GPU diagnostics, GPU tests, preflight, or formal benchmarks; the Owner must authorize and execute those separately. Changes to material scope, numerical behavior, experimental policy, acceptance, timing boundaries, confidence intervals, telemetry, or evidence interpretation require Owner review. Preserve all applicable CPU baselines and correctness gates.
 
 Use [routing-matrix.md](references/routing-matrix.md) for bounded tasks and [project-contracts.md](references/project-contracts.md) for source responsibilities. Use [artifact-requirements.md](references/artifact-requirements.md) for the final evidence packet.
 

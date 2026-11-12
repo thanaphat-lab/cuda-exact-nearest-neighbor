@@ -1,0 +1,9 @@
+{
+  "schema_version": "V5-EXPERIMENT-POLICY-APPROVAL-v1",
+  "status": "OWNER-APPROVED",
+  "approved_at": "OWNER-FILLS-RFC3339-TIMESTAMP",
+  "approved_by_role": "Project Owner",
+  "experiment_config_sha256": "OWNER-FILLS-64-LOWERCASE-HEX",
+  "approved_proposed_policy_sha256": "OWNER-FILLS-SHA256-OF-CANONICAL-proposed_policy-JSON",
+  "note": "This template is inert. Copy it outside historical evidence, complete it, and bind the exact proposed policy before Diagnostic or Formal execution."
+}

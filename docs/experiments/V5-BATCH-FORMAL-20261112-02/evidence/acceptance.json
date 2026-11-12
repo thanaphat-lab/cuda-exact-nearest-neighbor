@@ -1,0 +1,11 @@
+{
+  "schema_version": "V5-ACCEPTANCE-v1",
+  "completeness_gate": "accepted",
+  "identity_gate": "accepted",
+  "correctness_gate": "accepted",
+  "telemetry_gate": "accepted",
+  "environment_gate": "accepted",
+  "mandatory_workload_count": 12,
+  "primary_rule": "lower 95% speedup CI > 1.0 for all 12 workloads",
+  "primary_outcome": "FAIL"
+}
